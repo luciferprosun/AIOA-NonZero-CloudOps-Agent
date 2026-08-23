@@ -15,7 +15,7 @@ AWS mutations are globally disabled by default. Configuration enabling AWS write
 
 ## IAM Boundary
 
-The active `CloudOpsReadOnlyRole` design grants only `ec2:DescribeInstances` for `inspect_instance`. That action does not support resource-level scoping, so the documented `Resource: "*"` limitation is constrained by the exact action, an `eu-central-1` condition, and application checks for one configured instance ID plus its required sandbox tag.
+The active `CloudOpsReadOnlyRole` design grants only `ec2:DescribeInstances` for `inspect_instance` and `cloudwatch:GetMetricStatistics` for `read_utilization_metrics`. These read APIs do not support useful resource-level scoping, so the documented `Resource: "*"` limitation is constrained by the exact actions, an `eu-central-1` condition, and application checks for one configured instance ID, its required sandbox tag, and a fixed metric request.
 
 No remediation policy is active. A future `stop_sandbox_instance` policy must remain separate and cannot be introduced before explicit authority, human approval, and least-privilege review are implemented. Templates contain no account ID, principal, credential, trust policy, or secret, and nothing was deployed.
 

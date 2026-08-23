@@ -12,12 +12,23 @@ from .agent import (
     get_bedrock_model_capabilities,
 )
 from .durable import DynamoDbSettings
+from .investigation import (
+    DEMO_CPU_IDLE_THRESHOLD_PERCENT,
+    DEMO_METRIC_PERIOD_SECONDS,
+    DEMO_MINIMUM_DATAPOINTS,
+    DEMO_OBSERVATION_WINDOW_MINUTES,
+    IdlePolicySettings,
+)
 from .settings import AwsSettings, CostGuardrails, DynamoDbBillingMode
 
 __all__ = [
     "DEFAULT_BEDROCK_MODEL_ID",
     "DEFAULT_BEDROCK_REGION",
     "DEFAULT_MODEL_TEMPERATURE",
+    "DEMO_CPU_IDLE_THRESHOLD_PERCENT",
+    "DEMO_METRIC_PERIOD_SECONDS",
+    "DEMO_MINIMUM_DATAPOINTS",
+    "DEMO_OBSERVATION_WINDOW_MINUTES",
     "DETERMINISTIC_TEMPERATURE_POLICY",
     "NOVA_2_LITE_MAX_TEMPERATURE",
     "NOVA_2_LITE_MIN_TEMPERATURE",
@@ -27,5 +38,6 @@ __all__ = [
     "CostGuardrails",
     "DynamoDbBillingMode",
     "DynamoDbSettings",
+    "IdlePolicySettings",
     "get_bedrock_model_capabilities",
 ]

@@ -4,7 +4,7 @@ These policy documents are public-safe design templates only. They were not depl
 
 ## CloudOpsReadOnlyRole
 
-`cloudops-read-only-policy.json` permits only `ec2:DescribeInstances` for the canonical `inspect_instance` tool. The AWS EC2 Service Authorization Reference does not support resource-level scoping for this action, so the policy requires `Resource: "*"`. The application therefore independently requires one configured instance ID and a matching sandbox tag before accepting the result. The statement limits requests to `eu-central-1` and grants no mutation action.
+`cloudops-read-only-policy.json` permits only `ec2:DescribeInstances` and `cloudwatch:GetMetricStatistics` for the canonical `inspect_instance` and `read_utilization_metrics` tools. These read APIs do not support useful resource-level scoping, so the policy requires `Resource: "*"`. The application independently requires one configured instance ID, matching sandbox tag proof, fixed namespace/metric/dimension, and `eu-central-1`. The policy grants no write or mutation action.
 
 ## CloudOpsRemediationRole
 

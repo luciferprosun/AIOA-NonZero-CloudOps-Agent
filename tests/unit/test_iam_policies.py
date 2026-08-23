@@ -15,10 +15,13 @@ def _policy_actions(policy: dict[str, object]) -> list[str]:
     return actions
 
 
-def test_active_cloudops_policy_allows_only_targeted_inspection_api() -> None:
+def test_active_cloudops_policy_allows_only_targeted_read_apis() -> None:
     policy = json.loads(READ_ONLY_POLICY_PATH.read_text(encoding="utf-8"))
 
-    assert _policy_actions(policy) == ["ec2:DescribeInstances"]
+    assert _policy_actions(policy) == [
+        "ec2:DescribeInstances",
+        "cloudwatch:GetMetricStatistics",
+    ]
     statement = policy["Statement"][0]
     assert statement["Effect"] == "Allow"
     assert statement["Condition"] == {
