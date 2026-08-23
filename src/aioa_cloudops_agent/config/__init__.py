@@ -11,6 +11,7 @@ from .agent import (
     BedrockSettings,
     get_bedrock_model_capabilities,
 )
+from .durable import DynamoDbSettings
 from .settings import AwsSettings, CostGuardrails, DynamoDbBillingMode
 
 __all__ = [
@@ -25,5 +26,6 @@ __all__ = [
     "BedrockSettings",
     "CostGuardrails",
     "DynamoDbBillingMode",
+    "DynamoDbSettings",
     "get_bedrock_model_capabilities",
 ]

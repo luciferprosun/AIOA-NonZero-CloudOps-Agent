@@ -1,0 +1,411 @@
+"""DynamoDB adapter for the canonical write-before-execute NZ records."""
+
+from collections.abc import Mapping
+from datetime import datetime
+from uuid import UUID
+
+from pydantic import BaseModel
+
+from aioa_cloudops_agent.config import DynamoDbSettings
+from aioa_cloudops_agent.nz import (
+    ActionProposal,
+    ActionResult,
+    Approval,
+    ApprovalDecision,
+    AuditEvent,
+    Checkpoint,
+    IdempotencyRecord,
+    IdempotencyStatus,
+    ProposalState,
+    Run,
+    WorkflowState,
+    transition_run,
+)
+from aioa_cloudops_agent.nz.errors import StorageConflictError, StorageDependencyError
+
+from .durable_keys import (
+    approval_decision_key,
+    audit_event_key,
+    checkpoint_key,
+    proposal_key,
+    run_key,
+    semantic_idempotency_key,
+)
+from .durable_logic import completed_idempotency_status, transitioned_proposal
+from .dynamodb import DynamoDbClient
+from .keys import DynamoKey
+from .semantic_idempotency import derive_action_fingerprint, derive_idempotency_key
+from .serialization import DynamoAttribute, deserialize_record, serialize_record
+
+DynamoItem = dict[str, DynamoAttribute]
+
+
+def _string(value: str) -> DynamoAttribute:
+    return {"S": value}
+
+
+def _number(value: int) -> DynamoAttribute:
+    return {"N": str(value)}
+
+
+def _conditional_check_failed(error: Exception) -> bool:
+    response = getattr(error, "response", None)
+    if not isinstance(response, Mapping):
+        return False
+    details = response.get("Error")
+    return isinstance(details, Mapping) and details.get("Code") == (
+        "ConditionalCheckFailedException"
+    )
+
+
+class DynamoDbDurableTruthRepository:
+    """Fail-closed item repository with no scan, delete, or AWS action API."""
+
+    def __init__(self, client: DynamoDbClient, settings: DynamoDbSettings) -> None:
+        if not isinstance(settings, DynamoDbSettings):
+            raise TypeError("settings must be DynamoDbSettings")
+        self._client = client
+        self._settings = settings
+
+    @property
+    def table_name(self) -> str:
+        return self._settings.table_name
+
+    @staticmethod
+    def _item(
+        key: DynamoKey,
+        entity_type: str,
+        record: BaseModel,
+        **indexed: DynamoAttribute,
+    ) -> DynamoItem:
+        return {
+            **key.as_item(),
+            "entity_type": _string(entity_type),
+            "record": serialize_record(record),
+            **indexed,
+        }
+
+    def _put_create(
+        self,
+        key: DynamoKey,
+        entity_type: str,
+        record: BaseModel,
+        **indexed: DynamoAttribute,
+    ) -> None:
+        try:
+            self._client.put_item(
+                TableName=self.table_name,
+                Item=self._item(key, entity_type, record, **indexed),
+                ConditionExpression="attribute_not_exists(PK) AND attribute_not_exists(SK)",
+            )
+        except Exception as error:
+            if _conditional_check_failed(error):
+                raise StorageConflictError(f"{entity_type} record already exists") from error
+            raise StorageDependencyError(f"unable to create {entity_type} record") from error
+
+    def _read[RecordType: BaseModel](
+        self,
+        key: DynamoKey,
+        entity_type: str,
+        model_type: type[RecordType],
+    ) -> RecordType | None:
+        try:
+            response = self._client.get_item(
+                TableName=self.table_name,
+                Key=key.as_item(),
+                ConsistentRead=self._settings.consistent_reads,
+            )
+        except Exception as error:
+            raise StorageDependencyError(f"unable to read {entity_type} record") from error
+        if not isinstance(response, Mapping):
+            raise StorageDependencyError("DynamoDB returned a malformed response")
+        item = response.get("Item")
+        if item is None:
+            return None
+        if not isinstance(item, Mapping):
+            raise StorageDependencyError("DynamoDB returned a malformed item")
+        stored_type = item.get("entity_type")
+        if stored_type != _string(entity_type) or "record" not in item:
+            raise StorageDependencyError("stored item has an unexpected entity contract")
+        return deserialize_record(item["record"], model_type)
+
+    def _update(
+        self,
+        key: DynamoKey,
+        entity_type: str,
+        record: BaseModel,
+        *,
+        condition: str,
+        names: dict[str, str],
+        values: dict[str, DynamoAttribute],
+        indexed_updates: dict[str, DynamoAttribute],
+    ) -> None:
+        update_parts = ["#record = :record"]
+        update_names = {"#record": "record", **names}
+        update_values = {":record": serialize_record(record), **values}
+        for index, (attribute_name, attribute_value) in enumerate(indexed_updates.items()):
+            name_token = f"#update_{index}"
+            value_token = f":update_{index}"
+            update_parts.append(f"{name_token} = {value_token}")
+            update_names[name_token] = attribute_name
+            update_values[value_token] = attribute_value
+        try:
+            self._client.update_item(
+                TableName=self.table_name,
+                Key=key.as_item(),
+                UpdateExpression=f"SET {', '.join(update_parts)}",
+                ConditionExpression=condition,
+                ExpressionAttributeNames=update_names,
+                ExpressionAttributeValues=update_values,
+            )
+        except Exception as error:
+            if _conditional_check_failed(error):
+                raise StorageConflictError(f"{entity_type} conditional write failed") from error
+            raise StorageDependencyError(f"unable to update {entity_type} record") from error
+
+    def create_run(self, run: Run) -> Run:
+        if run.version != 1 or run.state is not WorkflowState.RECEIVED:
+            raise StorageConflictError("new durable run must start at RECEIVED version 1")
+        self._put_create(
+            run_key(run.run_id),
+            "RUN",
+            run,
+            state=_string(run.state.value),
+            version=_number(run.version),
+        )
+        return run
+
+    def get_run(self, run_id: UUID) -> Run | None:
+        return self._read(run_key(run_id), "RUN", Run)
+
+    def transition_run(
+        self,
+        run_id: UUID,
+        next_state: WorkflowState,
+        *,
+        expected_state: WorkflowState,
+        expected_version: int,
+        updated_at: datetime,
+        approval_proposal_id: UUID | None = None,
+    ) -> Run:
+        current = self.get_run(run_id)
+        if current is None:
+            raise StorageConflictError("durable run does not exist")
+        if current.state is not expected_state or current.version != expected_version:
+            raise StorageConflictError("durable run state or version no longer matches")
+        if next_state is WorkflowState.APPROVED:
+            if approval_proposal_id is None:
+                raise StorageConflictError("APPROVED requires a durable proposal decision")
+            proposal = self.get_proposal(approval_proposal_id)
+            approval = self.get_approval(approval_proposal_id)
+            if (
+                proposal is None
+                or proposal.run_id != run_id
+                or proposal.state is not ProposalState.AWAITING_APPROVAL
+                or approval is None
+                or approval.decision is not ApprovalDecision.APPROVED
+            ):
+                raise StorageConflictError("APPROVED requires matching durable human approval")
+        updated = transition_run(current, next_state, updated_at=updated_at)
+        self._update(
+            run_key(run_id),
+            "RUN",
+            updated,
+            condition="#state = :expected_state AND #version = :expected_version",
+            names={"#state": "state", "#version": "version"},
+            values={
+                ":expected_state": _string(expected_state.value),
+                ":expected_version": _number(expected_version),
+            },
+            indexed_updates={
+                "state": _string(updated.state.value),
+                "version": _number(updated.version),
+            },
+        )
+        return updated
+
+    def create_proposal(self, proposal: ActionProposal) -> ActionProposal:
+        if proposal.state is not ProposalState.PROPOSED:
+            raise StorageConflictError("new durable proposal must start at PROPOSED")
+        self._put_create(
+            proposal_key(proposal.proposal_id),
+            "ACTION_PROPOSAL",
+            proposal,
+            state=_string(proposal.state.value),
+        )
+        return proposal
+
+    def get_proposal(self, proposal_id: UUID) -> ActionProposal | None:
+        return self._read(proposal_key(proposal_id), "ACTION_PROPOSAL", ActionProposal)
+
+    def transition_proposal(
+        self,
+        proposal_id: UUID,
+        next_state: ProposalState,
+        *,
+        expected_state: ProposalState,
+    ) -> ActionProposal:
+        current = self.get_proposal(proposal_id)
+        if current is None or current.state is not expected_state:
+            raise StorageConflictError("durable proposal state no longer matches")
+        updated = transitioned_proposal(current, next_state)
+        self._update(
+            proposal_key(proposal_id),
+            "ACTION_PROPOSAL",
+            updated,
+            condition="#state = :expected_state",
+            names={"#state": "state"},
+            values={":expected_state": _string(expected_state.value)},
+            indexed_updates={"state": _string(updated.state.value)},
+        )
+        return updated
+
+    def create_approval(self, approval: Approval) -> Approval:
+        self._put_create(
+            approval_decision_key(approval.proposal_id),
+            "APPROVAL",
+            approval,
+            decision=_string(approval.decision.value),
+        )
+        return approval
+
+    def get_approval(self, proposal_id: UUID) -> Approval | None:
+        return self._read(approval_decision_key(proposal_id), "APPROVAL", Approval)
+
+    def register_idempotency(self, record: IdempotencyRecord) -> IdempotencyRecord:
+        key = semantic_idempotency_key(record.idempotency_key)
+        existing = self.get_idempotency(record.idempotency_key)
+        if existing is not None:
+            if (
+                existing.proposal_id != record.proposal_id
+                or existing.action_fingerprint != record.action_fingerprint
+            ):
+                raise StorageConflictError("idempotency key has incompatible ownership")
+            return existing
+        proposal = self.get_proposal(record.proposal_id)
+        if (
+            proposal is None
+            or proposal.state is not ProposalState.AWAITING_APPROVAL
+            or record.action_fingerprint != derive_action_fingerprint(proposal)
+            or record.idempotency_key != derive_idempotency_key(proposal)
+        ):
+            raise StorageConflictError("idempotency registration lacks a matching proposal")
+        approval = self.get_approval(record.proposal_id)
+        run = self.get_run(proposal.run_id)
+        if approval is None or approval.decision is not ApprovalDecision.APPROVED:
+            raise StorageConflictError("idempotency registration requires human approval")
+        if run is None or run.state is not WorkflowState.APPROVED:
+            raise StorageConflictError("idempotency registration requires an approved run")
+        try:
+            self._put_create(
+                key,
+                "IDEMPOTENCY",
+                record,
+                status=_string(record.status.value),
+                action_fingerprint=_string(record.action_fingerprint),
+            )
+        except StorageConflictError as conflict:
+            existing = self.get_idempotency(record.idempotency_key)
+            if existing is None:
+                raise StorageConflictError(
+                    "idempotency ownership could not be reconciled"
+                ) from conflict
+            if (
+                existing.proposal_id != record.proposal_id
+                or existing.action_fingerprint != record.action_fingerprint
+            ):
+                raise StorageConflictError(
+                    "idempotency key has incompatible ownership"
+                ) from conflict
+            return existing
+        return record
+
+    def get_idempotency(self, idempotency_key: str) -> IdempotencyRecord | None:
+        return self._read(
+            semantic_idempotency_key(idempotency_key),
+            "IDEMPOTENCY",
+            IdempotencyRecord,
+        )
+
+    def complete_idempotency(
+        self,
+        idempotency_key: str,
+        result: ActionResult,
+        *,
+        completed_at: datetime,
+        expected_status: IdempotencyStatus = IdempotencyStatus.REGISTERED,
+    ) -> IdempotencyRecord:
+        current = self.get_idempotency(idempotency_key)
+        if current is None or current.status is not expected_status:
+            raise StorageConflictError("idempotency status no longer matches")
+        values = current.model_dump()
+        values.update(
+            {
+                "status": completed_idempotency_status(result),
+                "action_result": result,
+                "completed_at": completed_at,
+            }
+        )
+        updated = IdempotencyRecord.model_validate(values)
+        self._update(
+            semantic_idempotency_key(idempotency_key),
+            "IDEMPOTENCY",
+            updated,
+            condition="#status = :expected_status AND #fingerprint = :fingerprint",
+            names={"#status": "status", "#fingerprint": "action_fingerprint"},
+            values={
+                ":expected_status": _string(expected_status.value),
+                ":fingerprint": _string(current.action_fingerprint),
+            },
+            indexed_updates={"status": _string(updated.status.value)},
+        )
+        return updated
+
+    def save_checkpoint(
+        self,
+        checkpoint: Checkpoint,
+        *,
+        expected_version: int | None,
+    ) -> Checkpoint:
+        key = checkpoint_key(checkpoint.run_id)
+        if expected_version is None:
+            if checkpoint.version != 1:
+                raise StorageConflictError("new checkpoint must start at version 1")
+            self._put_create(
+                key,
+                "CHECKPOINT",
+                checkpoint,
+                version=_number(checkpoint.version),
+            )
+            return checkpoint
+        current = self.get_checkpoint(checkpoint.run_id)
+        if (
+            current is None
+            or current.version != expected_version
+            or checkpoint.version != expected_version + 1
+        ):
+            raise StorageConflictError("checkpoint version no longer matches")
+        self._update(
+            key,
+            "CHECKPOINT",
+            checkpoint,
+            condition="#version = :expected_version",
+            names={"#version": "version"},
+            values={":expected_version": _number(expected_version)},
+            indexed_updates={"version": _number(checkpoint.version)},
+        )
+        return checkpoint
+
+    def get_checkpoint(self, run_id: UUID) -> Checkpoint | None:
+        return self._read(checkpoint_key(run_id), "CHECKPOINT", Checkpoint)
+
+    def append_audit_event(self, event: AuditEvent) -> AuditEvent:
+        self._put_create(
+            audit_event_key(event.run_id, event.event_id),
+            "AUDIT_EVENT",
+            event,
+        )
+        return event
+
+    def get_audit_event(self, run_id: UUID, event_id: UUID) -> AuditEvent | None:
+        return self._read(audit_event_key(run_id, event_id), "AUDIT_EVENT", AuditEvent)

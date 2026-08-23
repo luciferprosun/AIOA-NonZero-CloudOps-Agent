@@ -1,17 +1,19 @@
-# Non-Zero Persistence
+# Non-Zero Durable Truth
 
-The state table uses string `PK` and `SK` keys with no GSI. It stores independently typed execution metadata, idempotency locks, approval records, and append-only provenance events.
+The canonical workflow contracts persist `Run`, `ActionProposal`, `Approval`, `IdempotencyRecord`, `Checkpoint`, and append-oriented `AuditEvent` records. The existing DynamoDB state-table skeleton remains a single table with string `PK`/`SK` keys, no GSI, `PAY_PER_REQUEST`, and item-level `GetItem`, `PutItem`, and `UpdateItem` authority only.
 
-## Contracts
+## Invariants Implemented
 
-- Correlation IDs are generated and validated as RFC 9562 UUIDv7 values. UUIDv4 and malformed identifiers fail explicitly.
-- Execution state remains exactly `INIT`, `RUNNING`, `PENDING`, `SUCCESS`, or `FAIL`; a missing lifecycle state is invalid.
-- Execution metadata carries UTC creation/update timestamps and a positive version used for optimistic concurrency.
-- Idempotency claims are atomic create-only records guarded by `attribute_not_exists(PK)`; a duplicate raises a typed conflict.
-- State changes require the expected version and current state. A stale writer cannot silently overwrite newer state.
-- Provenance events use ordered keys, immutable contracts, allowlisted attributes, and optional SHA-256 evidence digests. No overwrite or delete API is exposed.
-- Approval is a separate typed status: `NOT_REQUIRED`, `PENDING_APPROVAL`, `APPROVED`, or `REJECTED`.
+- Pydantic contracts retain UUIDv7 identities, closed enums, UTC timestamps, budget counters, hashes, authority, and explicit failure values after DynamoDB serialization and reconstruction.
+- Runs start at `RECEIVED` version 1. State changes require the expected state/version and the application transition table. Entering `APPROVED` additionally requires a separate durable positive `Approval` for the matching proposal.
+- An `ActionProposal` is a write-before-execute object and always remains distinct from approval. Duplicate proposals and decisions are create-only conflicts.
+- Semantic idempotency keys derive from the run, typed action, exact sandbox target, precondition, authority, and evidence—not a random UUID alone. Exact duplicates reconcile to the existing record; incompatible ownership fails explicitly.
+- Checkpoints preserve a versioned last-safe state, resume metadata, and tool/result hashes. Recovery classification distinguishes new, safe-resumable, awaiting-approval, reconciliation-required, and terminal runs without claiming full recovery execution.
+- Audit events are immutable create-only records addressed by UUIDv7 event identity. No overwrite, delete, scan, or table-wide operation exists in the repository contract.
+- Storage absence remains distinguishable from provider failure. DynamoDB failures become explicit retryable dependency errors; production code never silently falls back to the test-only in-memory repository.
 
-When human approval is required, the explicit mapping is `execution_state=PENDING` plus `approval_status=PENDING_APPROVAL`. Approval is not a sixth execution state.
+## Write Before Execute
 
-The adapter uses only item-level DynamoDB operations and has no scan or destructive table operation. Its future IAM policy is restricted to `GetItem`, `PutItem`, and `UpdateItem` on the project state table. Validation uses local fakes; no live DynamoDB write or AWS deployment occurred.
+The durable mechanics support the future sequence `PROPOSE -> durable proposal -> AWAITING_APPROVAL -> durable human APPROVED -> semantic idempotency registration -> EXECUTE -> VERIFY -> durable evidence -> SUCCESS_WITH_EVIDENCE`. The prerequisite loader requires the approved run, awaiting proposal, positive decision, idempotency ownership, and approved checkpoint before a future executor can receive a proof bundle.
+
+This step does **not** implement the EC2 side effect, complete HITL pause/resume, restart reconciliation, production deployment, or end-to-end `SUCCESS_WITH_EVIDENCE`. All validation uses local fakes; no live DynamoDB write or AWS resource mutation occurred.
