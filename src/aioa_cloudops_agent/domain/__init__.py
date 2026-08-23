@@ -1,5 +1,14 @@
 """Typed Non-Zero domain contracts."""
 
+from .aws_boundary import (
+    AwsBoundaryViolationError,
+    AwsOperation,
+    AwsOperationAssessment,
+    AwsOperationClass,
+    HumanApprovalState,
+    assess_aws_operation,
+    classify_aws_operation,
+)
 from .enums import AuthorityGate, ExecutionState
 from .errors import (
     ContractValidationError,
@@ -12,12 +21,19 @@ from .transitions import validate_state_transition
 
 __all__ = [
     "AuthorityGate",
+    "AwsBoundaryViolationError",
+    "AwsOperation",
+    "AwsOperationAssessment",
+    "AwsOperationClass",
     "ContractValidationError",
     "DomainError",
     "ErrorCode",
     "ExecutionBudget",
     "ExecutionContext",
     "ExecutionState",
+    "HumanApprovalState",
     "IllegalStateTransitionError",
+    "assess_aws_operation",
+    "classify_aws_operation",
     "validate_state_transition",
 ]
