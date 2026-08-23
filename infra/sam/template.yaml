@@ -1,0 +1,104 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: Minimal infrastructure skeleton for the AIOA Non-Zero CloudOps Agent
+
+Resources:
+  HealthHttpApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      StageName: "$default"
+
+  HealthFunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Policies:
+        - PolicyName: LambdaLogDelivery
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource:
+                  Fn::Sub: arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${AWS::StackName}-health:*
+
+  HealthFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName:
+        Fn::Sub: /aws/lambda/${AWS::StackName}-health
+      RetentionInDays: 3
+
+  StateTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      SSESpecification:
+        SSEEnabled: true
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+        - AttributeName: SK
+          AttributeType: S
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
+
+  HealthFunction:
+    Type: AWS::Serverless::Function
+    DependsOn: HealthFunctionLogGroup
+    Properties:
+      FunctionName:
+        Fn::Sub: ${AWS::StackName}-health
+      CodeUri: ../../src/
+      Handler: aioa_cloudops_agent.handlers.health.lambda_handler
+      Runtime: python3.12
+      Architectures:
+        - x86_64
+      MemorySize: 256
+      Timeout: 10
+      ReservedConcurrentExecutions: 2
+      Role:
+        Fn::GetAtt:
+          - HealthFunctionRole
+          - Arn
+      Environment:
+        Variables:
+          APP_STAGE: hackathon
+          AWS_MUTATIONS_ENABLED: "false"
+          MODEL_MAX_OUTPUT_TOKENS: "1024"
+          STATE_TABLE_NAME:
+            Ref: StateTable
+      Events:
+        HealthRoute:
+          Type: HttpApi
+          Properties:
+            ApiId:
+              Ref: HealthHttpApi
+            Path: /health
+            Method: GET
+
+Outputs:
+  HealthApiEndpoint:
+    Description: Public health endpoint for the HTTP API default stage
+    Value:
+      Fn::Sub: https://${HealthHttpApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/health
+  HealthFunctionName:
+    Description: Health Lambda function name
+    Value:
+      Ref: HealthFunction
+  StateTableName:
+    Description: Future Non-Zero state and provenance table name
+    Value:
+      Ref: StateTable
