@@ -10,6 +10,7 @@ from aioa_cloudops_agent.nz import (
     Approval,
     AuditEvent,
     Checkpoint,
+    ExecutionAcknowledgement,
     IdempotencyRecord,
     IdempotencyStatus,
     ProposalState,
@@ -75,6 +76,15 @@ class DurableTruthRepository(Protocol):
         expected_status: IdempotencyStatus = IdempotencyStatus.REGISTERED,
     ) -> IdempotencyRecord:
         """Conditionally attach one explicit side-effect result."""
+
+    def record_execution_acknowledgement(
+        self,
+        idempotency_key: str,
+        acknowledgement: ExecutionAcknowledgement,
+        *,
+        expected_status: IdempotencyStatus = IdempotencyStatus.REGISTERED,
+    ) -> IdempotencyRecord:
+        """Conditionally persist one provider receipt without claiming completion."""
 
     def save_checkpoint(
         self,

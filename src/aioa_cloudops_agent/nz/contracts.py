@@ -13,6 +13,7 @@ from .enums import (
     ApprovalDecision,
     AuditEventType,
     Capability,
+    ExecutionAcknowledgementStatus,
     IdempotencyStatus,
     ObservedInstanceState,
     ProposalState,
@@ -233,6 +234,28 @@ class ActionResult(NonZeroContract):
         return self
 
 
+class ExecutionAcknowledgement(NonZeroContract):
+    """Safe provider receipt that cannot represent post-action verification."""
+
+    status: Literal[ExecutionAcknowledgementStatus.ACCEPTED] = (
+        ExecutionAcknowledgementStatus.ACCEPTED
+    )
+    proposal_id: Uuid7Identifier
+    run_id: Uuid7Identifier
+    action: Literal[Capability.STOP_SANDBOX_INSTANCE] = Capability.STOP_SANDBOX_INSTANCE
+    target: ActionTarget
+    previous_state: Literal[ObservedInstanceState.RUNNING] = ObservedInstanceState.RUNNING
+    current_state: Literal[ObservedInstanceState.STOPPING, ObservedInstanceState.STOPPED]
+    request_reference: NonEmptyText | None = None
+    acknowledged_at: datetime
+    acknowledgement_hash: Sha256Digest
+
+    @field_validator("acknowledged_at")
+    @classmethod
+    def validate_acknowledged_at(cls, value: datetime) -> datetime:
+        return _require_utc("acknowledged_at", value)
+
+
 class IdempotencyRecord(NonZeroContract):
     """Semantic duplicate ownership and optional durable action outcome."""
 
@@ -240,6 +263,7 @@ class IdempotencyRecord(NonZeroContract):
     proposal_id: Uuid7Identifier
     action_fingerprint: Sha256Digest
     status: IdempotencyStatus = IdempotencyStatus.REGISTERED
+    execution_acknowledgement: ExecutionAcknowledgement | None = None
     action_result: ActionResult | None = None
     registered_at: datetime
     completed_at: datetime | None = None

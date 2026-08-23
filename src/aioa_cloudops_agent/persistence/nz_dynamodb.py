@@ -14,6 +14,7 @@ from aioa_cloudops_agent.nz import (
     ApprovalDecision,
     AuditEvent,
     Checkpoint,
+    ExecutionAcknowledgement,
     IdempotencyRecord,
     IdempotencyStatus,
     ProposalState,
@@ -378,6 +379,58 @@ class DynamoDbDurableTruthRepository:
             },
             indexed_updates={"status": _string(updated.status.value)},
         )
+        return updated
+
+    def record_execution_acknowledgement(
+        self,
+        idempotency_key: str,
+        acknowledgement: ExecutionAcknowledgement,
+        *,
+        expected_status: IdempotencyStatus = IdempotencyStatus.REGISTERED,
+    ) -> IdempotencyRecord:
+        current = self.get_idempotency(idempotency_key)
+        if current is None or current.status is not expected_status:
+            raise StorageConflictError("idempotency status no longer matches")
+        if current.execution_acknowledgement is not None:
+            if current.execution_acknowledgement == acknowledgement:
+                return current
+            raise StorageConflictError("conflicting execution acknowledgement exists")
+        if acknowledgement.proposal_id != current.proposal_id:
+            raise StorageConflictError("execution acknowledgement ownership is invalid")
+        updated = current.model_copy(
+            update={"execution_acknowledgement": acknowledgement}
+        )
+        try:
+            self._update(
+                semantic_idempotency_key(idempotency_key),
+                "IDEMPOTENCY",
+                updated,
+                condition=(
+                    "#status = :expected_status AND #fingerprint = :fingerprint "
+                    "AND attribute_not_exists(#acknowledgement_hash)"
+                ),
+                names={
+                    "#status": "status",
+                    "#fingerprint": "action_fingerprint",
+                    "#acknowledgement_hash": "acknowledgement_hash",
+                },
+                values={
+                    ":expected_status": _string(expected_status.value),
+                    ":fingerprint": _string(current.action_fingerprint),
+                },
+                indexed_updates={
+                    "acknowledgement_hash": _string(
+                        acknowledgement.acknowledgement_hash
+                    )
+                },
+            )
+        except StorageConflictError as conflict:
+            raced = self.get_idempotency(idempotency_key)
+            if raced is not None and raced.execution_acknowledgement == acknowledgement:
+                return raced
+            raise StorageConflictError(
+                "conflicting execution acknowledgement exists"
+            ) from conflict
         return updated
 
     def save_checkpoint(

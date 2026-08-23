@@ -10,6 +10,7 @@ from aioa_cloudops_agent.nz import (
     ApprovalDecision,
     AuditEvent,
     Checkpoint,
+    ExecutionAcknowledgement,
     IdempotencyRecord,
     IdempotencyStatus,
     ProposalState,
@@ -176,6 +177,28 @@ class InMemoryTestDurableTruthRepository:
             }
         )
         updated = IdempotencyRecord.model_validate(values)
+        self._idempotency[idempotency_key] = updated
+        return updated
+
+    def record_execution_acknowledgement(
+        self,
+        idempotency_key: str,
+        acknowledgement: ExecutionAcknowledgement,
+        *,
+        expected_status: IdempotencyStatus = IdempotencyStatus.REGISTERED,
+    ) -> IdempotencyRecord:
+        current = self._idempotency.get(idempotency_key)
+        if current is None or current.status is not expected_status:
+            raise StorageConflictError("idempotency status no longer matches")
+        if current.execution_acknowledgement is not None:
+            if current.execution_acknowledgement == acknowledgement:
+                return current
+            raise StorageConflictError("conflicting execution acknowledgement exists")
+        if acknowledgement.proposal_id != current.proposal_id:
+            raise StorageConflictError("execution acknowledgement ownership is invalid")
+        updated = current.model_copy(
+            update={"execution_acknowledgement": acknowledgement}
+        )
         self._idempotency[idempotency_key] = updated
         return updated
 

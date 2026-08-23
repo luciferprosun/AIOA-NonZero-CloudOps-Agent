@@ -114,6 +114,12 @@ class IdempotencyStatus(StrEnum):
     RECONCILIATION_REQUIRED = "RECONCILIATION_REQUIRED"
 
 
+class ExecutionAcknowledgementStatus(StrEnum):
+    """Provider acknowledgement is explicitly not verified completion."""
+
+    ACCEPTED = "ACCEPTED"
+
+
 class ObservedInstanceState(StrEnum):
     """Normalized EC2 states relevant to the bounded workflow."""
 
@@ -132,6 +138,8 @@ class AuditEventType(StrEnum):
     APPROVAL_REQUESTED = "APPROVAL_REQUESTED"
     APPROVAL_RECORDED = "APPROVAL_RECORDED"
     IDEMPOTENCY_REGISTERED = "IDEMPOTENCY_REGISTERED"
+    EXECUTION_REQUESTED = "EXECUTION_REQUESTED"
+    EXECUTION_ACKNOWLEDGED = "EXECUTION_ACKNOWLEDGED"
     CHECKPOINT_SAVED = "CHECKPOINT_SAVED"
     TOOL_OBSERVED = "TOOL_OBSERVED"
     MODEL_OBSERVED = "MODEL_OBSERVED"

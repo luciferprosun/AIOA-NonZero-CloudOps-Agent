@@ -17,6 +17,7 @@ from aioa_cloudops_agent.nz import (
     BudgetCounters,
     Capability,
     Checkpoint,
+    ExecutionAcknowledgement,
     ExpectedPrecondition,
     IdempotencyRecord,
     ObservedInstanceState,
@@ -84,6 +85,11 @@ class FakeDynamoDbClient:
         names = kwargs["ExpressionAttributeNames"]
         values = kwargs["ExpressionAttributeValues"]
         for clause in kwargs["ConditionExpression"].split(" AND "):
+            if clause.startswith("attribute_not_exists("):
+                name_token = clause.removeprefix("attribute_not_exists(").removesuffix(")")
+                if names[name_token] in item:
+                    raise ConditionalCheckFailed
+                continue
             name_token, value_token = clause.strip().split(" = ")
             if item.get(names[name_token]) != values[value_token]:
                 raise ConditionalCheckFailed
@@ -286,6 +292,33 @@ def test_idempotency_registration_reconciles_exact_duplicate() -> None:
     ]
     assert len(put_requests) == 1
     assert all("attribute_not_exists(PK)" in request["ConditionExpression"] for request in put_requests)
+
+
+def test_execution_acknowledgement_is_conditional_and_reconciles_duplicate() -> None:
+    _, repository, proposal = _prepare_approved_repository()
+    record = repository.register_idempotency(
+        build_idempotency_record(proposal, registered_at=NOW + timedelta(seconds=7))
+    )
+    acknowledgement = ExecutionAcknowledgement(
+        proposal_id=PROPOSAL_ID,
+        run_id=RUN_ID,
+        target=proposal.target,
+        current_state=ObservedInstanceState.STOPPING,
+        request_reference="request-safe-001",
+        acknowledged_at=NOW + timedelta(seconds=8),
+        acknowledgement_hash="c" * 64,
+    )
+
+    updated = repository.record_execution_acknowledgement(
+        record.idempotency_key,
+        acknowledgement,
+    )
+
+    assert updated.execution_acknowledgement == acknowledgement
+    assert repository.record_execution_acknowledgement(
+        record.idempotency_key,
+        acknowledgement,
+    ) == updated
 
 
 def test_idempotency_collision_with_inconsistent_payload_fails() -> None:

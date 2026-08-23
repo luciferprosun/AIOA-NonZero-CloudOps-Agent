@@ -2,6 +2,24 @@ AWSTemplateFormatVersion: "2010-09-09"
 Transform: AWS::Serverless-2016-10-31
 Description: Minimal infrastructure skeleton for the AIOA Non-Zero CloudOps Agent
 
+Parameters:
+  SandboxInstanceId:
+    Type: String
+    Description: Explicit preconfigured sandbox EC2 instance; no discovery is permitted
+    AllowedPattern: ^i-[0-9a-f]{8}([0-9a-f]{9})?$
+  AwsMutationsEnabled:
+    Type: String
+    Default: "false"
+    AllowedValues:
+      - "false"
+      - "true"
+  AllowLiveSandboxStop:
+    Type: String
+    Default: "false"
+    AllowedValues:
+      - "false"
+      - "true"
+
 Resources:
   HealthHttpApi:
     Type: AWS::Serverless::HttpApi
@@ -37,6 +55,93 @@ Resources:
       LogGroupName:
         Fn::Sub: /aws/lambda/${AWS::StackName}-health
       RetentionInDays: 3
+
+  RemediationExecutorRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Policies:
+        - PolicyName: RemediationLogDelivery
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource:
+                  Fn::Sub: arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${AWS::StackName}-remediation-executor:*
+        - PolicyName: StopConfiguredTaggedSandboxOnly
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ec2:StopInstances
+                Resource:
+                  Fn::Sub: arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:instance/${SandboxInstanceId}
+                Condition:
+                  StringEquals:
+                    aws:RequestedRegion: eu-central-1
+                    aws:ResourceTag/AIOACloudOpsSandbox: "true"
+
+  RemediationExecutorLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName:
+        Fn::Sub: /aws/lambda/${AWS::StackName}-remediation-executor
+      RetentionInDays: 3
+
+  RemediationExecutorFunction:
+    Type: AWS::Serverless::Function
+    DependsOn: RemediationExecutorLogGroup
+    Properties:
+      FunctionName:
+        Fn::Sub: ${AWS::StackName}-remediation-executor
+      CodeUri: ../../src/
+      Handler: aioa_cloudops_agent.remediation.lambda_handler.lambda_handler
+      Runtime: python3.12
+      Architectures:
+        - x86_64
+      MemorySize: 256
+      Timeout: 15
+      ReservedConcurrentExecutions: 1
+      Role:
+        Fn::GetAtt:
+          - RemediationExecutorRole
+          - Arn
+      Environment:
+        Variables:
+          AWS_MUTATIONS_ENABLED:
+            Ref: AwsMutationsEnabled
+          AIOA_ALLOW_LIVE_SANDBOX_STOP:
+            Ref: AllowLiveSandboxStop
+          SANDBOX_INSTANCE_ID:
+            Ref: SandboxInstanceId
+          SANDBOX_REQUIRED_TAG_KEY: AIOACloudOpsSandbox
+          SANDBOX_REQUIRED_TAG_VALUE: "true"
+
+  OrchestratorInvokeRemediationPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      Description: Invoke only the private approval-bound remediation executor
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - lambda:InvokeFunction
+            Resource:
+              Fn::GetAtt:
+                - RemediationExecutorFunction
+                - Arn
 
   StateTable:
     Type: AWS::DynamoDB::Table
@@ -119,3 +224,7 @@ Outputs:
     Description: Future Non-Zero state and provenance table name
     Value:
       Ref: StateTable
+  RemediationExecutorFunctionName:
+    Description: Private approval-bound remediation executor function name
+    Value:
+      Ref: RemediationExecutorFunction

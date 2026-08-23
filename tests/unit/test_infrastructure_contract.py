@@ -152,6 +152,59 @@ def test_lambda_role_has_no_cloudops_or_data_permissions() -> None:
     assert not any(action.startswith("bedrock:") for action in actions)
 
 
+def test_private_executor_role_owns_only_logs_and_scoped_stop() -> None:
+    resources = _resources()
+    role = resources["RemediationExecutorRole"]
+    function = resources["RemediationExecutorFunction"]
+    actions = _inline_role_actions(role)
+
+    assert function["Properties"]["Role"] == {
+        "Fn::GetAtt": ["RemediationExecutorRole", "Arn"]
+    }
+    assert actions == {
+        "logs:CreateLogStream",
+        "logs:PutLogEvents",
+        "ec2:StopInstances",
+    }
+    stop_statement = role["Properties"]["Policies"][1]["PolicyDocument"]["Statement"][0]
+    assert stop_statement["Resource"] == {
+        "Fn::Sub": (
+            "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:"
+            "instance/${SandboxInstanceId}"
+        )
+    }
+    assert stop_statement["Condition"]["StringEquals"] == {
+        "aws:RequestedRegion": "eu-central-1",
+        "aws:ResourceTag/AIOACloudOpsSandbox": "true",
+    }
+
+
+def test_orchestrator_invoke_policy_has_no_direct_ec2_authority() -> None:
+    policy = _resources()["OrchestratorInvokeRemediationPolicy"]
+    statement = policy["Properties"]["PolicyDocument"]["Statement"][0]
+
+    assert statement["Action"] == ["lambda:InvokeFunction"]
+    assert statement["Resource"] == {
+        "Fn::GetAtt": ["RemediationExecutorFunction", "Arn"]
+    }
+    assert "Roles" not in policy["Properties"]
+
+
+def test_remediation_executor_defaults_live_flags_to_false() -> None:
+    template = _template()
+    parameters = template["Parameters"]
+    variables = _resources()["RemediationExecutorFunction"]["Properties"]["Environment"][
+        "Variables"
+    ]
+
+    assert parameters["AwsMutationsEnabled"]["Default"] == "false"
+    assert parameters["AllowLiveSandboxStop"]["Default"] == "false"
+    assert variables["AWS_MUTATIONS_ENABLED"] == {"Ref": "AwsMutationsEnabled"}
+    assert variables["AIOA_ALLOW_LIVE_SANDBOX_STOP"] == {
+        "Ref": "AllowLiveSandboxStop"
+    }
+
+
 def test_template_has_no_wildcard_actions_or_broad_managed_policies() -> None:
     template = _template()
     serialized = json.dumps(template, sort_keys=True)

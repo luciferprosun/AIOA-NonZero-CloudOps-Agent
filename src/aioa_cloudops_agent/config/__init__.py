@@ -19,6 +19,7 @@ from .investigation import (
     DEMO_OBSERVATION_WINDOW_MINUTES,
     IdlePolicySettings,
 )
+from .remediation import SandboxRemediationSettings
 from .settings import AwsSettings, CostGuardrails, DynamoDbBillingMode
 
 __all__ = [
@@ -39,5 +40,6 @@ __all__ = [
     "DynamoDbBillingMode",
     "DynamoDbSettings",
     "IdlePolicySettings",
+    "SandboxRemediationSettings",
     "get_bedrock_model_capabilities",
 ]

@@ -54,7 +54,14 @@ def test_executable_source_contains_no_ec2_mutation_calls() -> None:
             ):
                 discovered.append((str(path.relative_to(ROOT)), node.func.attr))
 
-    assert discovered == []
+    stop_calls = [item for item in discovered if item[1] == "stop_instances"]
+    other_calls = [item for item in discovered if item[1] != "stop_instances"]
+
+    assert other_calls == []
+    assert stop_calls == [
+        ("src/aioa_cloudops_agent/remediation/executor.py", "stop_instances"),
+        ("src/aioa_cloudops_agent/remediation/executor.py", "stop_instances"),
+    ]
 
 
 def test_executable_source_contains_no_shell_or_arbitrary_network_client() -> None:
@@ -112,13 +119,15 @@ def test_active_source_has_no_eip_query_surface() -> None:
     assert "unattached_elastic_ip" not in source.casefold()
 
 
-def test_infrastructure_grants_no_cloudops_mutation_or_bedrock_authority() -> None:
+def test_infrastructure_isolates_the_only_stop_authority_from_read_only_policy() -> None:
     sam = yaml.safe_load(SAM_TEMPLATE.read_text(encoding="utf-8"))
     policy = json.loads(READ_ONLY_POLICY.read_text(encoding="utf-8"))
     actions = _all_actions(sam) + _all_actions(policy)
 
     assert "ec2:DescribeInstances" in actions
-    assert not any(action in {"ec2:StopInstances", "ec2:TerminateInstances"} for action in actions)
+    assert "ec2:StopInstances" in actions
+    assert "ec2:StopInstances" not in _all_actions(policy)
+    assert "ec2:TerminateInstances" not in actions
     assert not any(action.startswith("bedrock:") for action in actions)
     assert not any("*" in action for action in actions)
 
