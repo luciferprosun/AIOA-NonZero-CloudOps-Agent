@@ -117,6 +117,22 @@ def test_state_table_is_encrypted_on_demand_composite_key_skeleton() -> None:
     assert "TableName" not in properties
 
 
+def test_state_persistence_policy_is_table_scoped_and_item_level_only() -> None:
+    policy = _resources()["StatePersistencePolicy"]
+    statement = policy["Properties"]["PolicyDocument"]["Statement"][0]
+
+    assert policy["Type"] == "AWS::IAM::ManagedPolicy"
+    assert set(statement["Action"]) == {
+        "dynamodb:GetItem",
+        "dynamodb:PutItem",
+        "dynamodb:UpdateItem",
+    }
+    assert statement["Resource"] == {"Fn::GetAtt": ["StateTable", "Arn"]}
+    assert "Roles" not in policy["Properties"]
+    assert "Users" not in policy["Properties"]
+    assert "Groups" not in policy["Properties"]
+
+
 def test_lambda_execution_role_has_only_log_delivery_permissions() -> None:
     resources = _resources()
     function = resources["HealthFunction"]

@@ -16,6 +16,6 @@ Non-Zero means no silent, ambiguous, untraceable, or unverifiable execution stat
 
 Lifecycle transitions are deterministic. `SUCCESS` and `FAIL` are terminal, and illegal transitions fail explicitly.
 
-UUIDv7 generation is intentionally deferred: this foundation validates UUIDv7 values but does not fake them with UUIDv4 or add a generation dependency.
+UUIDv7 generation was intentionally deferred by this initial foundation. Phase 1 / Step 4 subsequently adds standards-compliant UUIDv7 generation without substituting UUIDv4.
 
 AWS deployment, AWS resources, agent orchestration, Strands, Bedrock, and remediation actions are intentionally outside this step.

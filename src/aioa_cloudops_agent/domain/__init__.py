@@ -1,5 +1,6 @@
 """Typed Non-Zero domain contracts."""
 
+from .approval import ApprovalRecord, ApprovalStatus, validate_pending_approval_mapping
 from .aws_boundary import (
     AwsBoundaryViolationError,
     AwsOperation,
@@ -16,10 +17,13 @@ from .errors import (
     ErrorCode,
     IllegalStateTransitionError,
 )
+from .identifiers import generate_correlation_id, validate_correlation_id
 from .models import ExecutionBudget, ExecutionContext
 from .transitions import validate_state_transition
 
 __all__ = [
+    "ApprovalRecord",
+    "ApprovalStatus",
     "AuthorityGate",
     "AwsBoundaryViolationError",
     "AwsOperation",
@@ -35,5 +39,8 @@ __all__ = [
     "IllegalStateTransitionError",
     "assess_aws_operation",
     "classify_aws_operation",
+    "generate_correlation_id",
+    "validate_correlation_id",
+    "validate_pending_approval_mapping",
     "validate_state_transition",
 ]

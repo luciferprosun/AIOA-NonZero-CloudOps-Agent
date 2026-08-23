@@ -55,6 +55,23 @@ Resources:
         - AttributeName: SK
           KeyType: RANGE
 
+  StatePersistencePolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      Description: Future least-privilege access to Non-Zero state records
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - dynamodb:GetItem
+              - dynamodb:PutItem
+              - dynamodb:UpdateItem
+            Resource:
+              Fn::GetAtt:
+                - StateTable
+                - Arn
+
   HealthFunction:
     Type: AWS::Serverless::Function
     DependsOn: HealthFunctionLogGroup

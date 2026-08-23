@@ -2,10 +2,11 @@
 
 from dataclasses import dataclass
 from typing import ClassVar
-from uuid import RFC_4122, UUID
+from uuid import UUID
 
 from .enums import AuthorityGate, ExecutionState
 from .errors import ContractValidationError
+from .identifiers import validate_correlation_id
 
 
 def _validate_positive_bounded_integer(name: str, value: object, upper_bound: int) -> None:
@@ -47,8 +48,7 @@ class ExecutionContext:
     def __post_init__(self) -> None:
         if not isinstance(self.correlation_id, UUID):
             raise ContractValidationError("correlation_id must be a UUID")
-        if self.correlation_id.version != 7 or self.correlation_id.variant != RFC_4122:
-            raise ContractValidationError("correlation_id must be an RFC-compatible UUIDv7")
+        validate_correlation_id(self.correlation_id)
         if not isinstance(self.idempotency_key, str):
             raise ContractValidationError("idempotency_key must be a string")
         if not self.idempotency_key.strip():

@@ -10,11 +10,11 @@
 - encrypted DynamoDB state-table skeleton using `PAY_PER_REQUEST` with string `PK` and `SK` keys;
 - non-sensitive outputs for the health endpoint, function name, and table name.
 
-The table is only a future state/provenance container. Execution, correlation, idempotency, provenance, and approval record schemas remain deferred to Phase 1 / Step 4.
+At completion of Step 3, the table was only a future state/provenance container. Phase 1 / Step 4 subsequently adds execution, correlation, idempotency, provenance, and approval record contracts without deploying them.
 
 ## Not Implemented
 
-Strands, Bedrock, CloudOps `QueryResource`, DynamoDB Non-Zero persistence, human-in-the-loop approval, approval tokens, remediation execution, S3/CloudFront UI, AgentCore, and deployment are not implemented.
+At completion of Step 3, Strands, Bedrock, CloudOps `QueryResource`, DynamoDB Non-Zero persistence, human-in-the-loop approval, approval tokens, remediation execution, S3/CloudFront UI, AgentCore, and deployment were not implemented. Later steps add only local persistence contracts and a read-only `QueryResource`; the remaining items are still absent.
 
 ## Security Boundary
 

@@ -21,6 +21,6 @@
 
 ## Current Boundary
 
-The project is in architecture/bootstrap phase. No agent, tool, AWS runtime, data store, telemetry pipeline, or deployment has been implemented.
+The project has pre-deployment Non-Zero persistence contracts and one narrow read-only observation capability for unattached Elastic IP discovery. No Strands agent, Bedrock integration, remediation, telemetry pipeline, live data-store operation, or deployment has been implemented.
 
-The exact CloudOps use case remains intentionally unfrozen and must be selected in a later authorized product-scope phase.
+This first observation capability does not freeze the complete product scope. The exact CloudOps use case remains intentionally unfrozen and must be selected through an authorized product-scope decision.
