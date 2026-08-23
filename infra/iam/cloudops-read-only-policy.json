@@ -2,13 +2,10 @@
   "Version": "2012-10-17",
   "Statement": [
     {
-      "Sid": "InitialCloudOpsDiscovery",
+      "Sid": "InspectConfiguredSandboxInstance",
       "Effect": "Allow",
       "Action": [
-        "ec2:DescribeAddresses",
-        "ec2:DescribeInstances",
-        "ec2:DescribeSecurityGroups",
-        "ec2:DescribeTags"
+        "ec2:DescribeInstances"
       ],
       "Resource": "*",
       "Condition": {

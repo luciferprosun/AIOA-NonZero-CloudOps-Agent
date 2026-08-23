@@ -150,7 +150,6 @@ def test_lambda_role_has_no_cloudops_or_data_permissions() -> None:
     assert not any(action.startswith("dynamodb:") for action in actions)
     assert not any(action.startswith("ec2:") for action in actions)
     assert not any(action.startswith("bedrock:") for action in actions)
-    assert "ec2:ReleaseAddress" not in actions
 
 
 def test_template_has_no_wildcard_actions_or_broad_managed_policies() -> None:

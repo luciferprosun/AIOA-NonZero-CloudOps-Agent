@@ -1,62 +1,136 @@
 import ast
+import json
 from pathlib import Path
 
 import yaml
 
-CLOUDOPS_DIRECTORY = Path(__file__).parents[2] / "src" / "aioa_cloudops_agent" / "cloudops"
-SAM_TEMPLATE = Path(__file__).parents[2] / "infra" / "sam" / "template.yaml"
-FORBIDDEN_CALLS = {
+ROOT = Path(__file__).parents[2]
+SOURCE_ROOT = ROOT / "src" / "aioa_cloudops_agent"
+SAM_TEMPLATE = ROOT / "infra" / "sam" / "template.yaml"
+READ_ONLY_POLICY = ROOT / "infra" / "iam" / "cloudops-read-only-policy.json"
+
+PROHIBITED_PROVIDER_METHODS = {
     "authorize_security_group_ingress",
     "delete_security_group",
     "release_address",
     "revoke_security_group_ingress",
     "run_instances",
+    "stop_instances",
     "terminate_instances",
 }
+PROHIBITED_MODULES = {"httpx", "requests", "socket", "subprocess", "urllib"}
+PROHIBITED_CODE_EXECUTION_CALLS = {"compile", "eval", "exec"}
 
 
-def _provider_client_calls(path: Path) -> set[str]:
-    syntax_tree = ast.parse(path.read_text(encoding="utf-8"))
-    return {
-        node.func.attr
-        for node in ast.walk(syntax_tree)
-        if (
-            isinstance(node, ast.Call)
-            and isinstance(node.func, ast.Attribute)
-            and isinstance(node.func.value, ast.Attribute)
-            and isinstance(node.func.value.value, ast.Name)
-            and node.func.value.value.id == "self"
-            and node.func.value.attr == "_ec2_client"
-        )
-    }
+def _python_trees() -> list[tuple[Path, ast.AST]]:
+    return [
+        (path, ast.parse(path.read_text(encoding="utf-8")))
+        for path in SOURCE_ROOT.rglob("*.py")
+    ]
 
 
-def _actions(value: object) -> set[str]:
-    actions: set[str] = set()
+def _all_actions(value: object) -> list[str]:
+    actions: list[str] = []
     if isinstance(value, dict):
         for key, child in value.items():
             if key == "Action":
-                actions.update([child] if isinstance(child, str) else child)
+                actions.extend([child] if isinstance(child, str) else child)
             else:
-                actions.update(_actions(child))
+                actions.extend(_all_actions(child))
     elif isinstance(value, list):
         for child in value:
-            actions.update(_actions(child))
+            actions.extend(_all_actions(child))
     return actions
 
 
-def test_executable_cloudops_code_contains_no_mutation_call() -> None:
-    called_methods: set[str] = set()
-    for path in CLOUDOPS_DIRECTORY.glob("*.py"):
-        called_methods.update(_provider_client_calls(path))
+def test_executable_source_contains_no_ec2_mutation_calls() -> None:
+    discovered: list[tuple[str, str]] = []
+    for path, tree in _python_trees():
+        for node in ast.walk(tree):
+            if (
+                isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Attribute)
+                and node.func.attr.casefold() in PROHIBITED_PROVIDER_METHODS
+            ):
+                discovered.append((str(path.relative_to(ROOT)), node.func.attr))
 
-    assert called_methods.isdisjoint(FORBIDDEN_CALLS)
-    assert called_methods == {"describe_addresses"}
+    assert discovered == []
 
 
-def test_deployable_runtime_authority_contains_no_cloudops_mutation() -> None:
-    template = yaml.safe_load(SAM_TEMPLATE.read_text(encoding="utf-8"))
-    actions = _actions(template)
+def test_executable_source_contains_no_shell_or_arbitrary_network_client() -> None:
+    discovered: list[tuple[str, str]] = []
+    for path, tree in _python_trees():
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    if alias.name.split(".", maxsplit=1)[0] in PROHIBITED_MODULES:
+                        discovered.append((str(path.relative_to(ROOT)), alias.name))
+            elif (
+                isinstance(node, ast.ImportFrom)
+                and node.module
+                and node.module.split(".", maxsplit=1)[0] in PROHIBITED_MODULES
+            ):
+                discovered.append((str(path.relative_to(ROOT)), node.module))
 
-    assert not any(action.startswith("ec2:") for action in actions)
-    assert all("*" not in action for action in actions)
+    assert discovered == []
+
+
+def test_executable_source_contains_no_dynamic_code_execution() -> None:
+    discovered: list[tuple[str, str]] = []
+    for path, tree in _python_trees():
+        for node in ast.walk(tree):
+            if (
+                isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Name)
+                and node.func.id in PROHIBITED_CODE_EXECUTION_CALLS
+            ):
+                discovered.append((str(path.relative_to(ROOT)), node.func.id))
+
+    assert discovered == []
+
+
+def test_no_multi_agent_agentcore_or_dynamic_tool_loading_is_active() -> None:
+    source = "\n".join(path.read_text(encoding="utf-8") for path in SOURCE_ROOT.rglob("*.py"))
+    lowered = source.casefold()
+
+    assert "strands.multiagent" not in lowered
+    assert "agentcore" not in lowered
+    assert "load_tools_from_directory=true" not in lowered.replace(" ", "")
+    assert "shell" not in {
+        node.id.casefold()
+        for _, tree in _python_trees()
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Name)
+    }
+
+
+def test_active_source_has_no_eip_query_surface() -> None:
+    source = "\n".join(path.read_text(encoding="utf-8") for path in SOURCE_ROOT.rglob("*.py"))
+
+    assert "DescribeAddresses" not in source
+    assert "query_resource" not in source
+    assert "unattached_elastic_ip" not in source.casefold()
+
+
+def test_infrastructure_grants_no_cloudops_mutation_or_bedrock_authority() -> None:
+    sam = yaml.safe_load(SAM_TEMPLATE.read_text(encoding="utf-8"))
+    policy = json.loads(READ_ONLY_POLICY.read_text(encoding="utf-8"))
+    actions = _all_actions(sam) + _all_actions(policy)
+
+    assert "ec2:DescribeInstances" in actions
+    assert not any(action in {"ec2:StopInstances", "ec2:TerminateInstances"} for action in actions)
+    assert not any(action.startswith("bedrock:") for action in actions)
+    assert not any("*" in action for action in actions)
+
+
+def test_active_source_and_iac_contain_no_account_specific_identifier() -> None:
+    import re
+
+    text = "\n".join(
+        path.read_text(encoding="utf-8")
+        for root in (SOURCE_ROOT, ROOT / "infra")
+        for path in root.rglob("*")
+        if path.is_file() and path.suffix in {".json", ".md", ".py", ".yaml", ".yml"}
+    )
+
+    assert re.search(r"(?<!\d)\d{12}(?!\d)", text) is None

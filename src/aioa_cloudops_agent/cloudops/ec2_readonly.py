@@ -1,11 +1,15 @@
-"""Narrow protocol for the only currently allowlisted EC2 read operation."""
+"""Narrow provider protocol for one targeted EC2 inspection."""
 
 from collections.abc import Mapping
 from typing import Any, Protocol
 
 
-class Ec2ReadOnlyClient(Protocol):
-    """Provider client exposing observation only, with no remediation method."""
+class Ec2DescribeInstancesClient(Protocol):
+    """Only the scoped DescribeInstances call required by inspect_instance."""
 
-    def describe_addresses(self) -> Mapping[str, Any]:
-        """Return allocated Elastic IP metadata."""
+    def describe_instances(
+        self,
+        *,
+        InstanceIds: list[str],
+    ) -> Mapping[str, Any]:
+        """Describe exactly the requested instance identifiers."""

@@ -2,7 +2,7 @@
 
 ## Execution Boundary
 
-The application boundary is fixed to `eu-central-1`. Future runtime work may use Lambda and API Gateway, Strands Agents SDK, Amazon Bedrock with Claude 3 Haiku, DynamoDB, and an S3/CloudFront UI. AgentCore is not used.
+The application boundary is fixed to `eu-central-1`. The runtime architecture uses one Strands Agent with Amazon Bedrock, deterministic Non-Zero controls, and planned DynamoDB state. The current development model candidate is Nova 2 Lite through the explicit `eu.amazon.nova-2-lite-v1:0` identifier. AgentCore is not used.
 
 AWS operations are classified through a closed catalog:
 
@@ -15,9 +15,9 @@ AWS mutations are globally disabled by default. Configuration enabling AWS write
 
 ## IAM Boundary
 
-`CloudOpsReadOnlyRole` and `CloudOpsRemediationRole` are separate future roles. The read-only template grants only EC2 address, instance, Security Group, and tag discovery. Those EC2 `Describe` actions do not support resource-level scoping, so the documented `Resource: "*"` limitation is constrained by exact actions and the `eu-central-1` condition.
+The active `CloudOpsReadOnlyRole` design grants only `ec2:DescribeInstances` for `inspect_instance`. That action does not support resource-level scoping, so the documented `Resource: "*"` limitation is constrained by the exact action, an `eu-central-1` condition, and application checks for one configured instance ID plus its required sandbox tag.
 
-The remediation template grants only a future, approved release of one tagged Elastic IP through a generic resource ARN. No Security Group mutation is granted. Templates contain no account ID, principal, credential, trust policy, or secret, and nothing was deployed.
+No remediation policy is active. A future `stop_sandbox_instance` policy must remain separate and cannot be introduced before explicit authority, human approval, and least-privilege review are implemented. Templates contain no account ID, principal, credential, trust policy, or secret, and nothing was deployed.
 
 ## Cost Boundary
 

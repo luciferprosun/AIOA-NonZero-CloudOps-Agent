@@ -1,283 +1,233 @@
-"""Typed results for narrow, read-only CloudOps observations."""
+"""Typed contracts for one allow-listed sandbox EC2 inspection."""
 
-import ipaddress
+import os
 import re
 from dataclasses import dataclass
+from datetime import datetime
 from enum import StrEnum
+from typing import Final
 from uuid import UUID
 
-from aioa_cloudops_agent.domain.aws_boundary import AwsOperation, AwsOperationClass
+from aioa_cloudops_agent.config.settings import DEFAULT_AWS_REGION
+from aioa_cloudops_agent.domain.aws_boundary import AwsOperationClass
 from aioa_cloudops_agent.domain.enums import AuthorityGate
 from aioa_cloudops_agent.domain.errors import ContractValidationError
 from aioa_cloudops_agent.domain.identifiers import validate_correlation_id
 from aioa_cloudops_agent.persistence.models import (
     compute_evidence_digest,
     validate_evidence_digest,
+    validate_utc_timestamp,
 )
 
-_ALLOCATION_ID_PATTERN = re.compile(r"^eipalloc-[0-9a-f]+$")
+DEFAULT_SANDBOX_TAG_KEY: Final = "AIOACloudOpsSandbox"
+DEFAULT_SANDBOX_TAG_VALUE: Final = "true"
+_INSTANCE_ID_PATTERN: Final = re.compile(r"^i-[0-9a-f]{8}(?:[0-9a-f]{9})?$")
+_INSTANCE_TYPE_PATTERN: Final = re.compile(r"^[a-z0-9][a-z0-9.-]{1,63}$")
+_AVAILABILITY_ZONE_PATTERN: Final = re.compile(r"^eu-central-1[a-z]$")
 
 
-def _ambiguous_digest_payload(
-    resource_reference: str,
-    region: str,
-    reason: str,
-) -> dict[str, str]:
-    return {
-        "reason": reason,
-        "region": region,
-        "resource_reference": resource_reference,
-    }
+def validate_instance_id(value: object) -> str:
+    """Return one syntactically valid EC2 instance identifier."""
+
+    if not isinstance(value, str) or _INSTANCE_ID_PATTERN.fullmatch(value) is None:
+        raise ContractValidationError("instance_id must be a valid EC2 instance identifier")
+    return value
 
 
-class CloudResourceType(StrEnum):
-    """Resource types emitted by the current QueryResource contract."""
-
-    ELASTIC_IP_ADDRESS = "AWS_EC2_ELASTIC_IP_ADDRESS"
-
-
-class FindingType(StrEnum):
-    """Closed set of currently supported CloudOps findings."""
-
-    UNATTACHED_ELASTIC_IP = "UNATTACHED_ELASTIC_IP"
+def _validate_non_empty_text(name: str, value: object, maximum: int) -> str:
+    if not isinstance(value, str) or not value.strip():
+        raise ContractValidationError(f"{name} must be a non-empty string")
+    if value != value.strip():
+        raise ContractValidationError(f"{name} must not contain surrounding whitespace")
+    if len(value) > maximum:
+        raise ContractValidationError(f"{name} must not exceed {maximum} characters")
+    return value
 
 
-@dataclass(frozen=True, slots=True)
-class ElasticIpEvidence:
-    """Allowlisted non-secret facts used to classify one Elastic IP."""
+class Ec2InstanceState(StrEnum):
+    """States returned by EC2 DescribeInstances."""
 
-    region: str
-    public_ip: str
-    allocation_id: str | None
-    association_id: str | None
-    instance_id: str | None
-    network_interface_id: str | None
-    private_ip_address: str | None
-    classification_reason: str
+    PENDING = "pending"
+    RUNNING = "running"
+    SHUTTING_DOWN = "shutting-down"
+    TERMINATED = "terminated"
+    STOPPING = "stopping"
+    STOPPED = "stopped"
 
-    def __post_init__(self) -> None:
-        if self.region != "eu-central-1":
-            raise ContractValidationError("Elastic IP evidence region must be eu-central-1")
-        try:
-            parsed_public_ip = ipaddress.ip_address(self.public_ip)
-        except ValueError as error:
-            raise ContractValidationError("public_ip must be a valid IPv4 address") from error
-        if parsed_public_ip.version != 4:
-            raise ContractValidationError("public_ip must be a valid IPv4 address")
-        if self.allocation_id is not None and _ALLOCATION_ID_PATTERN.fullmatch(
-            self.allocation_id
-        ) is None:
-            raise ContractValidationError("allocation_id must use the eipalloc- prefix")
-        for name in (
-            "association_id",
-            "instance_id",
-            "network_interface_id",
-            "private_ip_address",
-        ):
-            if getattr(self, name) is not None:
-                raise ContractValidationError(
-                    f"unattached Elastic IP evidence must not contain {name}"
-                )
-        if not isinstance(self.classification_reason, str) or not self.classification_reason:
-            raise ContractValidationError("classification_reason must not be empty")
 
-    def as_dict(self) -> dict[str, str | None]:
-        """Return only the safe, canonical facts used by the finding."""
+class Ec2MonitoringState(StrEnum):
+    """Normalized detailed-monitoring state."""
 
-        return {
-            "allocation_id": self.allocation_id,
-            "association_id": self.association_id,
-            "classification_reason": self.classification_reason,
-            "instance_id": self.instance_id,
-            "network_interface_id": self.network_interface_id,
-            "private_ip_address": self.private_ip_address,
-            "public_ip": self.public_ip,
-            "region": self.region,
-        }
+    DISABLED = "disabled"
+    DISABLING = "disabling"
+    ENABLED = "enabled"
+    PENDING = "pending"
 
 
 @dataclass(frozen=True, slots=True)
-class CloudOpsFinding:
-    """Domain finding that does not leak a raw provider response."""
+class SandboxTarget:
+    """Exact EC2 instance and tag proof required before inspection is accepted."""
 
-    resource_type: CloudResourceType
-    resource_id: str
-    region: str
-    finding_type: FindingType
-    summary: str
-    evidence: ElasticIpEvidence
-    evidence_digest: str
+    instance_id: str
+    required_tag_key: str = DEFAULT_SANDBOX_TAG_KEY
+    required_tag_value: str = DEFAULT_SANDBOX_TAG_VALUE
 
     def __post_init__(self) -> None:
-        if not isinstance(self.resource_type, CloudResourceType):
-            raise ContractValidationError("resource_type must be a CloudResourceType")
-        if not isinstance(self.resource_id, str) or not self.resource_id:
-            raise ContractValidationError("resource_id must not be empty")
-        if self.region != "eu-central-1":
-            raise ContractValidationError("finding region must be eu-central-1")
-        if not isinstance(self.finding_type, FindingType):
-            raise ContractValidationError("finding_type must be a FindingType")
-        if not isinstance(self.summary, str) or not self.summary:
-            raise ContractValidationError("summary must not be empty")
-        if not isinstance(self.evidence, ElasticIpEvidence):
-            raise ContractValidationError("evidence must be ElasticIpEvidence")
-        validate_evidence_digest(self.evidence_digest)
-        if self.region != self.evidence.region:
-            raise ContractValidationError("finding and evidence regions must match")
-        expected_resource_id = self.evidence.allocation_id or self.evidence.public_ip
-        if self.resource_id != expected_resource_id:
-            raise ContractValidationError("resource_id must match the safe evidence identifier")
-        if self.evidence_digest != compute_evidence_digest(self.evidence.as_dict()):
-            raise ContractValidationError("evidence_digest does not match finding evidence")
+        validate_instance_id(self.instance_id)
+        _validate_non_empty_text("required_tag_key", self.required_tag_key, 128)
+        _validate_non_empty_text("required_tag_value", self.required_tag_value, 256)
 
+    @classmethod
+    def from_environment(cls) -> "SandboxTarget":
+        """Load the production target without inventing a sandbox identifier."""
 
-@dataclass(frozen=True, slots=True)
-class AmbiguousObservation:
-    """Safe evidence that an address could not be classified definitively."""
-
-    resource_reference: str
-    region: str
-    reason: str
-    evidence_digest: str
-
-    def __post_init__(self) -> None:
-        if not isinstance(self.resource_reference, str) or not self.resource_reference:
-            raise ContractValidationError("resource_reference must not be empty")
-        if self.region != "eu-central-1":
-            raise ContractValidationError("observation region must be eu-central-1")
-        if not isinstance(self.reason, str) or not self.reason:
-            raise ContractValidationError("reason must not be empty")
-        validate_evidence_digest(self.evidence_digest)
-        expected_digest = compute_evidence_digest(
-            _ambiguous_digest_payload(self.resource_reference, self.region, self.reason)
+        instance_id = os.getenv("SANDBOX_INSTANCE_ID")
+        if instance_id is None:
+            raise ContractValidationError("SANDBOX_INSTANCE_ID is required")
+        return cls(
+            instance_id=instance_id,
+            required_tag_key=os.getenv("SANDBOX_TAG_KEY", DEFAULT_SANDBOX_TAG_KEY),
+            required_tag_value=os.getenv("SANDBOX_TAG_VALUE", DEFAULT_SANDBOX_TAG_VALUE),
         )
-        if self.evidence_digest != expected_digest:
-            raise ContractValidationError(
-                "evidence_digest does not match ambiguous observation evidence"
-            )
 
 
 @dataclass(frozen=True, slots=True)
-class QueryResourceRequest:
-    """One allowlisted provider query under a UUIDv7 execution."""
+class InstanceInspection:
+    """Normalized, non-secret result for one proven sandbox instance."""
 
     correlation_id: UUID
-    operation: AwsOperation = AwsOperation.DESCRIBE_ADDRESSES
-    region: str = "eu-central-1"
-
-    def __post_init__(self) -> None:
-        if not isinstance(self.correlation_id, UUID):
-            raise ContractValidationError("correlation_id must be a UUIDv7 value")
-        validate_correlation_id(self.correlation_id)
-        if not isinstance(self.operation, AwsOperation):
-            raise ContractValidationError("operation must be an AwsOperation")
-        if self.region != "eu-central-1":
-            raise ContractValidationError("QueryResource region must be eu-central-1")
-
-
-@dataclass(frozen=True, slots=True)
-class QueryResourceResult:
-    """Deterministic query outcome ready for provenance materialization."""
-
-    correlation_id: UUID
-    operation: AwsOperation
-    aws_api: str
-    operation_class: AwsOperationClass
-    authority_gate: AuthorityGate
+    instance_id: str
     region: str
-    findings: tuple[CloudOpsFinding, ...]
-    ambiguous_observations: tuple[AmbiguousObservation, ...]
+    state: Ec2InstanceState
+    instance_type: str
+    launch_time: datetime
+    monitoring_state: Ec2MonitoringState
+    availability_zone: str
+    sandbox_tag_key: str
+    sandbox_tag_value: str
     evidence_digest: str
+    authority_gate: AuthorityGate = AuthorityGate.AUTO
+    operation_class: AwsOperationClass = AwsOperationClass.READ_ONLY
 
     def __post_init__(self) -> None:
         if not isinstance(self.correlation_id, UUID):
             raise ContractValidationError("correlation_id must be a UUIDv7 value")
         validate_correlation_id(self.correlation_id)
-        if self.operation is not AwsOperation.DESCRIBE_ADDRESSES:
-            raise ContractValidationError("result operation must be DESCRIBE_ADDRESSES")
-        if self.aws_api != "ec2:DescribeAddresses":
-            raise ContractValidationError("result aws_api must be ec2:DescribeAddresses")
-        if self.operation_class is not AwsOperationClass.READ_ONLY:
-            raise ContractValidationError("QueryResource result must be READ_ONLY")
+        validate_instance_id(self.instance_id)
+        if self.region != DEFAULT_AWS_REGION:
+            raise ContractValidationError(f"inspection region must be {DEFAULT_AWS_REGION}")
+        if not isinstance(self.state, Ec2InstanceState):
+            raise ContractValidationError("state must be an Ec2InstanceState")
+        if (
+            not isinstance(self.instance_type, str)
+            or _INSTANCE_TYPE_PATTERN.fullmatch(self.instance_type) is None
+        ):
+            raise ContractValidationError("instance_type is invalid")
+        validate_utc_timestamp("launch_time", self.launch_time)
+        if not isinstance(self.monitoring_state, Ec2MonitoringState):
+            raise ContractValidationError("monitoring_state must be an Ec2MonitoringState")
+        if (
+            not isinstance(self.availability_zone, str)
+            or _AVAILABILITY_ZONE_PATTERN.fullmatch(self.availability_zone) is None
+        ):
+            raise ContractValidationError("availability_zone must belong to the inspection region")
+        _validate_non_empty_text("sandbox_tag_key", self.sandbox_tag_key, 128)
+        _validate_non_empty_text("sandbox_tag_value", self.sandbox_tag_value, 256)
         if self.authority_gate is not AuthorityGate.AUTO:
-            raise ContractValidationError("QueryResource result authority gate must be AUTO")
-        if self.region != "eu-central-1":
-            raise ContractValidationError("result region must be eu-central-1")
-        if not isinstance(self.findings, tuple) or not all(
-            isinstance(finding, CloudOpsFinding) for finding in self.findings
-        ):
-            raise ContractValidationError("findings must be typed CloudOpsFinding values")
-        if not isinstance(self.ambiguous_observations, tuple) or not all(
-            isinstance(observation, AmbiguousObservation)
-            for observation in self.ambiguous_observations
-        ):
-            raise ContractValidationError(
-                "ambiguous_observations must be typed AmbiguousObservation values"
-            )
+            raise ContractValidationError("inspect_instance authority gate must be AUTO")
+        if self.operation_class is not AwsOperationClass.READ_ONLY:
+            raise ContractValidationError("inspect_instance operation must be READ_ONLY")
         validate_evidence_digest(self.evidence_digest)
-        if self.findings != tuple(sorted(self.findings, key=lambda item: item.resource_id)):
-            raise ContractValidationError("findings must use deterministic resource ordering")
-        if self.ambiguous_observations != tuple(
-            sorted(
-                self.ambiguous_observations,
-                key=lambda item: (item.resource_reference, item.reason),
-            )
+        if self.evidence_digest != compute_evidence_digest(self.evidence_payload()):
+            raise ContractValidationError("evidence_digest does not match inspection evidence")
+
+    @classmethod
+    def create(
+        cls,
+        *,
+        correlation_id: UUID,
+        instance_id: str,
+        region: str,
+        state: Ec2InstanceState,
+        instance_type: str,
+        launch_time: datetime,
+        monitoring_state: Ec2MonitoringState,
+        availability_zone: str,
+        sandbox_tag_key: str,
+        sandbox_tag_value: str,
+    ) -> "InstanceInspection":
+        """Build an inspection with a digest over canonical allow-listed evidence."""
+
+        if not isinstance(correlation_id, UUID):
+            raise ContractValidationError("correlation_id must be a UUIDv7 value")
+        validate_correlation_id(correlation_id)
+        validate_instance_id(instance_id)
+        if region != DEFAULT_AWS_REGION:
+            raise ContractValidationError(f"inspection region must be {DEFAULT_AWS_REGION}")
+        if not isinstance(state, Ec2InstanceState):
+            raise ContractValidationError("state must be an Ec2InstanceState")
+        if (
+            not isinstance(instance_type, str)
+            or _INSTANCE_TYPE_PATTERN.fullmatch(instance_type) is None
         ):
-            raise ContractValidationError(
-                "ambiguous_observations must use deterministic resource ordering"
-            )
-        if len({finding.resource_id for finding in self.findings}) != len(self.findings):
-            raise ContractValidationError("findings must not duplicate a resource identifier")
-        if self.evidence_digest != compute_query_result_digest(
-            correlation_id=self.correlation_id,
-            region=self.region,
-            findings=self.findings,
-            ambiguous_observations=self.ambiguous_observations,
+            raise ContractValidationError("instance_type is invalid")
+        validate_utc_timestamp("launch_time", launch_time)
+        if not isinstance(monitoring_state, Ec2MonitoringState):
+            raise ContractValidationError("monitoring_state must be an Ec2MonitoringState")
+        if (
+            not isinstance(availability_zone, str)
+            or _AVAILABILITY_ZONE_PATTERN.fullmatch(availability_zone) is None
         ):
-            raise ContractValidationError("evidence_digest does not match query result evidence")
-
-
-def compute_ambiguous_observation_digest(
-    resource_reference: str,
-    region: str,
-    reason: str,
-) -> str:
-    """Return the canonical digest for one ambiguity record."""
-
-    return compute_evidence_digest(_ambiguous_digest_payload(resource_reference, region, reason))
-
-
-def compute_query_result_digest(
-    *,
-    correlation_id: UUID,
-    region: str,
-    findings: tuple[CloudOpsFinding, ...],
-    ambiguous_observations: tuple[AmbiguousObservation, ...],
-) -> str:
-    """Return the canonical aggregate digest for one completed query."""
-
-    return compute_evidence_digest(
-        {
-            "ambiguous": [
-                {
-                    "evidence_digest": item.evidence_digest,
-                    "reason": item.reason,
-                    "resource_reference": item.resource_reference,
-                }
-                for item in ambiguous_observations
-            ],
+            raise ContractValidationError("availability_zone must belong to the inspection region")
+        _validate_non_empty_text("sandbox_tag_key", sandbox_tag_key, 128)
+        _validate_non_empty_text("sandbox_tag_value", sandbox_tag_value, 256)
+        payload = {
             "authority_gate": AuthorityGate.AUTO.value,
-            "aws_api": "ec2:DescribeAddresses",
+            "availability_zone": availability_zone,
             "correlation_id": str(correlation_id),
-            "findings": [
-                {
-                    "evidence_digest": item.evidence_digest,
-                    "finding_type": item.finding_type.value,
-                    "resource_id": item.resource_id,
-                }
-                for item in findings
-            ],
+            "instance_id": instance_id,
+            "instance_type": instance_type,
+            "launch_time": launch_time.isoformat(),
+            "monitoring_state": monitoring_state.value,
             "operation_class": AwsOperationClass.READ_ONLY.value,
             "region": region,
+            "sandbox_tag_key": sandbox_tag_key,
+            "sandbox_tag_value": sandbox_tag_value,
+            "state": state.value,
         }
-    )
+        return cls(
+            correlation_id=correlation_id,
+            instance_id=instance_id,
+            region=region,
+            state=state,
+            instance_type=instance_type,
+            launch_time=launch_time,
+            monitoring_state=monitoring_state,
+            availability_zone=availability_zone,
+            sandbox_tag_key=sandbox_tag_key,
+            sandbox_tag_value=sandbox_tag_value,
+            evidence_digest=compute_evidence_digest(payload),
+        )
+
+    def evidence_payload(self) -> dict[str, str]:
+        """Return canonical evidence without raw provider metadata."""
+
+        return {
+            "authority_gate": self.authority_gate.value,
+            "availability_zone": self.availability_zone,
+            "correlation_id": str(self.correlation_id),
+            "instance_id": self.instance_id,
+            "instance_type": self.instance_type,
+            "launch_time": self.launch_time.isoformat(),
+            "monitoring_state": self.monitoring_state.value,
+            "operation_class": self.operation_class.value,
+            "region": self.region,
+            "sandbox_tag_key": self.sandbox_tag_key,
+            "sandbox_tag_value": self.sandbox_tag_value,
+            "state": self.state.value,
+        }
+
+    def as_dict(self) -> dict[str, str]:
+        """Return the typed public tool result as JSON-safe values."""
+
+        return {**self.evidence_payload(), "evidence_digest": self.evidence_digest}

@@ -3,47 +3,46 @@ import re
 from pathlib import Path
 
 IAM_DIRECTORY = Path(__file__).parents[2] / "infra" / "iam"
+READ_ONLY_POLICY_PATH = IAM_DIRECTORY / "cloudops-read-only-policy.json"
+REMEDIATION_POLICY_PATH = IAM_DIRECTORY / "cloudops-remediation-policy.json"
 
 
-def _load_policy(filename: str) -> dict[str, object]:
-    return json.loads((IAM_DIRECTORY / filename).read_text(encoding="utf-8"))
-
-
-def _policy_actions(policy: dict[str, object]) -> set[str]:
-    actions: set[str] = set()
+def _policy_actions(policy: dict[str, object]) -> list[str]:
+    actions: list[str] = []
     for statement in policy["Statement"]:
         value = statement["Action"]
-        actions.update([value] if isinstance(value, str) else value)
+        actions.extend([value] if isinstance(value, str) else value)
     return actions
 
 
-def test_read_only_policy_has_only_initial_discovery_actions() -> None:
-    policy = _load_policy("cloudops-read-only-policy.json")
+def test_active_cloudops_policy_allows_only_targeted_inspection_api() -> None:
+    policy = json.loads(READ_ONLY_POLICY_PATH.read_text(encoding="utf-8"))
 
-    assert _policy_actions(policy) == {
-        "ec2:DescribeAddresses",
-        "ec2:DescribeInstances",
-        "ec2:DescribeSecurityGroups",
-        "ec2:DescribeTags",
-    }
-    assert policy["Statement"][0]["Resource"] == "*"
-
-
-def test_remediation_policy_is_limited_to_tagged_elastic_ip_release() -> None:
-    policy = _load_policy("cloudops-remediation-policy.json")
+    assert _policy_actions(policy) == ["ec2:DescribeInstances"]
     statement = policy["Statement"][0]
+    assert statement["Effect"] == "Allow"
+    assert statement["Condition"] == {
+        "StringEquals": {"aws:RequestedRegion": "eu-central-1"}
+    }
 
-    assert _policy_actions(policy) == {"ec2:ReleaseAddress"}
-    assert statement["Resource"] == (
-        "arn:${Partition}:ec2:eu-central-1:${Account}:elastic-ip/${AllocationId}"
+
+def test_no_remediation_policy_is_active() -> None:
+    assert REMEDIATION_POLICY_PATH.exists() is False
+
+
+def test_iam_templates_have_no_wildcard_action_or_account_id() -> None:
+    combined = "\n".join(
+        path.read_text(encoding="utf-8") for path in IAM_DIRECTORY.glob("*.json")
     )
-    assert statement["Condition"]["StringEquals"]["aws:ResourceTag/AIOACloudOpsManaged"] == (
-        "true"
-    )
+    policy = json.loads(READ_ONLY_POLICY_PATH.read_text(encoding="utf-8"))
+
+    assert all("*" not in action for action in _policy_actions(policy))
+    assert re.search(r"(?<!\d)\d{12}(?!\d)", combined) is None
+    assert "AdministratorAccess" not in combined
+    assert "PowerUserAccess" not in combined
 
 
-def test_iam_templates_have_no_wildcard_actions_or_account_ids() -> None:
-    for path in IAM_DIRECTORY.glob("*.json"):
-        policy = _load_policy(path.name)
-        assert all("*" not in action for action in _policy_actions(policy))
-        assert re.search(r"(?<!\d)\d{12}(?!\d)", path.read_text(encoding="utf-8")) is None
+def test_eip_experiment_permission_is_not_active() -> None:
+    policy = json.loads(READ_ONLY_POLICY_PATH.read_text(encoding="utf-8"))
+
+    assert "ec2:DescribeAddresses" not in _policy_actions(policy)

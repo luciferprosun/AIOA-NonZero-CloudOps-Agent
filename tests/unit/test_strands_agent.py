@@ -1,0 +1,183 @@
+import asyncio
+import importlib.metadata
+from pathlib import Path
+from types import SimpleNamespace
+from typing import Any
+
+from strands import Agent, tool
+from strands.hooks.events import BeforeToolCallEvent
+from strands.interrupt import Interrupt, InterruptException
+from strands.interventions import Confirm, Proceed
+from strands.models import BedrockModel, Model
+from strands.vended_interventions.hitl import HumanInTheLoop
+
+from aioa_cloudops_agent.agent import (
+    CURRENT_REGISTERED_TOOL_COUNT,
+    FINAL_TOOL_CAP,
+    PRIMARY_AGENT_COUNT,
+    SYSTEM_PROMPT,
+    create_bedrock_model,
+    create_primary_agent,
+)
+from aioa_cloudops_agent.cloudops import SandboxTarget
+from aioa_cloudops_agent.config import BedrockSettings
+from aioa_cloudops_agent.domain import (
+    AuthorityGate,
+    ExecutionBudget,
+    ExecutionContext,
+    ExecutionState,
+    generate_correlation_id,
+)
+
+ROOT = Path(__file__).parents[2]
+INSTANCE_ID = "i-0123456789abcdef0"
+
+
+class FakeModel(Model):
+    def __init__(self) -> None:
+        self.config: dict[str, Any] = {}
+
+    def update_config(self, **model_config: Any) -> None:
+        self.config.update(model_config)
+
+    def get_config(self) -> dict[str, Any]:
+        return dict(self.config)
+
+    async def stream(self, *args: Any, **kwargs: Any) -> Any:
+        if False:
+            yield {}
+
+    async def structured_output(self, *args: Any, **kwargs: Any) -> Any:
+        if False:
+            yield {}
+
+
+class NonCallingEc2Client:
+    def describe_instances(self, *, InstanceIds: list[str]) -> dict[str, object]:
+        raise AssertionError(f"unexpected provider call: {InstanceIds!r}")
+
+
+class FakeBotoSession:
+    region_name = "eu-central-1"
+
+    def __init__(self) -> None:
+        self.client_calls: list[dict[str, object]] = []
+
+    def client(self, **kwargs: object) -> SimpleNamespace:
+        self.client_calls.append(kwargs)
+        return SimpleNamespace(meta=SimpleNamespace(region_name=kwargs["region_name"]))
+
+
+def _context() -> ExecutionContext:
+    return ExecutionContext(
+        correlation_id=generate_correlation_id(),
+        idempotency_key="agent-test",
+        state=ExecutionState.INIT,
+        authority_gate=AuthorityGate.AUTO,
+        budget=ExecutionBudget(max_turns=2, max_tokens=1_024),
+    )
+
+
+def _runtime() -> object:
+    return create_primary_agent(
+        context=_context(),
+        target=SandboxTarget(INSTANCE_ID),
+        ec2_client=NonCallingEc2Client(),
+        model=FakeModel(),
+    )
+
+
+def test_exact_strands_version_is_installed_and_pinned_with_otel() -> None:
+    metadata = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+
+    assert importlib.metadata.version("strands-agents") == "1.53.0"
+    assert '"strands-agents[otel]==1.53.0"' in metadata
+
+
+def test_required_current_strands_apis_are_importable() -> None:
+    assert Agent is not None
+    assert tool is not None
+    assert BedrockModel is not None
+    assert HumanInTheLoop is not None
+    assert Interrupt is not None
+    assert InterruptException is not None
+
+
+def test_bedrock_provider_uses_explicit_region_model_and_bounds() -> None:
+    session = FakeBotoSession()
+    settings = BedrockSettings(max_output_tokens=256)
+
+    model = create_bedrock_model(settings, boto_session=session)
+    config = model.get_config()
+
+    assert isinstance(model, BedrockModel)
+    assert config["model_id"] == "eu.amazon.nova-2-lite-v1:0"
+    assert config["max_tokens"] == 256
+    assert config["temperature"] == 0
+    assert config["streaming"] is True
+    assert session.client_calls[0]["service_name"] == "bedrock-runtime"
+    assert session.client_calls[0]["region_name"] == "eu-central-1"
+
+
+def test_factory_creates_exactly_one_primary_agent_and_one_canonical_tool() -> None:
+    runtime = _runtime()
+
+    assert isinstance(runtime.agent, Agent)
+    assert PRIMARY_AGENT_COUNT == 1
+    assert CURRENT_REGISTERED_TOOL_COUNT == 1
+    assert FINAL_TOOL_CAP == 5
+    assert runtime.registered_tool_names == ("inspect_instance",)
+    assert runtime.agent.tool_names == ["inspect_instance"]
+    assert len(runtime.agent._intervention_registry.handlers) == 1
+    assert runtime.agent._intervention_registry.handlers[0] is runtime.human_in_the_loop
+
+
+def test_native_hitl_allows_inspection_and_interrupts_unknown_mutation() -> None:
+    runtime = _runtime()
+    inspection_event = BeforeToolCallEvent(
+        agent=runtime.agent,
+        selected_tool=runtime.inspect_instance_tool,
+        tool_use={
+            "toolUseId": "inspect-1",
+            "name": "inspect_instance",
+            "input": {"instance_id": INSTANCE_ID},
+        },
+        invocation_state={},
+    )
+    mutation_event = BeforeToolCallEvent(
+        agent=runtime.agent,
+        selected_tool=None,
+        tool_use={
+            "toolUseId": "stop-1",
+            "name": "stop_sandbox_instance",
+            "input": {"instance_id": INSTANCE_ID},
+        },
+        invocation_state={},
+    )
+
+    inspection_action = asyncio.run(runtime.human_in_the_loop.before_tool_call(inspection_event))
+    mutation_action = asyncio.run(runtime.human_in_the_loop.before_tool_call(mutation_event))
+
+    assert isinstance(inspection_action, Proceed)
+    assert isinstance(mutation_action, Confirm)
+    assert mutation_action.response is None
+    assert "stop_sandbox_instance" in mutation_action.prompt
+
+
+def test_hitl_does_not_use_wildcard_or_session_trust() -> None:
+    runtime = _runtime()
+
+    assert runtime.human_in_the_loop._allowed_tools == {"inspect_instance"}
+    assert "*" not in runtime.human_in_the_loop._allowed_tools
+    assert runtime.human_in_the_loop._enable_trust is False
+    assert runtime.human_in_the_loop._ask is None
+
+
+def test_system_prompt_keeps_model_subordinate_to_tools_and_authority() -> None:
+    normalized = SYSTEM_PROMPT.casefold()
+
+    assert "model output is not execution authority" in normalized
+    assert "registered tools" in normalized
+    assert "do not guess" in normalized
+    assert "never claim a mutation completed" in normalized
+    assert "read-only inspection" in normalized

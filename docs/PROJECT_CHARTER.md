@@ -17,10 +17,10 @@
 | AUTHORITY_MODEL | AUTO / PLAN_AND_CONFIRM / NEVER_AUTONOMOUS |
 | AGENTCORE | NOT_ON_P0_CRITICAL_PATH |
 | NO_LEGACY_CODE_IMPORT | TRUE |
-| EXACT_CLOUDOPS_USE_CASE | NOT_YET_FROZEN |
+| EXACT_CLOUDOPS_USE_CASE | BOUNDED_IDLE_EC2_REMEDIATION_AGENT |
 
 ## Current Boundary
 
-The project has pre-deployment Non-Zero persistence contracts and one narrow read-only observation capability for unattached Elastic IP discovery. No Strands agent, Bedrock integration, remediation, telemetry pipeline, live data-store operation, or deployment has been implemented.
+The project is a bounded idle-EC2 remediation agent for exactly one allow-listed sandbox instance. The canonical maximum tool surface is `inspect_instance`, `read_utilization_metrics`, `build_remediation_evidence`, `stop_sandbox_instance`, and `verify_instance_state`.
 
-This first observation capability does not freeze the complete product scope. The exact CloudOps use case remains intentionally unfrozen and must be selected through an authorized product-scope decision.
+The current implementation contains only `inspect_instance`, classified `READ_ONLY` under `AUTO`. Strands orchestrates, the model proposes, and the deterministic Non-Zero layer controls valid state and authority. No remediation tool, AWS deployment, live state write, or EC2 mutation has been implemented.

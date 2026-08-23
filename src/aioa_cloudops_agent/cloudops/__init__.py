@@ -1,41 +1,38 @@
-"""Read-only CloudOps QueryResource contracts."""
+"""Canonical read-only EC2 inspection contracts and Strands tool."""
 
-from .ec2_readonly import Ec2ReadOnlyClient
+from .ec2_readonly import Ec2DescribeInstancesClient
+from .inspect_instance import (
+    INSPECT_INSTANCE_AWS_API,
+    InspectInstanceService,
+    InstanceInspectionError,
+    SandboxTargetMismatchError,
+    inspection_to_provenance,
+)
 from .models import (
-    AmbiguousObservation,
-    CloudOpsFinding,
-    CloudResourceType,
-    ElasticIpEvidence,
-    FindingType,
-    QueryResourceRequest,
-    QueryResourceResult,
-    compute_ambiguous_observation_digest,
-    compute_query_result_digest,
+    DEFAULT_SANDBOX_TAG_KEY,
+    DEFAULT_SANDBOX_TAG_VALUE,
+    Ec2InstanceState,
+    Ec2MonitoringState,
+    InstanceInspection,
+    SandboxTarget,
+    validate_instance_id,
 )
-from .query_resource import (
-    ALLOWED_QUERY_OPERATIONS,
-    QUERY_AWS_API,
-    CloudOpsResponseError,
-    QueryOperationNotAllowedError,
-    QueryResource,
-    query_result_to_provenance,
-)
+from .tool import INSPECT_INSTANCE_TOOL_NAME, create_inspect_instance_tool
 
 __all__ = [
-    "ALLOWED_QUERY_OPERATIONS",
-    "QUERY_AWS_API",
-    "AmbiguousObservation",
-    "CloudOpsFinding",
-    "CloudOpsResponseError",
-    "CloudResourceType",
-    "Ec2ReadOnlyClient",
-    "ElasticIpEvidence",
-    "FindingType",
-    "QueryOperationNotAllowedError",
-    "QueryResource",
-    "QueryResourceRequest",
-    "QueryResourceResult",
-    "compute_ambiguous_observation_digest",
-    "compute_query_result_digest",
-    "query_result_to_provenance",
+    "DEFAULT_SANDBOX_TAG_KEY",
+    "DEFAULT_SANDBOX_TAG_VALUE",
+    "INSPECT_INSTANCE_AWS_API",
+    "INSPECT_INSTANCE_TOOL_NAME",
+    "Ec2DescribeInstancesClient",
+    "Ec2InstanceState",
+    "Ec2MonitoringState",
+    "InspectInstanceService",
+    "InstanceInspection",
+    "InstanceInspectionError",
+    "SandboxTarget",
+    "SandboxTargetMismatchError",
+    "create_inspect_instance_tool",
+    "inspection_to_provenance",
+    "validate_instance_id",
 ]

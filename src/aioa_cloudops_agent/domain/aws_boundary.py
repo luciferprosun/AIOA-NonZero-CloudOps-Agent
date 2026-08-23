@@ -16,14 +16,10 @@ class AwsOperationClass(StrEnum):
 
 
 class AwsOperation(StrEnum):
-    """Closed set of operations considered by the initial CloudOps boundary."""
+    """Closed set needed by the canonical EC2 workflow boundary."""
 
-    DESCRIBE_ADDRESSES = "DESCRIBE_ADDRESSES"
-    DESCRIBE_SECURITY_GROUPS = "DESCRIBE_SECURITY_GROUPS"
-    DESCRIBE_INSTANCES = "DESCRIBE_INSTANCES"
-    DESCRIBE_TAGS = "DESCRIBE_TAGS"
-    RELEASE_ADDRESS = "RELEASE_ADDRESS"
-    MODIFY_SECURITY_GROUP_RULES = "MODIFY_SECURITY_GROUP_RULES"
+    INSPECT_INSTANCE = "INSPECT_INSTANCE"
+    STOP_SANDBOX_INSTANCE = "STOP_SANDBOX_INSTANCE"
 
 
 class HumanApprovalState(StrEnum):
@@ -34,17 +30,12 @@ class HumanApprovalState(StrEnum):
 
 
 _OPERATION_CLASSES: Final[dict[AwsOperation, AwsOperationClass]] = {
-    AwsOperation.DESCRIBE_ADDRESSES: AwsOperationClass.READ_ONLY,
-    AwsOperation.DESCRIBE_SECURITY_GROUPS: AwsOperationClass.READ_ONLY,
-    AwsOperation.DESCRIBE_INSTANCES: AwsOperationClass.READ_ONLY,
-    AwsOperation.DESCRIBE_TAGS: AwsOperationClass.READ_ONLY,
-    AwsOperation.RELEASE_ADDRESS: AwsOperationClass.MUTATION,
-    AwsOperation.MODIFY_SECURITY_GROUP_RULES: AwsOperationClass.MUTATION,
+    AwsOperation.INSPECT_INSTANCE: AwsOperationClass.READ_ONLY,
+    AwsOperation.STOP_SANDBOX_INSTANCE: AwsOperationClass.MUTATION,
 }
 
 _REQUIRED_MUTATION_GATES: Final[dict[AwsOperation, AuthorityGate]] = {
-    AwsOperation.RELEASE_ADDRESS: AuthorityGate.PLAN_AND_CONFIRM,
-    AwsOperation.MODIFY_SECURITY_GROUP_RULES: AuthorityGate.NEVER_AUTONOMOUS,
+    AwsOperation.STOP_SANDBOX_INSTANCE: AuthorityGate.PLAN_AND_CONFIRM,
 }
 
 
@@ -121,18 +112,12 @@ def assess_aws_operation(
         raise AwsBoundaryViolationError("AWS mutations must never use the AUTO authority gate")
 
     required_gate = _REQUIRED_MUTATION_GATES[operation]
-    if (
-        required_gate is AuthorityGate.NEVER_AUTONOMOUS
-        and authority_gate is not AuthorityGate.NEVER_AUTONOMOUS
-    ):
+    if authority_gate is not required_gate:
         raise AwsBoundaryViolationError(
-            f"{operation.value} requires the NEVER_AUTONOMOUS authority gate"
+            f"{operation.value} requires the {required_gate.value} authority gate"
         )
 
-    if authority_gate is AuthorityGate.PLAN_AND_CONFIRM:
-        may_execute = aws_mutations_enabled and approval_granted
-    else:
-        may_execute = False
+    may_execute = aws_mutations_enabled and approval_granted
 
     return AwsOperationAssessment(
         operation=operation,

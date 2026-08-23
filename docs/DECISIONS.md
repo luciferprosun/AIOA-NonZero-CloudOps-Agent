@@ -83,7 +83,15 @@
 ## D-011 — Exact CloudOps Problem Intentionally Unfrozen
 
 - Date: 2026-08-22
-- Status: OPEN
+- Status: SUPERSEDED
 - Decision: EXACT_CLOUDOPS_USE_CASE = NOT_YET_FROZEN.
 - Rationale: The exact problem must be selected through a dedicated product-scope phase rather than invented during repository bootstrap.
-- Reversal condition: Freeze only through the authorized product-scope decision process.
+- Reversal condition: Satisfied by D-012.
+
+## D-012 — Bounded Idle EC2 Remediation Agent
+
+- Date: 2026-08-23
+- Status: ACCEPTED
+- Decision: Build one bounded idle-EC2 remediation agent for exactly one allow-listed sandbox instance, with a maximum five-tool surface: `inspect_instance`, `read_utilization_metrics`, `build_remediation_evidence`, `stop_sandbox_instance`, and `verify_instance_state`.
+- Rationale: The narrow workflow demonstrates professional CloudOps observation, durable evidence, explicit human authority, bounded remediation, and post-action verification without broad account authority.
+- Reversal condition: Any scope or tool-surface expansion requires an explicit documented decision proving that the five-tool single-agent design is insufficient.

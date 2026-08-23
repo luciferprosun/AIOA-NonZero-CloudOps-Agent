@@ -1,11 +1,12 @@
-# AIOA Non-Zero CloudOps Agent
+# AIOA Non-Zero CloudOps — Bounded Idle EC2 Remediation Agent
 
 Newly authored work for the **AWS Agents for Humans Hackathon 2026**.
 
 - Track: Professional Agents
-- Status: architecture/bootstrap phase
-- Planned orchestration foundation: Strands Agents SDK
-- Planned model platform: Amazon Bedrock
+- Status: deterministic Phase 2 integration complete; live Nova compatibility blocked
+- Orchestration: one Strands Agent
+- Model platform: Amazon Bedrock
+- Current capability: read-only inspection of one configured sandbox EC2 instance
 
 ## Non-Zero Principle
 
@@ -13,4 +14,4 @@ No silent, ambiguous, untraceable, unverifiable, or falsely-successful state may
 
 This repository contains newly authored hackathon work. Existing AIOA, AOIA, and Non-Zero projects are prior art; no implementation code from them has been imported.
 
-No agent functionality is implemented yet. Final Devpost submission text is **NOT yet canonical**.
+No AWS infrastructure has been deployed by this project. No EC2 mutation capability is implemented. Final Devpost submission text is **NOT yet canonical**.

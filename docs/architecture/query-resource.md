@@ -1,4 +1,6 @@
-# QueryResource: Unattached Elastic IP Observation
+# Historical Phase 1 QueryResource Experiment
+
+> Status: preserved by the immutable `phase1-foundation-green` tag; not part of the active canonical tool surface on `main`.
 
 The first CloudOps capability observes allocated Elastic IP addresses through only `ec2:DescribeAddresses`. It is classified `READ_ONLY` under the `AUTO` authority gate and has no remediation method.
 
@@ -8,4 +10,6 @@ Results are typed rather than exposing raw provider responses. Each finding cont
 
 The operation allowlist contains only `ec2:DescribeAddresses`. Mutation requests fail before the provider client is called. Finding a potentially unattached Elastic IP is not authorization to release it.
 
-No AWS resource mutation, live AWS query, live DynamoDB write, Bedrock invocation, Strands execution, or deployment occurred in this implementation step.
+The active Phase 2 implementation removes EIP-specific executable code, tests, and IAM authority. It is not registered as a Strands tool. The reusable Non-Zero evidence and authority contracts remain independent of this historical experiment.
+
+No AWS resource mutation, live AWS query, live DynamoDB write, Bedrock invocation, Strands execution, or deployment occurred in the historical implementation step.
