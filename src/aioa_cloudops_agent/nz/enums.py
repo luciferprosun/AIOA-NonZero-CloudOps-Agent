@@ -1,0 +1,147 @@
+"""Closed Non-Zero workflow, policy, and result vocabularies."""
+
+from enum import StrEnum
+from typing import Final
+
+
+class WorkflowState(StrEnum):
+    """Canonical lifecycle for the bounded idle-EC2 remediation workflow."""
+
+    RECEIVED = "RECEIVED"
+    INVESTIGATING = "INVESTIGATING"
+    EVIDENCE_READY = "EVIDENCE_READY"
+    REMEDIATION_PROPOSED = "REMEDIATION_PROPOSED"
+    AWAITING_APPROVAL = "AWAITING_APPROVAL"
+    APPROVED = "APPROVED"
+    EXECUTING = "EXECUTING"
+    VERIFYING = "VERIFYING"
+    SUCCESS_WITH_EVIDENCE = "SUCCESS_WITH_EVIDENCE"
+    DENIED_BY_HUMAN = "DENIED_BY_HUMAN"
+    DENIED_BY_POLICY = "DENIED_BY_POLICY"
+    MODEL_OUTPUT_INVALID = "MODEL_OUTPUT_INVALID"
+    AMBIGUOUS_RESULT = "AMBIGUOUS_RESULT"
+    DEPENDENCY_UNAVAILABLE = "DEPENDENCY_UNAVAILABLE"
+    BUDGET_EXHAUSTED = "BUDGET_EXHAUSTED"
+    EXECUTION_FAILED = "EXECUTION_FAILED"
+    VERIFICATION_FAILED = "VERIFICATION_FAILED"
+    RECOVERY_REQUIRED = "RECOVERY_REQUIRED"
+
+
+TERMINAL_WORKFLOW_STATES: Final[frozenset[WorkflowState]] = frozenset(
+    {
+        WorkflowState.SUCCESS_WITH_EVIDENCE,
+        WorkflowState.DENIED_BY_HUMAN,
+        WorkflowState.DENIED_BY_POLICY,
+        WorkflowState.MODEL_OUTPUT_INVALID,
+        WorkflowState.AMBIGUOUS_RESULT,
+        WorkflowState.DEPENDENCY_UNAVAILABLE,
+        WorkflowState.BUDGET_EXHAUSTED,
+        WorkflowState.EXECUTION_FAILED,
+        WorkflowState.VERIFICATION_FAILED,
+        WorkflowState.RECOVERY_REQUIRED,
+    }
+)
+
+
+class Capability(StrEnum):
+    """Closed policy catalog; entries do not create executable tools."""
+
+    INSPECT_INSTANCE = "inspect_instance"
+    READ_UTILIZATION_METRICS = "read_utilization_metrics"
+    BUILD_REMEDIATION_EVIDENCE = "build_remediation_evidence"
+    STOP_SANDBOX_INSTANCE = "stop_sandbox_instance"
+    VERIFY_INSTANCE_STATE = "verify_instance_state"
+    TERMINATE_INSTANCES = "TerminateInstances"
+    IAM_MUTATION = "IAM_MUTATION"
+    STORAGE_DATABASE_DELETION = "STORAGE_DATABASE_DELETION"
+    SECURITY_GROUP_NETWORK_OPENING = "SECURITY_GROUP_NETWORK_OPENING"
+    SHELL_EXECUTION = "SHELL_EXECUTION"
+    ARBITRARY_CODE_EXECUTION = "ARBITRARY_CODE_EXECUTION"
+    ARBITRARY_URL_FETCH = "ARBITRARY_URL_FETCH"
+    OUTSIDE_SANDBOX_SCOPE = "OUTSIDE_SANDBOX_SCOPE"
+
+
+class ProposalState(StrEnum):
+    """Persistence state of a proposal, kept separate from approval."""
+
+    PROPOSED = "PROPOSED"
+    AWAITING_APPROVAL = "AWAITING_APPROVAL"
+    SUPERSEDED = "SUPERSEDED"
+
+
+class ApprovalDecision(StrEnum):
+    """Explicit human decision; absence is represented by no approval record."""
+
+    APPROVED = "APPROVED"
+    DENIED = "DENIED"
+
+
+class FailureKind(StrEnum):
+    """Failure categories that must survive control and storage boundaries."""
+
+    VALIDATION_FAILURE = "VALIDATION_FAILURE"
+    POLICY_DENIAL = "POLICY_DENIAL"
+    AMBIGUOUS_RESULT = "AMBIGUOUS_RESULT"
+    DEPENDENCY_UNAVAILABLE = "DEPENDENCY_UNAVAILABLE"
+    BUDGET_EXHAUSTION = "BUDGET_EXHAUSTION"
+    EXECUTION_FAILURE = "EXECUTION_FAILURE"
+    VERIFICATION_FAILURE = "VERIFICATION_FAILURE"
+    RECOVERY_REQUIREMENT = "RECOVERY_REQUIREMENT"
+
+
+class ResultStatus(StrEnum):
+    """Discriminator for explicit success and failure results."""
+
+    SUCCESS = "SUCCESS"
+    FAILURE = "FAILURE"
+
+
+class ActionOutcome(StrEnum):
+    """Durable outcome of a future consequential action."""
+
+    SUCCEEDED = "SUCCEEDED"
+    FAILED = "FAILED"
+    AMBIGUOUS = "AMBIGUOUS"
+    RECONCILIATION_REQUIRED = "RECONCILIATION_REQUIRED"
+
+
+class IdempotencyStatus(StrEnum):
+    """Lifecycle of a semantic idempotency ownership record."""
+
+    REGISTERED = "REGISTERED"
+    COMPLETED = "COMPLETED"
+    FAILED = "FAILED"
+    RECONCILIATION_REQUIRED = "RECONCILIATION_REQUIRED"
+
+
+class ObservedInstanceState(StrEnum):
+    """Normalized EC2 states relevant to the bounded workflow."""
+
+    PENDING = "pending"
+    RUNNING = "running"
+    STOPPING = "stopping"
+    STOPPED = "stopped"
+
+
+class AuditEventType(StrEnum):
+    """Append-oriented audit events for workflow and tool evidence."""
+
+    RUN_CREATED = "RUN_CREATED"
+    STATE_TRANSITIONED = "STATE_TRANSITIONED"
+    PROPOSAL_CREATED = "PROPOSAL_CREATED"
+    APPROVAL_RECORDED = "APPROVAL_RECORDED"
+    IDEMPOTENCY_REGISTERED = "IDEMPOTENCY_REGISTERED"
+    CHECKPOINT_SAVED = "CHECKPOINT_SAVED"
+    TOOL_OBSERVED = "TOOL_OBSERVED"
+    MODEL_OBSERVED = "MODEL_OBSERVED"
+    VERIFICATION_RECORDED = "VERIFICATION_RECORDED"
+
+
+class RecoveryDisposition(StrEnum):
+    """What a later recovery controller can infer from durable state."""
+
+    NEW_RUN = "NEW_RUN"
+    SAFE_RESUMABLE = "SAFE_RESUMABLE"
+    AWAITING_APPROVAL = "AWAITING_APPROVAL"
+    RECONCILIATION_REQUIRED = "RECONCILIATION_REQUIRED"
+    TERMINAL_RUN = "TERMINAL_RUN"
