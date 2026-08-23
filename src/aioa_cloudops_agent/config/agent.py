@@ -10,7 +10,49 @@ from .settings import DEFAULT_AWS_REGION, DEFAULT_MODEL_MAX_OUTPUT_TOKENS
 
 DEFAULT_BEDROCK_MODEL_ID: Final = "eu.amazon.nova-2-lite-v1:0"
 DEFAULT_BEDROCK_REGION: Final = DEFAULT_AWS_REGION
-DEFAULT_MODEL_TEMPERATURE: Final = 0.0
+NOVA_2_LITE_MIN_TEMPERATURE: Final = 0.00001
+NOVA_2_LITE_MAX_TEMPERATURE: Final = 1.0
+DEFAULT_MODEL_TEMPERATURE: Final = NOVA_2_LITE_MIN_TEMPERATURE
+DETERMINISTIC_TEMPERATURE_POLICY: Final = "LOWEST_MODEL_SUPPORTED_TEMPERATURE"
+
+
+@dataclass(frozen=True, slots=True)
+class BedrockModelCapabilities:
+    """Model-specific inference constraints used by the Bedrock settings contract."""
+
+    model_id: str
+    minimum_temperature: float
+    maximum_temperature: float
+
+    def validate_temperature(self, value: object) -> float:
+        """Validate one temperature against this model's documented range."""
+
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            raise ContractValidationError("Bedrock temperature must be numeric")
+        temperature = float(value)
+        if not self.minimum_temperature <= temperature <= self.maximum_temperature:
+            raise ContractValidationError(
+                "Bedrock temperature must be within the configured model's supported range"
+            )
+        return temperature
+
+
+_MODEL_CAPABILITIES: Final[dict[str, BedrockModelCapabilities]] = {
+    DEFAULT_BEDROCK_MODEL_ID: BedrockModelCapabilities(
+        model_id=DEFAULT_BEDROCK_MODEL_ID,
+        minimum_temperature=NOVA_2_LITE_MIN_TEMPERATURE,
+        maximum_temperature=NOVA_2_LITE_MAX_TEMPERATURE,
+    )
+}
+
+
+def get_bedrock_model_capabilities(model_id: str) -> BedrockModelCapabilities:
+    """Return explicit capabilities without assuming constraints across models."""
+
+    try:
+        return _MODEL_CAPABILITIES[model_id]
+    except (KeyError, TypeError) as error:
+        raise ContractValidationError("Bedrock model_id is not supported by this runtime") from error
 
 
 def _read_positive_integer(name: str, value: str) -> int:
@@ -37,6 +79,7 @@ class BedrockSettings:
             raise ContractValidationError("Bedrock model_id must be a non-empty string")
         if self.model_id != self.model_id.strip():
             raise ContractValidationError("Bedrock model_id must not contain surrounding whitespace")
+        capabilities = get_bedrock_model_capabilities(self.model_id)
         if not isinstance(self.region, str) or self.region != DEFAULT_BEDROCK_REGION:
             raise ContractValidationError(f"Bedrock region must be {DEFAULT_BEDROCK_REGION}")
         if (
@@ -48,12 +91,11 @@ class BedrockSettings:
             raise ContractValidationError(
                 f"Bedrock max_output_tokens must be between 1 and {DEFAULT_MODEL_MAX_OUTPUT_TOKENS}"
             )
-        if isinstance(self.temperature, bool) or not isinstance(
-            self.temperature, (int, float)
-        ):
-            raise ContractValidationError("Bedrock temperature must be numeric")
-        if float(self.temperature) != DEFAULT_MODEL_TEMPERATURE:
-            raise ContractValidationError("Bedrock temperature must be 0")
+        temperature = capabilities.validate_temperature(self.temperature)
+        if temperature != capabilities.minimum_temperature:
+            raise ContractValidationError(
+                "Bedrock temperature must use the lowest model-supported temperature"
+            )
 
     @classmethod
     def from_environment(cls) -> "BedrockSettings":

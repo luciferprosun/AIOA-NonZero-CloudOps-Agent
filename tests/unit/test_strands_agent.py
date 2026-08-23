@@ -1,5 +1,6 @@
 import asyncio
 import importlib.metadata
+import subprocess
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -113,7 +114,7 @@ def test_bedrock_provider_uses_explicit_region_model_and_bounds() -> None:
     assert isinstance(model, BedrockModel)
     assert config["model_id"] == "eu.amazon.nova-2-lite-v1:0"
     assert config["max_tokens"] == 256
-    assert config["temperature"] == 0
+    assert config["temperature"] == 0.00001
     assert config["streaming"] is True
     assert session.client_calls[0]["service_name"] == "bedrock-runtime"
     assert session.client_calls[0]["region_name"] == "eu-central-1"
@@ -130,6 +131,54 @@ def test_factory_creates_exactly_one_primary_agent_and_one_canonical_tool() -> N
     assert runtime.agent.tool_names == ["inspect_instance"]
     assert len(runtime.agent._intervention_registry.handlers) == 1
     assert runtime.agent._intervention_registry.handlers[0] is runtime.human_in_the_loop
+
+
+def test_inspect_instance_tool_schema_is_nova_compatible_and_minimal() -> None:
+    runtime = _runtime()
+    schema = runtime.inspect_instance_tool.tool_spec["inputSchema"]["json"]
+
+    assert schema == {
+        "properties": {
+            "instance_id": {
+                "description": "Parameter instance_id",
+                "type": "string",
+            }
+        },
+        "required": ["instance_id"],
+        "type": "object",
+    }
+    assert runtime.registered_tool_names == ("inspect_instance",)
+
+
+def test_bedrock_specific_tool_choice_formats_exact_registered_tool() -> None:
+    session = FakeBotoSession()
+    model = create_bedrock_model(BedrockSettings(max_output_tokens=256), boto_session=session)
+    runtime = _runtime()
+
+    request = model.format_request(
+        messages=[{"role": "user", "content": [{"text": "Inspect the sandbox."}]}],
+        tool_specs=[runtime.inspect_instance_tool.tool_spec],
+        tool_choice={"tool": {"name": "inspect_instance"}},
+    )
+
+    assert request["toolConfig"]["toolChoice"] == {
+        "tool": {"name": "inspect_instance"}
+    }
+    assert request["toolConfig"]["tools"] == [
+        {"toolSpec": runtime.inspect_instance_tool.tool_spec}
+    ]
+
+
+def test_phase_1_tag_remains_at_frozen_commit() -> None:
+    result = subprocess.run(
+        ["git", "rev-list", "-n", "1", "phase1-foundation-green"],
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.stdout.strip() == "ced6e2a180dd50a1f43d4037bb8db5f4dc792657"
 
 
 def test_native_hitl_allows_inspection_and_interrupts_unknown_mutation() -> None:

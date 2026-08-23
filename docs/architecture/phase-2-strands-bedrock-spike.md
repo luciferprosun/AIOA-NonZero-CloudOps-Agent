@@ -2,7 +2,7 @@
 
 ## Runtime Boundary
 
-This repository pins `strands-agents[otel]==1.53.0` and creates exactly one primary Strands `Agent`. The explicit Amazon Bedrock development candidate is `eu.amazon.nova-2-lite-v1:0` in source region `eu-central-1`, with temperature `0` and a maximum output of `1024` tokens. There is no fallback model.
+This repository pins `strands-agents[otel]==1.53.0` and creates exactly one primary Strands `Agent`. The explicit Amazon Bedrock development candidate is `eu.amazon.nova-2-lite-v1:0` in source region `eu-central-1`, with temperature `0.00001` and a maximum output of `1024` tokens. There is no fallback model.
 
 The `eu.` model identifier is an AWS European geographic inference profile. Requests originate in `eu-central-1`; AWS may route inference within the profile's supported European Regions, which remains a data-residency consideration for deployment review.
 
@@ -32,4 +32,16 @@ AWS identity, the EU inference profile, and the Nova 2 Lite foundation-model met
 
 `MODEL_STATUS = COMPATIBILITY_FAILED`.
 
-The current [Nova 2 request schema](https://docs.aws.amazon.com/nova/latest/nova2-userguide/request-response-schema.html) lists a positive minimum for `temperature`, while the frozen project contract requires deterministic `temperature = 0`. This is a likely cause, not a proven error-message attribution, because credential-bearing provider details were deliberately not recorded. The conflict must be resolved explicitly before Phase 2 Step 2; this step does not weaken the guardrail or switch models.
+The first live request confirmed that Strands sent `temperature = 0`, which Nova 2 Lite rejected before tool use. The [Nova 2 request schema](https://docs.aws.amazon.com/nova/latest/nova2-userguide/request-response-schema.html) specifies a minimum supported temperature of `0.00001`.
+
+The active policy is `LOWEST_MODEL_SUPPORTED_TEMPERATURE`, not exact zero. For Nova 2 Lite this resolves to `0.00001`, preserving the lowest supported deterministic-development setting. Model-specific inference constraints are represented explicitly and are not assumed to apply globally to every Bedrock model.
+
+### Step 1B Retry
+
+Local introspection verifies that the effective Strands `BedrockModel` request now contains the unchanged Nova 2 Lite model ID, `eu-central-1`, `temperature = 0.00001`, and bounded output tokens. The generated `inspect_instance` schema contains only top-level `type`, `properties`, and `required`, with one required string field. A specific Bedrock tool choice selected only `inspect_instance` for the first turn.
+
+Exactly one bounded live Strands workflow was attempted. It stopped with `TokenRetrievalError` because the local AWS SSO token had expired and refresh failed, before Bedrock returned a response or requested the tool. No repeat workflow was attempted. The result was one attempted model-provider call, zero tool executions, zero live EC2 calls, zero DynamoDB writes, and zero AWS resource mutations.
+
+`MODEL_STATUS = COMPATIBILITY_UNVERIFIED_AUTH_BLOCKED`.
+
+AWS SSO must be restored before a separately authorized single live retry can prove compatibility. The model is not promoted to primary development candidate without that evidence.

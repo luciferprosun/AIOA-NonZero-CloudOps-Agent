@@ -3,7 +3,7 @@
 Newly authored work for the **AWS Agents for Humans Hackathon 2026**.
 
 - Track: Professional Agents
-- Status: deterministic Phase 2 integration complete; live Nova compatibility blocked
+- Status: deterministic Nova 2 compatibility correction complete; live retry blocked by expired AWS SSO
 - Orchestration: one Strands Agent
 - Model platform: Amazon Bedrock
 - Current capability: read-only inspection of one configured sandbox EC2 instance
