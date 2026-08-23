@@ -38,20 +38,31 @@ from aioa_cloudops_agent.remediation import (
     create_stop_sandbox_instance_tool,
     unavailable_stop_request,
 )
+from aioa_cloudops_agent.verification import (
+    VERIFY_INSTANCE_STATE_TOOL_NAME,
+    VerificationRequestHandler,
+    create_verify_instance_state_tool,
+    unavailable_verification_request,
+)
 
 from .hitl import DurableProposalHumanInTheLoop
 from .prompts import SYSTEM_PROMPT
 from .tracing import PRIMARY_AGENT_ID, build_agent_trace_attributes
 
 PRIMARY_AGENT_COUNT: Final = 1
-CURRENT_REGISTERED_TOOL_COUNT: Final = 4
+CURRENT_REGISTERED_TOOL_COUNT: Final = 5
 FINAL_TOOL_CAP: Final = 5
-READ_ONLY_TOOL_NAMES: Final = (
+INVESTIGATION_TOOL_NAMES: Final = (
     INSPECT_INSTANCE_TOOL_NAME,
     READ_UTILIZATION_TOOL_NAME,
     BUILD_REMEDIATION_EVIDENCE_TOOL_NAME,
 )
-CURRENT_TOOL_NAMES: Final = (*READ_ONLY_TOOL_NAMES, STOP_SANDBOX_INSTANCE_TOOL_NAME)
+READ_ONLY_TOOL_NAMES: Final = (*INVESTIGATION_TOOL_NAMES, VERIFY_INSTANCE_STATE_TOOL_NAME)
+CURRENT_TOOL_NAMES: Final = (
+    *INVESTIGATION_TOOL_NAMES,
+    STOP_SANDBOX_INSTANCE_TOOL_NAME,
+    VERIFY_INSTANCE_STATE_TOOL_NAME,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -63,6 +74,7 @@ class PrimaryAgentRuntime:
     read_utilization_metrics_tool: DecoratedFunctionTool
     build_remediation_evidence_tool: DecoratedFunctionTool
     stop_sandbox_instance_tool: DecoratedFunctionTool
+    verify_instance_state_tool: DecoratedFunctionTool
     human_in_the_loop: HumanInTheLoop
     tool_context: InvestigationToolContext
     identity: InvestigationIdentity
@@ -132,8 +144,9 @@ def create_primary_agent(
     tracer: Tracer | None = None,
     durable_repository: DurableTruthRepository | None = None,
     stop_request_handler: StopRequestHandler | None = None,
+    verification_request_handler: VerificationRequestHandler | None = None,
 ) -> PrimaryAgentRuntime:
-    """Create one Strands Agent with the complete bounded read-only tool surface."""
+    """Create one Strands Agent with the canonical bounded five-tool surface."""
 
     if not isinstance(context, ExecutionContext):
         raise ContractValidationError("context must be an ExecutionContext")
@@ -198,13 +211,23 @@ def create_primary_agent(
         stop_request_handler or unavailable_stop_request,
         tracer=tracer,
     )
+    verification_tool = create_verify_instance_state_tool(
+        verification_request_handler or unavailable_verification_request,
+        tracer=tracer,
+    )
     intervention = create_human_in_the_loop(durable_repository)
     primary_agent = Agent(
         agent_id=PRIMARY_AGENT_ID,
         name="AIOA Non-Zero CloudOps",
         description="Bounded read-only sandbox EC2 investigation agent",
         model=model if model is not None else create_bedrock_model(settings),
-        tools=[inspection_tool, utilization_tool, evidence_tool, stop_tool],
+        tools=[
+            inspection_tool,
+            utilization_tool,
+            evidence_tool,
+            stop_tool,
+            verification_tool,
+        ],
         interventions=[intervention],
         system_prompt=SYSTEM_PROMPT,
         callback_handler=None,
@@ -220,6 +243,7 @@ def create_primary_agent(
         read_utilization_metrics_tool=utilization_tool,
         build_remediation_evidence_tool=evidence_tool,
         stop_sandbox_instance_tool=stop_tool,
+        verify_instance_state_tool=verification_tool,
         human_in_the_loop=intervention,
         tool_context=tool_context,
         identity=identity,

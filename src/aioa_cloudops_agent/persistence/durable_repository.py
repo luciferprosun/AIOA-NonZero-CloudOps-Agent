@@ -15,6 +15,7 @@ from aioa_cloudops_agent.nz import (
     IdempotencyStatus,
     ProposalState,
     Run,
+    VerificationEvidence,
     WorkflowState,
 )
 
@@ -37,6 +38,7 @@ class DurableTruthRepository(Protocol):
         expected_version: int,
         updated_at: datetime,
         approval_proposal_id: UUID | None = None,
+        verification_proposal_id: UUID | None = None,
     ) -> Run:
         """Conditionally apply one legal application-owned state transition."""
 
@@ -102,3 +104,16 @@ class DurableTruthRepository(Protocol):
 
     def get_audit_event(self, run_id: UUID, event_id: UUID) -> AuditEvent | None:
         """Read one immutable event by identity."""
+
+    def create_verification_evidence(
+        self,
+        evidence: VerificationEvidence,
+    ) -> VerificationEvidence:
+        """Create or reconcile one immutable independent verification proof."""
+
+    def get_verification_evidence(
+        self,
+        run_id: UUID,
+        proposal_id: UUID,
+    ) -> VerificationEvidence | None:
+        """Read one final verification proof; absence is not success."""

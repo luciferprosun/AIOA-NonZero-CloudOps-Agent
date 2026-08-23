@@ -13,8 +13,10 @@ from aioa_cloudops_agent.nz import (
     ExecutionAcknowledgement,
     IdempotencyRecord,
     IdempotencyStatus,
+    ObservedInstanceState,
     ProposalState,
     Run,
+    VerificationEvidence,
     WorkflowState,
     transition_run,
 )
@@ -38,6 +40,7 @@ class InMemoryTestDurableTruthRepository:
         self._idempotency: dict[str, IdempotencyRecord] = {}
         self._checkpoints: dict[UUID, Checkpoint] = {}
         self._audit_events: dict[tuple[UUID, UUID], AuditEvent] = {}
+        self._verification_evidence: dict[tuple[UUID, UUID], VerificationEvidence] = {}
 
     def create_run(self, run: Run) -> Run:
         if run.version != 1 or run.state is not WorkflowState.RECEIVED:
@@ -59,6 +62,7 @@ class InMemoryTestDurableTruthRepository:
         expected_version: int,
         updated_at: datetime,
         approval_proposal_id: UUID | None = None,
+        verification_proposal_id: UUID | None = None,
     ) -> Run:
         current = self._runs.get(run_id)
         if current is None:
@@ -83,6 +87,27 @@ class InMemoryTestDurableTruthRepository:
                 or approval.decision is not expected_decision
             ):
                 raise StorageConflictError("decision transition requires matching durable human decision")
+        if next_state is WorkflowState.SUCCESS_WITH_EVIDENCE:
+            if verification_proposal_id is None:
+                raise StorageConflictError("SUCCESS_WITH_EVIDENCE requires durable verification")
+            proposal = self._proposals.get(verification_proposal_id)
+            evidence = self._verification_evidence.get((run_id, verification_proposal_id))
+            idempotency = (
+                self._idempotency.get(derive_idempotency_key(proposal))
+                if proposal is not None
+                else None
+            )
+            if (
+                proposal is None
+                or evidence is None
+                or evidence.run_id != run_id
+                or evidence.observed_state is not ObservedInstanceState.STOPPED
+                or idempotency is None
+                or idempotency.status is not IdempotencyStatus.COMPLETED
+                or idempotency.action_result is None
+                or idempotency.action_result.evidence_hash != evidence.evidence_hash
+            ):
+                raise StorageConflictError("SUCCESS_WITH_EVIDENCE proof is incomplete")
         updated = transition_run(current, next_state, updated_at=updated_at)
         self._runs[run_id] = updated
         return updated
@@ -229,3 +254,44 @@ class InMemoryTestDurableTruthRepository:
 
     def get_audit_event(self, run_id: UUID, event_id: UUID) -> AuditEvent | None:
         return self._audit_events.get((run_id, event_id))
+
+    def create_verification_evidence(
+        self,
+        evidence: VerificationEvidence,
+    ) -> VerificationEvidence:
+        key = (evidence.run_id, evidence.proposal_id)
+        existing = self._verification_evidence.get(key)
+        if existing is not None:
+            if existing == evidence:
+                return existing
+            raise StorageConflictError("conflicting verification evidence already exists")
+        proposal = self._proposals.get(evidence.proposal_id)
+        run = self._runs.get(evidence.run_id)
+        idempotency = (
+            self._idempotency.get(derive_idempotency_key(proposal))
+            if proposal is not None
+            else None
+        )
+        if (
+            proposal is None
+            or run is None
+            or run.state is not WorkflowState.VERIFYING
+            or proposal.run_id != evidence.run_id
+            or proposal.target != evidence.target
+            or run.trace_id != evidence.trace_id
+            or run.correlation_id != evidence.correlation_id
+            or idempotency is None
+            or idempotency.execution_acknowledgement is None
+            or idempotency.execution_acknowledgement.acknowledgement_hash
+            != evidence.execution_acknowledgement_hash
+        ):
+            raise StorageConflictError("verification evidence does not match the proposal")
+        self._verification_evidence[key] = evidence
+        return evidence
+
+    def get_verification_evidence(
+        self,
+        run_id: UUID,
+        proposal_id: UUID,
+    ) -> VerificationEvidence | None:
+        return self._verification_evidence.get((run_id, proposal_id))

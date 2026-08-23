@@ -21,6 +21,7 @@ from .investigation import (
 )
 from .remediation import SandboxRemediationSettings
 from .settings import AwsSettings, CostGuardrails, DynamoDbBillingMode
+from .verification import VerificationSettings
 
 __all__ = [
     "DEFAULT_BEDROCK_MODEL_ID",
@@ -41,5 +42,6 @@ __all__ = [
     "DynamoDbSettings",
     "IdlePolicySettings",
     "SandboxRemediationSettings",
+    "VerificationSettings",
     "get_bedrock_model_capabilities",
 ]

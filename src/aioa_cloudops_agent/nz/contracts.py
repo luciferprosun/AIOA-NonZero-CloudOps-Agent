@@ -1,5 +1,7 @@
 """Pydantic contracts at Non-Zero model, control, and durable boundaries."""
 
+import hashlib
+import json
 from datetime import datetime, timedelta
 from typing import Literal, Self
 
@@ -17,6 +19,7 @@ from .enums import (
     IdempotencyStatus,
     ObservedInstanceState,
     ProposalState,
+    VerificationDisposition,
     WorkflowState,
 )
 from .errors import FailureDetail
@@ -254,6 +257,103 @@ class ExecutionAcknowledgement(NonZeroContract):
     @classmethod
     def validate_acknowledged_at(cls, value: datetime) -> datetime:
         return _require_utc("acknowledged_at", value)
+
+
+class VerificationEvidence(NonZeroContract):
+    """Immutable proof that independent EC2 read-back observed the stopped target."""
+
+    evidence_id: Uuid7Identifier
+    proposal_id: Uuid7Identifier
+    run_id: Uuid7Identifier
+    trace_id: Uuid7Identifier
+    correlation_id: Uuid7Identifier
+    disposition: Literal[VerificationDisposition.VERIFIED] = VerificationDisposition.VERIFIED
+    action: Literal[Capability.STOP_SANDBOX_INSTANCE] = Capability.STOP_SANDBOX_INSTANCE
+    target: ActionTarget
+    observed_state: Literal[ObservedInstanceState.STOPPED] = ObservedInstanceState.STOPPED
+    verified_at: datetime
+    execution_acknowledgement_hash: Sha256Digest
+    observation_hash: Sha256Digest
+    request_reference: NonEmptyText | None = None
+    evidence_hash: Sha256Digest
+
+    @field_validator("verified_at")
+    @classmethod
+    def validate_verified_at(cls, value: datetime) -> datetime:
+        return _require_utc("verified_at", value)
+
+    @model_validator(mode="after")
+    def validate_evidence_hash(self) -> Self:
+        canonical = json.dumps(
+            self.evidence_payload(),
+            allow_nan=False,
+            ensure_ascii=True,
+            separators=(",", ":"),
+            sort_keys=True,
+        ).encode("utf-8")
+        if self.evidence_hash != hashlib.sha256(canonical).hexdigest():
+            raise ValueError("verification evidence_hash does not match canonical evidence")
+        return self
+
+    def evidence_payload(self) -> dict[str, object]:
+        """Return canonical decision-relevant proof without provider response leakage."""
+
+        return {
+            "action": self.action.value,
+            "correlation_id": str(self.correlation_id),
+            "disposition": self.disposition.value,
+            "execution_acknowledgement_hash": self.execution_acknowledgement_hash,
+            "observation_hash": self.observation_hash,
+            "observed_state": self.observed_state.value,
+            "proposal_id": str(self.proposal_id),
+            "request_reference": self.request_reference,
+            "run_id": str(self.run_id),
+            "target": self.target.model_dump(mode="json"),
+            "trace_id": str(self.trace_id),
+            "verified_at": self.verified_at.isoformat(),
+        }
+
+    @classmethod
+    def create(
+        cls,
+        *,
+        evidence_id: Uuid7Identifier,
+        proposal: ActionProposal,
+        run: Run,
+        verified_at: datetime,
+        acknowledgement: ExecutionAcknowledgement,
+        observation_hash: Sha256Digest,
+    ) -> "VerificationEvidence":
+        """Build linked final proof and its stable canonical SHA-256 digest."""
+
+        if (
+            proposal.run_id != run.run_id
+            or acknowledgement.proposal_id != proposal.proposal_id
+            or acknowledgement.run_id != run.run_id
+            or acknowledgement.target != proposal.target
+        ):
+            raise ValueError("verification evidence prerequisites do not share one identity")
+        values: dict[str, object] = {
+            "evidence_id": evidence_id,
+            "proposal_id": proposal.proposal_id,
+            "run_id": run.run_id,
+            "trace_id": run.trace_id,
+            "correlation_id": run.correlation_id,
+            "target": proposal.target,
+            "verified_at": verified_at,
+            "execution_acknowledgement_hash": acknowledgement.acknowledgement_hash,
+            "observation_hash": observation_hash,
+            "request_reference": acknowledgement.request_reference,
+        }
+        provisional = cls.model_construct(**values, evidence_hash="0" * 64)
+        canonical = json.dumps(
+            provisional.evidence_payload(),
+            allow_nan=False,
+            ensure_ascii=True,
+            separators=(",", ":"),
+            sort_keys=True,
+        ).encode("utf-8")
+        return cls(**values, evidence_hash=hashlib.sha256(canonical).hexdigest())
 
 
 class IdempotencyRecord(NonZeroContract):

@@ -15,6 +15,7 @@ from .contracts import (
     ExpectedPrecondition,
     IdempotencyRecord,
     Run,
+    VerificationEvidence,
     transition_run,
 )
 from .enums import (
@@ -30,6 +31,7 @@ from .enums import (
     ProposalState,
     RecoveryDisposition,
     ResultStatus,
+    VerificationDisposition,
     WorkflowState,
 )
 from .errors import (
@@ -95,6 +97,8 @@ __all__ = [
     "StorageConflictError",
     "StorageDependencyError",
     "Uuid7Identifier",
+    "VerificationDisposition",
+    "VerificationEvidence",
     "WorkflowState",
     "WorkflowTransitionError",
     "authority_for_capability",

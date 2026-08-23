@@ -7,7 +7,9 @@ import pytest
 
 from aioa_cloudops_agent.config import DynamoDbSettings
 from aioa_cloudops_agent.nz import (
+    ActionOutcome,
     ActionProposal,
+    ActionResult,
     ActionTarget,
     Approval,
     ApprovalDecision,
@@ -20,9 +22,11 @@ from aioa_cloudops_agent.nz import (
     ExecutionAcknowledgement,
     ExpectedPrecondition,
     IdempotencyRecord,
+    IdempotencyStatus,
     ObservedInstanceState,
     ProposalState,
     Run,
+    VerificationEvidence,
     WorkflowState,
 )
 from aioa_cloudops_agent.nz.errors import StorageConflictError, StorageDependencyError
@@ -35,6 +39,7 @@ CORRELATION_ID = UUID("01890f6c-3311-7abc-8f4a-6e4f7f0b9b3c")
 PROPOSAL_ID = UUID("01890f6c-3311-7abc-8f4a-6e4f7f0b9b3d")
 OTHER_PROPOSAL_ID = UUID("01890f6c-3311-7abc-8f4a-6e4f7f0b9b3e")
 EVENT_ID = UUID("01890f6c-3311-7abc-8f4a-6e4f7f0b9b3f")
+EVIDENCE_ID = UUID("01890f6c-3311-7abc-8f4a-6e4f7f0b9b40")
 NOW = datetime(2026, 8, 23, 12, 0, tzinfo=UTC)
 DIGEST = "a" * 64
 
@@ -319,6 +324,87 @@ def test_execution_acknowledgement_is_conditional_and_reconciles_duplicate() -> 
         record.idempotency_key,
         acknowledgement,
     ) == updated
+
+
+def test_verification_evidence_is_create_only_and_required_for_final_success() -> None:
+    client, repository, proposal = _prepare_approved_repository()
+    record = repository.register_idempotency(
+        build_idempotency_record(proposal, registered_at=NOW + timedelta(seconds=7))
+    )
+    run = repository.get_run(RUN_ID)
+    assert run is not None
+    run = repository.transition_run(
+        RUN_ID,
+        WorkflowState.EXECUTING,
+        expected_state=WorkflowState.APPROVED,
+        expected_version=run.version,
+        updated_at=NOW + timedelta(seconds=8),
+    )
+    acknowledgement = ExecutionAcknowledgement(
+        proposal_id=PROPOSAL_ID,
+        run_id=RUN_ID,
+        target=proposal.target,
+        current_state=ObservedInstanceState.STOPPING,
+        request_reference="request-safe-001",
+        acknowledged_at=NOW + timedelta(seconds=9),
+        acknowledgement_hash="c" * 64,
+    )
+    repository.record_execution_acknowledgement(record.idempotency_key, acknowledgement)
+    run = repository.transition_run(
+        RUN_ID,
+        WorkflowState.VERIFYING,
+        expected_state=WorkflowState.EXECUTING,
+        expected_version=run.version,
+        updated_at=NOW + timedelta(seconds=9),
+    )
+    evidence = VerificationEvidence.create(
+        evidence_id=EVIDENCE_ID,
+        proposal=proposal,
+        run=run,
+        verified_at=NOW + timedelta(seconds=10),
+        acknowledgement=acknowledgement,
+        observation_hash="d" * 64,
+    )
+
+    assert repository.create_verification_evidence(evidence) == evidence
+    assert repository.create_verification_evidence(evidence) == evidence
+    assert repository.get_verification_evidence(RUN_ID, PROPOSAL_ID) == evidence
+    repository.complete_idempotency(
+        record.idempotency_key,
+        ActionResult(
+            outcome=ActionOutcome.SUCCEEDED,
+            observed_state=ObservedInstanceState.STOPPED,
+            evidence_hash=evidence.evidence_hash,
+        ),
+        completed_at=NOW + timedelta(seconds=11),
+        expected_status=IdempotencyStatus.REGISTERED,
+    )
+    final = repository.transition_run(
+        RUN_ID,
+        WorkflowState.SUCCESS_WITH_EVIDENCE,
+        expected_state=WorkflowState.VERIFYING,
+        expected_version=run.version,
+        updated_at=NOW + timedelta(seconds=12),
+        verification_proposal_id=PROPOSAL_ID,
+    )
+
+    assert final.state is WorkflowState.SUCCESS_WITH_EVIDENCE
+    evidence_puts = [
+        request
+        for operation, request in zip(client.operations, client.requests, strict=True)
+        if operation == "PutItem"
+        and request["Item"]["entity_type"] == {"S": "VERIFICATION_EVIDENCE"}
+    ]
+    assert len(evidence_puts) == 2
+    assert all(
+        request["ConditionExpression"]
+        == "attribute_not_exists(PK) AND attribute_not_exists(SK)"
+        for request in evidence_puts
+    )
+    assert sum(
+        item["entity_type"] == {"S": "VERIFICATION_EVIDENCE"}
+        for item in client.items.values()
+    ) == 1
 
 
 def test_idempotency_collision_with_inconsistent_payload_fails() -> None:

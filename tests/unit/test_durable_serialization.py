@@ -16,6 +16,7 @@ from aioa_cloudops_agent.nz import (
     BudgetCounters,
     Capability,
     Checkpoint,
+    ExecutionAcknowledgement,
     ExpectedPrecondition,
     FailureDetail,
     FailureKind,
@@ -24,6 +25,7 @@ from aioa_cloudops_agent.nz import (
     ObservedInstanceState,
     ProposalState,
     Run,
+    VerificationEvidence,
     WorkflowState,
 )
 from aioa_cloudops_agent.nz.errors import StorageDependencyError
@@ -39,6 +41,7 @@ TRACE_ID = UUID("01890f6c-3311-7abc-8f4a-6e4f7f0b9b3b")
 CORRELATION_ID = UUID("01890f6c-3311-7abc-8f4a-6e4f7f0b9b3c")
 PROPOSAL_ID = UUID("01890f6c-3311-7abc-8f4a-6e4f7f0b9b3d")
 EVENT_ID = UUID("01890f6c-3311-7abc-8f4a-6e4f7f0b9b3e")
+EVIDENCE_ID = UUID("01890f6c-3311-7abc-8f4a-6e4f7f0b9b3f")
 NOW = datetime(2026, 8, 23, 12, 0, tzinfo=UTC)
 DIGEST = "a" * 64
 
@@ -129,7 +132,24 @@ def _records() -> tuple[object, ...]:
         redacted_payload_hash="c" * 64,
         metadata={"decision": "APPROVED"},
     )
-    return run, proposal, approval, idempotency, checkpoint, event
+    acknowledgement = ExecutionAcknowledgement(
+        proposal_id=PROPOSAL_ID,
+        run_id=RUN_ID,
+        target=proposal.target,
+        current_state=ObservedInstanceState.STOPPING,
+        request_reference="request-safe-001",
+        acknowledged_at=NOW + timedelta(seconds=8),
+        acknowledgement_hash="d" * 64,
+    )
+    evidence = VerificationEvidence.create(
+        evidence_id=EVIDENCE_ID,
+        proposal=proposal,
+        run=run,
+        verified_at=NOW + timedelta(seconds=9),
+        acknowledgement=acknowledgement,
+        observation_hash="e" * 64,
+    )
+    return run, proposal, approval, idempotency, checkpoint, event, evidence
 
 
 @pytest.mark.parametrize("record", _records(), ids=lambda record: type(record).__name__)

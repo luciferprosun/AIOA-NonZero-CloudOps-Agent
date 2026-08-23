@@ -120,6 +120,14 @@ class ExecutionAcknowledgementStatus(StrEnum):
     ACCEPTED = "ACCEPTED"
 
 
+class VerificationDisposition(StrEnum):
+    """Explicit result of independent post-action EC2 read-back."""
+
+    VERIFIED = "VERIFIED"
+    STILL_TRANSITIONING = "STILL_TRANSITIONING"
+    MISMATCH = "MISMATCH"
+
+
 class ObservedInstanceState(StrEnum):
     """Normalized EC2 states relevant to the bounded workflow."""
 
@@ -140,6 +148,8 @@ class AuditEventType(StrEnum):
     IDEMPOTENCY_REGISTERED = "IDEMPOTENCY_REGISTERED"
     EXECUTION_REQUESTED = "EXECUTION_REQUESTED"
     EXECUTION_ACKNOWLEDGED = "EXECUTION_ACKNOWLEDGED"
+    VERIFICATION_STARTED = "VERIFICATION_STARTED"
+    VERIFICATION_OBSERVED = "VERIFICATION_OBSERVED"
     CHECKPOINT_SAVED = "CHECKPOINT_SAVED"
     TOOL_OBSERVED = "TOOL_OBSERVED"
     MODEL_OBSERVED = "MODEL_OBSERVED"

@@ -137,18 +137,19 @@ def test_bedrock_provider_uses_explicit_region_model_and_bounds() -> None:
     assert session.client_calls[0]["region_name"] == "eu-central-1"
 
 
-def test_factory_creates_exactly_one_primary_agent_and_four_current_tools() -> None:
+def test_factory_creates_exactly_one_primary_agent_and_five_canonical_tools() -> None:
     runtime = _runtime()
 
     assert isinstance(runtime.agent, Agent)
     assert PRIMARY_AGENT_COUNT == 1
-    assert CURRENT_REGISTERED_TOOL_COUNT == 4
+    assert CURRENT_REGISTERED_TOOL_COUNT == 5
     assert FINAL_TOOL_CAP == 5
     assert runtime.registered_tool_names == (
         "inspect_instance",
         "read_utilization_metrics",
         "build_remediation_evidence",
         "stop_sandbox_instance",
+        "verify_instance_state",
     )
     assert runtime.agent.tool_names == list(runtime.registered_tool_names)
     assert len(runtime.agent._intervention_registry.handlers) == 1
@@ -174,6 +175,7 @@ def test_inspect_instance_tool_schema_is_nova_compatible_and_minimal() -> None:
         "read_utilization_metrics",
         "build_remediation_evidence",
         "stop_sandbox_instance",
+        "verify_instance_state",
     )
 
 
@@ -247,6 +249,7 @@ def test_hitl_does_not_use_wildcard_or_session_trust() -> None:
         "inspect_instance",
         "read_utilization_metrics",
         "build_remediation_evidence",
+        "verify_instance_state",
     }
     assert "*" not in runtime.human_in_the_loop._allowed_tools
     assert runtime.human_in_the_loop._enable_trust is False

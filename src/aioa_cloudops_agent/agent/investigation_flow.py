@@ -31,7 +31,7 @@ from aioa_cloudops_agent.nz.errors import StorageConflictError, StorageDependenc
 from aioa_cloudops_agent.nz.identifiers import Uuid7Identifier
 from aioa_cloudops_agent.persistence import DurableTruthRepository, compute_evidence_digest
 
-from .factory import READ_ONLY_TOOL_NAMES, PrimaryAgentRuntime
+from .factory import INVESTIGATION_TOOL_NAMES, PrimaryAgentRuntime
 from .runtime import build_investigation_request
 
 
@@ -206,7 +206,7 @@ class BoundedInvestigationFlow:
         failure = context.first_failure()
         if failure is not None:
             return self._fail_durable_run(current, failure)
-        if tuple(context.tool_calls) != READ_ONLY_TOOL_NAMES:
+        if tuple(context.tool_calls) != INVESTIGATION_TOOL_NAMES:
             return self._fail_durable_run(
                 current,
                 FailureDetail(

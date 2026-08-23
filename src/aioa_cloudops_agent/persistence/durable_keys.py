@@ -48,3 +48,12 @@ def audit_event_key(run_id: UUID, event_id: UUID) -> DynamoKey:
     """Address one append event using its time-ordered UUIDv7 identity."""
 
     return DynamoKey(f"RUN#{_uuid7(run_id)}", f"AUDIT#{_uuid7(event_id)}")
+
+
+def verification_evidence_key(run_id: UUID, proposal_id: UUID) -> DynamoKey:
+    """Address one immutable final verification proof for a run/proposal pair."""
+
+    return DynamoKey(
+        f"RUN#{_uuid7(run_id)}",
+        f"VERIFY#{_uuid7(proposal_id)}",
+    )

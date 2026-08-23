@@ -186,6 +186,7 @@ class RecordingRepository(InMemoryTestDurableTruthRepository):
         expected_version: int,
         updated_at: datetime,
         approval_proposal_id: UUID | None = None,
+        verification_proposal_id: UUID | None = None,
     ) -> Run:
         self.operations.append(f"transition:{next_state.value}")
         return super().transition_run(
@@ -195,6 +196,7 @@ class RecordingRepository(InMemoryTestDurableTruthRepository):
             expected_version=expected_version,
             updated_at=updated_at,
             approval_proposal_id=approval_proposal_id,
+            verification_proposal_id=verification_proposal_id,
         )
 
     def create_proposal(self, proposal: ActionProposal) -> ActionProposal:
@@ -452,12 +454,15 @@ def test_agent_turn_budget_exhaustion_persists_failure_and_no_proposal() -> None
     assert cloudwatch.calls == []
 
 
-def test_flow_exposes_three_auto_tools_and_one_hitl_boundary_without_mutation_clients() -> None:
+def test_flow_exposes_canonical_tools_without_mutation_clients() -> None:
     _, runtime, _, ec2, cloudwatch, _ = _flow()
 
-    assert runtime.registered_tool_names == (*CANONICAL_PLAN_NAMES, "stop_sandbox_instance")
-    for name in (
+    assert runtime.registered_tool_names == (
+        *CANONICAL_PLAN_NAMES,
+        "stop_sandbox_instance",
         "verify_instance_state",
+    )
+    for name in (
         "terminate_instances",
         "shell",
     ):
