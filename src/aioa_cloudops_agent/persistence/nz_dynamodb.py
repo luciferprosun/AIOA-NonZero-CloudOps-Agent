@@ -31,7 +31,11 @@ from .durable_keys import (
     run_key,
     semantic_idempotency_key,
 )
-from .durable_logic import completed_idempotency_status, transitioned_proposal
+from .durable_logic import (
+    completed_idempotency_status,
+    transitioned_proposal,
+    validate_approval_binding,
+)
 from .dynamodb import DynamoDbClient
 from .keys import DynamoKey
 from .semantic_idempotency import derive_action_fingerprint, derive_idempotency_key
@@ -193,19 +197,24 @@ class DynamoDbDurableTruthRepository:
             raise StorageConflictError("durable run does not exist")
         if current.state is not expected_state or current.version != expected_version:
             raise StorageConflictError("durable run state or version no longer matches")
-        if next_state is WorkflowState.APPROVED:
+        if next_state in {WorkflowState.APPROVED, WorkflowState.DENIED_BY_HUMAN}:
             if approval_proposal_id is None:
-                raise StorageConflictError("APPROVED requires a durable proposal decision")
+                raise StorageConflictError("decision transition requires a durable proposal decision")
             proposal = self.get_proposal(approval_proposal_id)
             approval = self.get_approval(approval_proposal_id)
+            expected_decision = (
+                ApprovalDecision.APPROVED
+                if next_state is WorkflowState.APPROVED
+                else ApprovalDecision.DENIED
+            )
             if (
                 proposal is None
                 or proposal.run_id != run_id
                 or proposal.state is not ProposalState.AWAITING_APPROVAL
                 or approval is None
-                or approval.decision is not ApprovalDecision.APPROVED
+                or approval.decision is not expected_decision
             ):
-                raise StorageConflictError("APPROVED requires matching durable human approval")
+                raise StorageConflictError("decision transition requires matching durable human decision")
         updated = transition_run(current, next_state, updated_at=updated_at)
         self._update(
             run_key(run_id),
@@ -261,12 +270,22 @@ class DynamoDbDurableTruthRepository:
         return updated
 
     def create_approval(self, approval: Approval) -> Approval:
-        self._put_create(
-            approval_decision_key(approval.proposal_id),
-            "APPROVAL",
-            approval,
-            decision=_string(approval.decision.value),
-        )
+        proposal = self.get_proposal(approval.proposal_id)
+        if proposal is None or proposal.state is not ProposalState.AWAITING_APPROVAL:
+            raise StorageConflictError("human decision requires an awaiting durable proposal")
+        validate_approval_binding(proposal, approval)
+        try:
+            self._put_create(
+                approval_decision_key(approval.proposal_id),
+                "APPROVAL",
+                approval,
+                decision=_string(approval.decision.value),
+            )
+        except StorageConflictError as conflict:
+            existing = self.get_approval(approval.proposal_id)
+            if existing == approval:
+                return existing
+            raise StorageConflictError("conflicting human decision already exists") from conflict
         return approval
 
     def get_approval(self, proposal_id: UUID) -> Approval | None:

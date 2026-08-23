@@ -19,7 +19,11 @@ from aioa_cloudops_agent.nz import (
 )
 from aioa_cloudops_agent.nz.errors import StorageConflictError
 
-from .durable_logic import completed_idempotency_status, transitioned_proposal
+from .durable_logic import (
+    completed_idempotency_status,
+    transitioned_proposal,
+    validate_approval_binding,
+)
 from .semantic_idempotency import derive_action_fingerprint, derive_idempotency_key
 
 
@@ -60,19 +64,24 @@ class InMemoryTestDurableTruthRepository:
             raise StorageConflictError("durable run does not exist")
         if current.state is not expected_state or current.version != expected_version:
             raise StorageConflictError("durable run state or version no longer matches")
-        if next_state is WorkflowState.APPROVED:
+        if next_state in {WorkflowState.APPROVED, WorkflowState.DENIED_BY_HUMAN}:
             if approval_proposal_id is None:
-                raise StorageConflictError("APPROVED requires a durable proposal decision")
+                raise StorageConflictError("decision transition requires a durable proposal decision")
             proposal = self._proposals.get(approval_proposal_id)
             approval = self._approvals.get(approval_proposal_id)
+            expected_decision = (
+                ApprovalDecision.APPROVED
+                if next_state is WorkflowState.APPROVED
+                else ApprovalDecision.DENIED
+            )
             if (
                 proposal is None
                 or proposal.run_id != run_id
                 or proposal.state is not ProposalState.AWAITING_APPROVAL
                 or approval is None
-                or approval.decision is not ApprovalDecision.APPROVED
+                or approval.decision is not expected_decision
             ):
-                raise StorageConflictError("APPROVED requires matching durable human approval")
+                raise StorageConflictError("decision transition requires matching durable human decision")
         updated = transition_run(current, next_state, updated_at=updated_at)
         self._runs[run_id] = updated
         return updated
@@ -103,8 +112,15 @@ class InMemoryTestDurableTruthRepository:
         return updated
 
     def create_approval(self, approval: Approval) -> Approval:
-        if approval.proposal_id in self._approvals:
-            raise StorageConflictError("human decision already exists")
+        proposal = self._proposals.get(approval.proposal_id)
+        if proposal is None or proposal.state is not ProposalState.AWAITING_APPROVAL:
+            raise StorageConflictError("human decision requires an awaiting durable proposal")
+        validate_approval_binding(proposal, approval)
+        existing = self._approvals.get(approval.proposal_id)
+        if existing is not None:
+            if existing == approval:
+                return existing
+            raise StorageConflictError("conflicting human decision already exists")
         self._approvals[approval.proposal_id] = approval
         return approval
 

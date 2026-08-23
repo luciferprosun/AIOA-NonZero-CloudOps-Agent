@@ -192,6 +192,12 @@ class Approval(NonZeroContract):
     """Explicit human approval or denial, separate from proposal state."""
 
     proposal_id: Uuid7Identifier
+    run_id: Uuid7Identifier
+    action: Capability
+    target: ActionTarget
+    evidence_hash: Sha256Digest
+    interrupt_id: NonEmptyText
+    request_hash: Sha256Digest
     decision: ApprovalDecision
     decided_at: datetime
     actor_session_id: ShortIdentifier
@@ -201,6 +207,12 @@ class Approval(NonZeroContract):
     @classmethod
     def validate_decided_at(cls, value: datetime) -> datetime:
         return _require_utc("decided_at", value)
+
+    @model_validator(mode="after")
+    def validate_action_binding(self) -> Self:
+        if self.action is not Capability.STOP_SANDBOX_INSTANCE:
+            raise ValueError("approval can bind only the canonical sandbox stop")
+        return self
 
 
 class ActionResult(NonZeroContract):

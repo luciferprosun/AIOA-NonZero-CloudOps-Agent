@@ -273,6 +273,7 @@ def _flow(
         proposal_id=PROPOSAL_ID,
         clock=lambda: NOW,
         model=actual_model,
+        durable_repository=actual_repository,
     )
     flow = BoundedInvestigationFlow(
         runtime,
@@ -305,7 +306,7 @@ def test_strands_happy_path_persists_evidence_backed_non_authorizing_proposal() 
         "transition:REMEDIATION_PROPOSED"
     )
     assert model.calls == 4
-    assert runtime.tool_context.tool_calls == list(runtime.registered_tool_names)
+    assert runtime.tool_context.tool_calls == list(CANONICAL_PLAN_NAMES)
     assert all(names == runtime.registered_tool_names for names in model.tool_specs_seen)
     assert ec2.calls == [[INSTANCE_ID]]
     assert len(cloudwatch.calls) == 1
@@ -393,7 +394,7 @@ def test_malformed_or_mutating_model_requests_cannot_create_proposal(
     assert result.failure.kind is FailureKind.VALIDATION_FAILURE
     assert repository.get_run(RUN_ID).state is WorkflowState.MODEL_OUTPUT_INVALID
     assert repository.get_proposal(PROPOSAL_ID) is None
-    assert "stop_sandbox_instance" not in runtime.registered_tool_names
+    assert "stop_sandbox_instance" in runtime.registered_tool_names
     assert "terminate_instances" not in runtime.registered_tool_names
 
 
@@ -451,12 +452,11 @@ def test_agent_turn_budget_exhaustion_persists_failure_and_no_proposal() -> None
     assert cloudwatch.calls == []
 
 
-def test_flow_exposes_only_three_read_only_tools_and_no_mutation_client_methods() -> None:
+def test_flow_exposes_three_auto_tools_and_one_hitl_boundary_without_mutation_clients() -> None:
     _, runtime, _, ec2, cloudwatch, _ = _flow()
 
-    assert runtime.registered_tool_names == CANONICAL_PLAN_NAMES
+    assert runtime.registered_tool_names == (*CANONICAL_PLAN_NAMES, "stop_sandbox_instance")
     for name in (
-        "stop_sandbox_instance",
         "verify_instance_state",
         "terminate_instances",
         "shell",

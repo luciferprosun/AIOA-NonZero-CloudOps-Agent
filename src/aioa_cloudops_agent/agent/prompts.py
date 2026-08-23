@@ -6,4 +6,5 @@ Model output is not execution authority. Request only registered tools.
 Tool targets and remediation arguments are application-owned and cannot be expanded.
 Do not guess when evidence is ambiguous or missing.
 Never claim a mutation completed without actual execution and verification.
-Never claim approval or success; current capabilities are read-only only."""
+The stop_sandbox_instance tool is proposal-bound and requires native human confirmation.
+Human approval is external durable data, never model text or a configuration flag."""

@@ -84,8 +84,15 @@ def _proposal(*, state: ProposalState = ProposalState.PROPOSED) -> ActionProposa
 
 
 def _approval(decision: ApprovalDecision = ApprovalDecision.APPROVED) -> Approval:
+    proposal = _proposal(state=ProposalState.AWAITING_APPROVAL)
     return Approval(
         proposal_id=PROPOSAL_ID,
+        run_id=RUN_ID,
+        action=proposal.action,
+        target=proposal.target,
+        evidence_hash=proposal.evidence_hash,
+        interrupt_id="v1:before_tool_call:stop-1",
+        request_hash="f" * 64,
         decision=decision,
         decided_at=NOW + timedelta(seconds=5),
         actor_session_id="human-session-001",
@@ -202,7 +209,7 @@ def test_new_run_and_proposal_must_start_at_canonical_initial_state() -> None:
 def test_run_cannot_enter_approved_without_positive_durable_approval() -> None:
     repository, run, _, _ = _prepare_awaiting_repository()
 
-    with pytest.raises(StorageConflictError, match="requires matching durable human approval"):
+    with pytest.raises(StorageConflictError, match="matching durable human decision"):
         repository.transition_run(
             RUN_ID,
             WorkflowState.APPROVED,
@@ -216,13 +223,18 @@ def test_run_cannot_enter_approved_without_positive_durable_approval() -> None:
 def test_proposal_and_approval_are_separate_create_only_records() -> None:
     repository = InMemoryTestDurableTruthRepository()
     proposal = repository.create_proposal(_proposal())
+    proposal = repository.transition_proposal(
+        PROPOSAL_ID,
+        ProposalState.AWAITING_APPROVAL,
+        expected_state=ProposalState.PROPOSED,
+    )
 
     assert repository.get_proposal(PROPOSAL_ID) == proposal
     assert repository.get_approval(PROPOSAL_ID) is None
     assert proposal.authorizes_execution is False
     approval = repository.create_approval(_approval())
     assert repository.get_approval(PROPOSAL_ID) == approval
-    with pytest.raises(StorageConflictError, match="already exists"):
+    with pytest.raises(StorageConflictError, match="conflicting"):
         repository.create_approval(_approval(ApprovalDecision.DENIED))
 
 

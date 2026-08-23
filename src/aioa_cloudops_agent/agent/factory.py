@@ -31,18 +31,27 @@ from aioa_cloudops_agent.cloudops import (
 from aioa_cloudops_agent.config import BedrockSettings, IdlePolicySettings
 from aioa_cloudops_agent.domain import AuthorityGate, ContractValidationError, ExecutionContext
 from aioa_cloudops_agent.domain.identifiers import validate_correlation_id
+from aioa_cloudops_agent.persistence import DurableTruthRepository
+from aioa_cloudops_agent.remediation import (
+    STOP_SANDBOX_INSTANCE_TOOL_NAME,
+    StopRequestHandler,
+    create_stop_sandbox_instance_tool,
+    unavailable_stop_request,
+)
 
+from .hitl import DurableProposalHumanInTheLoop
 from .prompts import SYSTEM_PROMPT
 from .tracing import PRIMARY_AGENT_ID, build_agent_trace_attributes
 
 PRIMARY_AGENT_COUNT: Final = 1
-CURRENT_REGISTERED_TOOL_COUNT: Final = 3
+CURRENT_REGISTERED_TOOL_COUNT: Final = 4
 FINAL_TOOL_CAP: Final = 5
-CURRENT_TOOL_NAMES: Final = (
+READ_ONLY_TOOL_NAMES: Final = (
     INSPECT_INSTANCE_TOOL_NAME,
     READ_UTILIZATION_TOOL_NAME,
     BUILD_REMEDIATION_EVIDENCE_TOOL_NAME,
 )
+CURRENT_TOOL_NAMES: Final = (*READ_ONLY_TOOL_NAMES, STOP_SANDBOX_INSTANCE_TOOL_NAME)
 
 
 @dataclass(frozen=True, slots=True)
@@ -53,6 +62,7 @@ class PrimaryAgentRuntime:
     inspect_instance_tool: DecoratedFunctionTool
     read_utilization_metrics_tool: DecoratedFunctionTool
     build_remediation_evidence_tool: DecoratedFunctionTool
+    stop_sandbox_instance_tool: DecoratedFunctionTool
     human_in_the_loop: HumanInTheLoop
     tool_context: InvestigationToolContext
     identity: InvestigationIdentity
@@ -89,11 +99,18 @@ def create_bedrock_model(
     return BedrockModel(region_name=settings.region, **model_config)
 
 
-def create_human_in_the_loop() -> HumanInTheLoop:
-    """Allow only the three read-only investigation tools without confirmation."""
+def create_human_in_the_loop(
+    repository: DurableTruthRepository | None = None,
+) -> HumanInTheLoop:
+    """Allow only read-only tools; enrich stop confirmation from durable truth."""
 
+    if repository is not None:
+        return DurableProposalHumanInTheLoop(
+            repository,
+            allowed_tools=list(READ_ONLY_TOOL_NAMES),
+        )
     return HumanInTheLoop(
-        allowed_tools=list(CURRENT_TOOL_NAMES),
+        allowed_tools=list(READ_ONLY_TOOL_NAMES),
         classifier=None,
         enable_trust=False,
         ask=None,
@@ -113,6 +130,8 @@ def create_primary_agent(
     model_settings: BedrockSettings | None = None,
     model: Model | None = None,
     tracer: Tracer | None = None,
+    durable_repository: DurableTruthRepository | None = None,
+    stop_request_handler: StopRequestHandler | None = None,
 ) -> PrimaryAgentRuntime:
     """Create one Strands Agent with the complete bounded read-only tool surface."""
 
@@ -175,13 +194,17 @@ def create_primary_agent(
         tracer=tracer,
         on_result=tool_context.record_evidence,
     )
-    intervention = create_human_in_the_loop()
+    stop_tool = create_stop_sandbox_instance_tool(
+        stop_request_handler or unavailable_stop_request,
+        tracer=tracer,
+    )
+    intervention = create_human_in_the_loop(durable_repository)
     primary_agent = Agent(
         agent_id=PRIMARY_AGENT_ID,
         name="AIOA Non-Zero CloudOps",
         description="Bounded read-only sandbox EC2 investigation agent",
         model=model if model is not None else create_bedrock_model(settings),
-        tools=[inspection_tool, utilization_tool, evidence_tool],
+        tools=[inspection_tool, utilization_tool, evidence_tool, stop_tool],
         interventions=[intervention],
         system_prompt=SYSTEM_PROMPT,
         callback_handler=None,
@@ -196,6 +219,7 @@ def create_primary_agent(
         inspect_instance_tool=inspection_tool,
         read_utilization_metrics_tool=utilization_tool,
         build_remediation_evidence_tool=evidence_tool,
+        stop_sandbox_instance_tool=stop_tool,
         human_in_the_loop=intervention,
         tool_context=tool_context,
         identity=identity,

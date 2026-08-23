@@ -4,10 +4,24 @@ from aioa_cloudops_agent.nz import (
     ActionOutcome,
     ActionProposal,
     ActionResult,
+    Approval,
     IdempotencyStatus,
     ProposalState,
 )
 from aioa_cloudops_agent.nz.errors import StorageConflictError
+
+
+def validate_approval_binding(proposal: ActionProposal, approval: Approval) -> None:
+    """Require one decision to bind the exact immutable proposal contents."""
+
+    if (
+        approval.proposal_id != proposal.proposal_id
+        or approval.run_id != proposal.run_id
+        or approval.action is not proposal.action
+        or approval.target != proposal.target
+        or approval.evidence_hash != proposal.evidence_hash
+    ):
+        raise StorageConflictError("human decision does not match the durable proposal")
 
 
 def completed_idempotency_status(result: ActionResult) -> IdempotencyStatus:

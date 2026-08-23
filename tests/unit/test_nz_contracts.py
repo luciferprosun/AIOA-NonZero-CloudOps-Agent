@@ -161,8 +161,15 @@ def test_model_like_free_form_arguments_cannot_become_executable_action() -> Non
 
 
 def test_approval_is_explicit_positive_or_negative_data() -> None:
+    proposal = _proposal()
     approved = Approval(
         proposal_id=PROPOSAL_ID,
+        run_id=RUN_ID,
+        action=proposal.action,
+        target=proposal.target,
+        evidence_hash=proposal.evidence_hash,
+        interrupt_id="v1:before_tool_call:stop-1",
+        request_hash="f" * 64,
         decision=ApprovalDecision.APPROVED,
         decided_at=NOW,
         actor_session_id="human-session-001",
@@ -227,8 +234,15 @@ def test_budget_counters_are_bounded() -> None:
 
 
 def test_core_pydantic_contracts_round_trip_with_typed_values() -> None:
+    proposal = _proposal()
     approval = Approval(
         proposal_id=PROPOSAL_ID,
+        run_id=RUN_ID,
+        action=proposal.action,
+        target=proposal.target,
+        evidence_hash=proposal.evidence_hash,
+        interrupt_id="v1:before_tool_call:stop-1",
+        request_hash="f" * 64,
         decision=ApprovalDecision.APPROVED,
         decided_at=NOW,
         actor_session_id="human-session-001",

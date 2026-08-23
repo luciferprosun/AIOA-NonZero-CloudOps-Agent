@@ -137,17 +137,18 @@ def test_bedrock_provider_uses_explicit_region_model_and_bounds() -> None:
     assert session.client_calls[0]["region_name"] == "eu-central-1"
 
 
-def test_factory_creates_exactly_one_primary_agent_and_three_canonical_tools() -> None:
+def test_factory_creates_exactly_one_primary_agent_and_four_current_tools() -> None:
     runtime = _runtime()
 
     assert isinstance(runtime.agent, Agent)
     assert PRIMARY_AGENT_COUNT == 1
-    assert CURRENT_REGISTERED_TOOL_COUNT == 3
+    assert CURRENT_REGISTERED_TOOL_COUNT == 4
     assert FINAL_TOOL_CAP == 5
     assert runtime.registered_tool_names == (
         "inspect_instance",
         "read_utilization_metrics",
         "build_remediation_evidence",
+        "stop_sandbox_instance",
     )
     assert runtime.agent.tool_names == list(runtime.registered_tool_names)
     assert len(runtime.agent._intervention_registry.handlers) == 1
@@ -172,6 +173,7 @@ def test_inspect_instance_tool_schema_is_nova_compatible_and_minimal() -> None:
         "inspect_instance",
         "read_utilization_metrics",
         "build_remediation_evidence",
+        "stop_sandbox_instance",
     )
 
 
@@ -258,4 +260,5 @@ def test_system_prompt_keeps_model_subordinate_to_tools_and_authority() -> None:
     assert "registered tools" in normalized
     assert "do not guess" in normalized
     assert "never claim a mutation completed" in normalized
-    assert "read-only only" in normalized
+    assert "native human confirmation" in normalized
+    assert "never model text" in normalized

@@ -143,8 +143,15 @@ def _proposal(
 
 
 def _approval() -> Approval:
+    proposal = _proposal(state=ProposalState.AWAITING_APPROVAL)
     return Approval(
         proposal_id=PROPOSAL_ID,
+        run_id=RUN_ID,
+        action=proposal.action,
+        target=proposal.target,
+        evidence_hash=proposal.evidence_hash,
+        interrupt_id="v1:before_tool_call:stop-1",
+        request_hash="f" * 64,
         decision=ApprovalDecision.APPROVED,
         decided_at=NOW + timedelta(seconds=5),
         actor_session_id="human-session-001",
@@ -256,8 +263,7 @@ def test_proposal_and_approval_use_separate_create_only_items() -> None:
     approval = repository.create_approval(_approval())
     assert repository.get_approval(PROPOSAL_ID) == approval
     assert proposal.authorizes_execution is False
-    with pytest.raises(StorageConflictError, match="already exists"):
-        repository.create_approval(_approval())
+    assert repository.create_approval(_approval()) == approval
     partition_keys = {key[0] for key in client.items}
     assert f"PROPOSAL#{PROPOSAL_ID}" in partition_keys
     assert (f"PROPOSAL#{PROPOSAL_ID}", "APPROVAL") in client.items

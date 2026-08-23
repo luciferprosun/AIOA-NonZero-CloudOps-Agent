@@ -80,6 +80,12 @@ def _records() -> tuple[object, ...]:
     )
     approval = Approval(
         proposal_id=PROPOSAL_ID,
+        run_id=RUN_ID,
+        action=proposal.action,
+        target=proposal.target,
+        evidence_hash=proposal.evidence_hash,
+        interrupt_id="v1:before_tool_call:stop-1",
+        request_hash="f" * 64,
         decision=ApprovalDecision.APPROVED,
         decided_at=NOW + timedelta(seconds=5),
         actor_session_id="human-session-001",
