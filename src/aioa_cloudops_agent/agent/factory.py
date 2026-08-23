@@ -2,7 +2,6 @@
 
 from dataclasses import dataclass
 from typing import Any, Final
-from uuid import UUID
 
 from opentelemetry.trace import Tracer
 from strands import Agent
@@ -14,6 +13,7 @@ from aioa_cloudops_agent.cloudops import (
     INSPECT_INSTANCE_TOOL_NAME,
     Ec2DescribeInstancesClient,
     InspectInstanceService,
+    InvestigationIdentity,
     SandboxTarget,
     create_inspect_instance_tool,
 )
@@ -35,7 +35,7 @@ class PrimaryAgentRuntime:
     agent: Agent
     inspect_instance_tool: DecoratedFunctionTool
     human_in_the_loop: HumanInTheLoop
-    correlation_id: UUID
+    identity: InvestigationIdentity
     model_settings: BedrockSettings
     target: SandboxTarget
 
@@ -82,6 +82,7 @@ def create_human_in_the_loop() -> HumanInTheLoop:
 def create_primary_agent(
     *,
     context: ExecutionContext,
+    identity: InvestigationIdentity,
     target: SandboxTarget,
     ec2_client: Ec2DescribeInstancesClient,
     model_settings: BedrockSettings | None = None,
@@ -94,6 +95,10 @@ def create_primary_agent(
         raise ContractValidationError("context must be an ExecutionContext")
     if context.authority_gate is not AuthorityGate.AUTO:
         raise ContractValidationError("current read-only agent context must use AUTO")
+    if not isinstance(identity, InvestigationIdentity):
+        raise ContractValidationError("identity must be an InvestigationIdentity")
+    if identity.correlation_id != context.correlation_id:
+        raise ContractValidationError("identity must match the execution context")
     if not isinstance(target, SandboxTarget):
         raise ContractValidationError("target must be a SandboxTarget")
     settings = model_settings if model_settings is not None else BedrockSettings()
@@ -107,7 +112,7 @@ def create_primary_agent(
     )
     inspection_tool = create_inspect_instance_tool(
         inspection_service,
-        context.correlation_id,
+        identity,
         tracer=tracer,
     )
     intervention = create_human_in_the_loop()
@@ -130,7 +135,7 @@ def create_primary_agent(
         agent=primary_agent,
         inspect_instance_tool=inspection_tool,
         human_in_the_loop=intervention,
-        correlation_id=context.correlation_id,
+        identity=identity,
         model_settings=settings,
         target=target,
     )

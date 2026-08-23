@@ -6,13 +6,23 @@ import pytest
 from aioa_cloudops_agent.agent import build_agent_trace_attributes, build_inspection_request
 from aioa_cloudops_agent.cloudops import (
     InspectInstanceService,
+    InvestigationIdentity,
     SandboxTarget,
     create_inspect_instance_tool,
     inspection_to_provenance,
 )
 from aioa_cloudops_agent.domain import ContractValidationError, generate_correlation_id
+from aioa_cloudops_agent.nz import FailureKind
 
 INSTANCE_ID = "i-0123456789abcdef0"
+
+
+def _identity() -> InvestigationIdentity:
+    return InvestigationIdentity(
+        run_id=generate_correlation_id(),
+        trace_id=generate_correlation_id(),
+        correlation_id=generate_correlation_id(),
+    )
 
 
 class FakeEc2Client:
@@ -82,28 +92,37 @@ def test_agent_trace_attributes_propagate_uuidv7_correlation() -> None:
 
 
 def test_native_tool_emits_safe_trace_and_typed_result() -> None:
-    correlation_id = generate_correlation_id()
+    identity = _identity()
     tracer = RecordingTracer()
-    service = InspectInstanceService(FakeEc2Client(), SandboxTarget(INSTANCE_ID))
-    inspect_instance = create_inspect_instance_tool(service, correlation_id, tracer=tracer)
+    service = InspectInstanceService(FakeEc2Client(), SandboxTarget(instance_id=INSTANCE_ID))
+    inspect_instance = create_inspect_instance_tool(service, identity, tracer=tracer)
 
     result = inspect_instance(instance_id=INSTANCE_ID)
 
     assert inspect_instance.tool_name == "inspect_instance"
-    assert result["correlation_id"] == str(correlation_id)
-    assert result["instance_id"] == INSTANCE_ID
-    assert result["authority_gate"] == "AUTO"
-    assert result["operation_class"] == "READ_ONLY"
+    assert result["status"] == "SUCCESS"
+    assert result["value"]["run_id"] == str(identity.run_id)
+    assert result["value"]["trace_id"] == str(identity.trace_id)
+    assert result["value"]["correlation_id"] == str(identity.correlation_id)
+    assert result["value"]["instance_id"] == INSTANCE_ID
+    assert result["value"]["authority_gate"] == "AUTO"
+    assert result["value"]["operation_class"] == "READ_ONLY"
     assert tracer.span_names == ["cloudops.inspect_instance"]
-    assert tracer.spans[0].attributes["aioa.correlation_id"] == str(correlation_id)
+    assert tracer.spans[0].attributes["aioa.run_id"] == str(identity.run_id)
+    assert tracer.spans[0].attributes["aioa.trace_id"] == str(identity.trace_id)
+    assert tracer.spans[0].attributes["aioa.correlation_id"] == str(
+        identity.correlation_id
+    )
     assert tracer.spans[0].attributes["aioa.tool_name"] == "inspect_instance"
-    assert tracer.spans[0].attributes["aioa.evidence_digest"] == result["evidence_digest"]
+    assert tracer.spans[0].attributes["aioa.evidence_digest"] == result["value"][
+        "evidence_digest"
+    ]
 
 
 def test_tool_result_and_provenance_retain_same_correlation_and_digest() -> None:
-    correlation_id = generate_correlation_id()
-    service = InspectInstanceService(FakeEc2Client(), SandboxTarget(INSTANCE_ID))
-    inspection = service.inspect(instance_id=INSTANCE_ID, correlation_id=correlation_id)
+    identity = _identity()
+    service = InspectInstanceService(FakeEc2Client(), SandboxTarget(instance_id=INSTANCE_ID))
+    inspection = service.inspect(instance_id=INSTANCE_ID, identity=identity)
     event = inspection_to_provenance(
         inspection,
         event_id="evt-tool-1",
@@ -111,21 +130,35 @@ def test_tool_result_and_provenance_retain_same_correlation_and_digest() -> None
         timestamp=datetime(2026, 8, 23, 9, 1, tzinfo=UTC),
     )
 
-    assert event.correlation_id == correlation_id
+    assert event.correlation_id == identity.correlation_id
     assert event.evidence_digest == inspection.evidence_digest
     assert event.attributes["instance_id"] == INSTANCE_ID
 
 
 def test_malformed_tool_input_fails_explicitly() -> None:
-    service = InspectInstanceService(FakeEc2Client(), SandboxTarget(INSTANCE_ID))
-    inspect_instance = create_inspect_instance_tool(service, generate_correlation_id())
+    service = InspectInstanceService(FakeEc2Client(), SandboxTarget(instance_id=INSTANCE_ID))
+    inspect_instance = create_inspect_instance_tool(service, _identity())
 
-    with pytest.raises(ContractValidationError, match="valid EC2 instance"):
-        inspect_instance(instance_id="not-an-instance")
+    result = inspect_instance(instance_id="not-an-instance")
+
+    assert result["status"] == "FAILURE"
+    assert result["failure"]["kind"] == FailureKind.VALIDATION_FAILURE.value
+
+
+def test_model_like_extra_scope_arguments_are_not_accepted() -> None:
+    service = InspectInstanceService(FakeEc2Client(), SandboxTarget(instance_id=INSTANCE_ID))
+    inspect_instance = create_inspect_instance_tool(service, _identity())
+
+    with pytest.raises(TypeError):
+        inspect_instance(
+            instance_id=INSTANCE_ID,
+            region="us-east-1",
+            account_scope="model-expanded-scope",
+        )
 
 
 def test_inspection_request_forces_one_tool_and_no_mutation_claim() -> None:
-    request = build_inspection_request(SandboxTarget(INSTANCE_ID))
+    request = build_inspection_request(SandboxTarget(instance_id=INSTANCE_ID))
 
     assert "inspect_instance exactly once" in request
     assert INSTANCE_ID in request

@@ -20,7 +20,7 @@ from aioa_cloudops_agent.agent import (
     create_bedrock_model,
     create_primary_agent,
 )
-from aioa_cloudops_agent.cloudops import SandboxTarget
+from aioa_cloudops_agent.cloudops import InvestigationIdentity, SandboxTarget
 from aioa_cloudops_agent.config import BedrockSettings
 from aioa_cloudops_agent.domain import (
     AuthorityGate,
@@ -69,9 +69,9 @@ class FakeBotoSession:
         return SimpleNamespace(meta=SimpleNamespace(region_name=kwargs["region_name"]))
 
 
-def _context() -> ExecutionContext:
+def _context(correlation_id: object) -> ExecutionContext:
     return ExecutionContext(
-        correlation_id=generate_correlation_id(),
+        correlation_id=correlation_id,
         idempotency_key="agent-test",
         state=ExecutionState.INIT,
         authority_gate=AuthorityGate.AUTO,
@@ -80,9 +80,15 @@ def _context() -> ExecutionContext:
 
 
 def _runtime() -> object:
+    identity = InvestigationIdentity(
+        run_id=generate_correlation_id(),
+        trace_id=generate_correlation_id(),
+        correlation_id=generate_correlation_id(),
+    )
     return create_primary_agent(
-        context=_context(),
-        target=SandboxTarget(INSTANCE_ID),
+        context=_context(identity.correlation_id),
+        identity=identity,
+        target=SandboxTarget(instance_id=INSTANCE_ID),
         ec2_client=NonCallingEc2Client(),
         model=FakeModel(),
     )

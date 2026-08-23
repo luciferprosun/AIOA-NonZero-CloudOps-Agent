@@ -3,7 +3,6 @@
 from collections.abc import Mapping
 from datetime import datetime
 from typing import Any, Final
-from uuid import UUID
 
 from aioa_cloudops_agent.config.settings import DEFAULT_AWS_REGION
 from aioa_cloudops_agent.domain.aws_boundary import (
@@ -13,7 +12,7 @@ from aioa_cloudops_agent.domain.aws_boundary import (
 )
 from aioa_cloudops_agent.domain.enums import AuthorityGate
 from aioa_cloudops_agent.domain.errors import ContractValidationError, DomainError, ErrorCode
-from aioa_cloudops_agent.domain.identifiers import validate_correlation_id
+from aioa_cloudops_agent.nz import ControlResult, FailureDetail, FailureKind
 from aioa_cloudops_agent.persistence.models import (
     ProvenanceEventType,
     ProvenanceRecord,
@@ -23,7 +22,9 @@ from .ec2_readonly import Ec2DescribeInstancesClient
 from .models import (
     Ec2InstanceState,
     Ec2MonitoringState,
+    InspectInstanceResult,
     InstanceInspection,
+    InvestigationIdentity,
     SandboxTarget,
     validate_instance_id,
 )
@@ -50,6 +51,17 @@ class InstanceInspectionError(DomainError):
             code=ErrorCode.CLOUDOPS_RESPONSE_INVALID,
             message=message,
             retryable=False,
+        )
+
+
+class InstanceInspectionDependencyError(DomainError):
+    """Raised when EC2 evidence cannot be read from the provider dependency."""
+
+    def __init__(self, message: str) -> None:
+        super().__init__(
+            code=ErrorCode.CLOUDOPS_RESPONSE_INVALID,
+            message=message,
+            retryable=True,
         )
 
 
@@ -109,19 +121,23 @@ class InspectInstanceService:
     ) -> None:
         if not isinstance(target, SandboxTarget):
             raise ContractValidationError("target must be a SandboxTarget")
-        if region != DEFAULT_AWS_REGION:
-            raise ContractValidationError(f"inspection region must be {DEFAULT_AWS_REGION}")
+        if region != target.region or region != DEFAULT_AWS_REGION:
+            raise ContractValidationError("inspection region must match the configured sandbox")
         self._client = client
         self._target = target
         self._region = region
 
-    def inspect(self, *, instance_id: str, correlation_id: UUID) -> InstanceInspection:
+    def inspect(
+        self,
+        *,
+        instance_id: str,
+        identity: InvestigationIdentity,
+    ) -> InstanceInspection:
         """Return normalized evidence after exact ID and sandbox-tag verification."""
 
         requested_id = validate_instance_id(instance_id)
-        if not isinstance(correlation_id, UUID):
-            raise ContractValidationError("correlation_id must be a UUIDv7 value")
-        validate_correlation_id(correlation_id)
+        if not isinstance(identity, InvestigationIdentity):
+            raise ContractValidationError("identity must be an InvestigationIdentity")
         if requested_id != self._target.instance_id:
             raise SandboxTargetMismatchError("Requested instance is not the configured sandbox")
 
@@ -132,7 +148,9 @@ class InspectInstanceService:
         try:
             response = self._client.describe_instances(InstanceIds=[requested_id])
         except Exception as error:
-            raise InstanceInspectionError("DescribeInstances observation failed") from error
+            raise InstanceInspectionDependencyError(
+                "DescribeInstances dependency is unavailable"
+            ) from error
         response_mapping = _required_mapping(response, "response")
         instance = _single_returned_instance(response_mapping)
         returned_id = _required_string(instance.get("InstanceId"), "InstanceId")
@@ -148,7 +166,7 @@ class InspectInstanceService:
             raise InstanceInspectionError("DescribeInstances LaunchTime is missing or malformed")
         try:
             return InstanceInspection.create(
-                correlation_id=correlation_id,
+                identity=identity,
                 instance_id=returned_id,
                 region=self._region,
                 state=Ec2InstanceState(_required_string(state.get("Name"), "State.Name")),
@@ -166,6 +184,54 @@ class InspectInstanceService:
             )
         except (ContractValidationError, ValueError) as error:
             raise InstanceInspectionError("DescribeInstances evidence is invalid") from error
+
+    def inspect_result(
+        self,
+        *,
+        instance_id: str,
+        identity: InvestigationIdentity,
+    ) -> InspectInstanceResult:
+        """Return an explicit success/failure union for the Strands boundary."""
+
+        try:
+            inspection = self.inspect(instance_id=instance_id, identity=identity)
+        except SandboxTargetMismatchError as error:
+            return ControlResult[InstanceInspection].failed(
+                FailureDetail(
+                    kind=FailureKind.POLICY_DENIAL,
+                    code="SANDBOX_SCOPE_DENIED",
+                    message=error.message,
+                    retryable=False,
+                )
+            )
+        except InstanceInspectionDependencyError as error:
+            return ControlResult[InstanceInspection].failed(
+                FailureDetail(
+                    kind=FailureKind.DEPENDENCY_UNAVAILABLE,
+                    code="EC2_DESCRIBE_UNAVAILABLE",
+                    message=error.message,
+                    retryable=True,
+                )
+            )
+        except ContractValidationError as error:
+            return ControlResult[InstanceInspection].failed(
+                FailureDetail(
+                    kind=FailureKind.VALIDATION_FAILURE,
+                    code="INSPECT_INPUT_INVALID",
+                    message=error.message,
+                    retryable=False,
+                )
+            )
+        except InstanceInspectionError as error:
+            return ControlResult[InstanceInspection].failed(
+                FailureDetail(
+                    kind=FailureKind.AMBIGUOUS_RESULT,
+                    code="EC2_EVIDENCE_AMBIGUOUS",
+                    message=error.message,
+                    retryable=False,
+                )
+            )
+        return ControlResult[InstanceInspection].succeeded(inspection)
 
 
 def inspection_to_provenance(
