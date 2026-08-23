@@ -1,9 +1,11 @@
 import asyncio
 import importlib.metadata
 import subprocess
+from datetime import UTC, datetime
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
+from uuid import UUID
 
 from strands import Agent, tool
 from strands.hooks.events import BeforeToolCallEvent
@@ -32,6 +34,7 @@ from aioa_cloudops_agent.domain import (
 
 ROOT = Path(__file__).parents[2]
 INSTANCE_ID = "i-0123456789abcdef0"
+PROPOSAL_ID = UUID("01890f6c-3311-7abc-8f4a-6e4f7f0b9b3d")
 
 
 class FakeModel(Model):
@@ -56,6 +59,11 @@ class FakeModel(Model):
 class NonCallingEc2Client:
     def describe_instances(self, *, InstanceIds: list[str]) -> dict[str, object]:
         raise AssertionError(f"unexpected provider call: {InstanceIds!r}")
+
+
+class NonCallingCloudWatchClient:
+    def get_metric_statistics(self, **kwargs: object) -> dict[str, object]:
+        raise AssertionError(f"unexpected provider call: {kwargs!r}")
 
 
 class FakeBotoSession:
@@ -90,6 +98,9 @@ def _runtime() -> object:
         identity=identity,
         target=SandboxTarget(instance_id=INSTANCE_ID),
         ec2_client=NonCallingEc2Client(),
+        cloudwatch_client=NonCallingCloudWatchClient(),
+        proposal_id=PROPOSAL_ID,
+        clock=lambda: datetime(2026, 8, 23, 10, 0, tzinfo=UTC),
         model=FakeModel(),
     )
 
@@ -126,15 +137,19 @@ def test_bedrock_provider_uses_explicit_region_model_and_bounds() -> None:
     assert session.client_calls[0]["region_name"] == "eu-central-1"
 
 
-def test_factory_creates_exactly_one_primary_agent_and_one_canonical_tool() -> None:
+def test_factory_creates_exactly_one_primary_agent_and_three_canonical_tools() -> None:
     runtime = _runtime()
 
     assert isinstance(runtime.agent, Agent)
     assert PRIMARY_AGENT_COUNT == 1
-    assert CURRENT_REGISTERED_TOOL_COUNT == 1
+    assert CURRENT_REGISTERED_TOOL_COUNT == 3
     assert FINAL_TOOL_CAP == 5
-    assert runtime.registered_tool_names == ("inspect_instance",)
-    assert runtime.agent.tool_names == ["inspect_instance"]
+    assert runtime.registered_tool_names == (
+        "inspect_instance",
+        "read_utilization_metrics",
+        "build_remediation_evidence",
+    )
+    assert runtime.agent.tool_names == list(runtime.registered_tool_names)
     assert len(runtime.agent._intervention_registry.handlers) == 1
     assert runtime.agent._intervention_registry.handlers[0] is runtime.human_in_the_loop
 
@@ -153,7 +168,11 @@ def test_inspect_instance_tool_schema_is_nova_compatible_and_minimal() -> None:
         "required": ["instance_id"],
         "type": "object",
     }
-    assert runtime.registered_tool_names == ("inspect_instance",)
+    assert runtime.registered_tool_names == (
+        "inspect_instance",
+        "read_utilization_metrics",
+        "build_remediation_evidence",
+    )
 
 
 def test_bedrock_specific_tool_choice_formats_exact_registered_tool() -> None:
@@ -222,7 +241,11 @@ def test_native_hitl_allows_inspection_and_interrupts_unknown_mutation() -> None
 def test_hitl_does_not_use_wildcard_or_session_trust() -> None:
     runtime = _runtime()
 
-    assert runtime.human_in_the_loop._allowed_tools == {"inspect_instance"}
+    assert runtime.human_in_the_loop._allowed_tools == {
+        "inspect_instance",
+        "read_utilization_metrics",
+        "build_remediation_evidence",
+    }
     assert "*" not in runtime.human_in_the_loop._allowed_tools
     assert runtime.human_in_the_loop._enable_trust is False
     assert runtime.human_in_the_loop._ask is None
@@ -235,4 +258,4 @@ def test_system_prompt_keeps_model_subordinate_to_tools_and_authority() -> None:
     assert "registered tools" in normalized
     assert "do not guess" in normalized
     assert "never claim a mutation completed" in normalized
-    assert "read-only inspection" in normalized
+    assert "read-only only" in normalized

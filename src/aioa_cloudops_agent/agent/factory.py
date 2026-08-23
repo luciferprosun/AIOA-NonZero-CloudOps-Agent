@@ -1,7 +1,10 @@
 """Factory for exactly one Strands Agent subordinate to Non-Zero authority."""
 
+from collections.abc import Callable
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any, Final
+from uuid import UUID
 
 from opentelemetry.trace import Tracer
 from strands import Agent
@@ -10,22 +13,36 @@ from strands.tools.decorator import DecoratedFunctionTool
 from strands.vended_interventions.hitl import HumanInTheLoop
 
 from aioa_cloudops_agent.cloudops import (
+    BUILD_REMEDIATION_EVIDENCE_TOOL_NAME,
     INSPECT_INSTANCE_TOOL_NAME,
+    READ_UTILIZATION_TOOL_NAME,
+    BuildRemediationEvidenceService,
+    CloudWatchGetMetricStatisticsClient,
     Ec2DescribeInstancesClient,
     InspectInstanceService,
     InvestigationIdentity,
+    InvestigationToolContext,
+    ReadUtilizationMetricsService,
     SandboxTarget,
+    create_build_remediation_evidence_tool,
     create_inspect_instance_tool,
+    create_read_utilization_metrics_tool,
 )
-from aioa_cloudops_agent.config import BedrockSettings
+from aioa_cloudops_agent.config import BedrockSettings, IdlePolicySettings
 from aioa_cloudops_agent.domain import AuthorityGate, ContractValidationError, ExecutionContext
+from aioa_cloudops_agent.domain.identifiers import validate_correlation_id
 
 from .prompts import SYSTEM_PROMPT
 from .tracing import PRIMARY_AGENT_ID, build_agent_trace_attributes
 
 PRIMARY_AGENT_COUNT: Final = 1
-CURRENT_REGISTERED_TOOL_COUNT: Final = 1
+CURRENT_REGISTERED_TOOL_COUNT: Final = 3
 FINAL_TOOL_CAP: Final = 5
+CURRENT_TOOL_NAMES: Final = (
+    INSPECT_INSTANCE_TOOL_NAME,
+    READ_UTILIZATION_TOOL_NAME,
+    BUILD_REMEDIATION_EVIDENCE_TOOL_NAME,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -34,10 +51,14 @@ class PrimaryAgentRuntime:
 
     agent: Agent
     inspect_instance_tool: DecoratedFunctionTool
+    read_utilization_metrics_tool: DecoratedFunctionTool
+    build_remediation_evidence_tool: DecoratedFunctionTool
     human_in_the_loop: HumanInTheLoop
+    tool_context: InvestigationToolContext
     identity: InvestigationIdentity
     model_settings: BedrockSettings
     target: SandboxTarget
+    proposal_id: UUID
 
     @property
     def registered_tool_names(self) -> tuple[str, ...]:
@@ -69,10 +90,10 @@ def create_bedrock_model(
 
 
 def create_human_in_the_loop() -> HumanInTheLoop:
-    """Allow only inspect_instance without confirmation; all other tools interrupt."""
+    """Allow only the three read-only investigation tools without confirmation."""
 
     return HumanInTheLoop(
-        allowed_tools=[INSPECT_INSTANCE_TOOL_NAME],
+        allowed_tools=list(CURRENT_TOOL_NAMES),
         classifier=None,
         enable_trust=False,
         ask=None,
@@ -85,11 +106,15 @@ def create_primary_agent(
     identity: InvestigationIdentity,
     target: SandboxTarget,
     ec2_client: Ec2DescribeInstancesClient,
+    cloudwatch_client: CloudWatchGetMetricStatisticsClient,
+    proposal_id: UUID,
+    clock: Callable[[], datetime],
+    idle_policy: IdlePolicySettings | None = None,
     model_settings: BedrockSettings | None = None,
     model: Model | None = None,
     tracer: Tracer | None = None,
 ) -> PrimaryAgentRuntime:
-    """Create one Strands Agent with one AUTO read-only tool and native HITL."""
+    """Create one Strands Agent with the complete bounded read-only tool surface."""
 
     if not isinstance(context, ExecutionContext):
         raise ContractValidationError("context must be an ExecutionContext")
@@ -101,6 +126,11 @@ def create_primary_agent(
         raise ContractValidationError("identity must match the execution context")
     if not isinstance(target, SandboxTarget):
         raise ContractValidationError("target must be a SandboxTarget")
+    if not isinstance(proposal_id, UUID):
+        raise ContractValidationError("proposal_id must be UUIDv7")
+    validate_correlation_id(proposal_id)
+    if not callable(clock):
+        raise ContractValidationError("clock must be callable")
     settings = model_settings if model_settings is not None else BedrockSettings()
     if not isinstance(settings, BedrockSettings):
         raise ContractValidationError("model_settings must be BedrockSettings")
@@ -110,18 +140,48 @@ def create_primary_agent(
         target,
         region=settings.region,
     )
+    policy = idle_policy if idle_policy is not None else IdlePolicySettings()
+    if not isinstance(policy, IdlePolicySettings):
+        raise ContractValidationError("idle_policy must be IdlePolicySettings")
+    utilization_service = ReadUtilizationMetricsService(
+        cloudwatch_client,
+        target,
+        policy,
+    )
+    evidence_service = BuildRemediationEvidenceService(target)
+    tool_context = InvestigationToolContext(identity=identity)
     inspection_tool = create_inspect_instance_tool(
         inspection_service,
         identity,
         tracer=tracer,
+        on_result=tool_context.record_inspection,
+    )
+    utilization_tool = create_read_utilization_metrics_tool(
+        utilization_service,
+        tool_context.inspection,
+        identity,
+        clock=clock,
+        tracer=tracer,
+        on_result=tool_context.record_utilization,
+    )
+    evidence_tool = create_build_remediation_evidence_tool(
+        evidence_service,
+        tool_context.inspection,
+        tool_context.utilization,
+        identity,
+        target,
+        proposal_id,
+        clock=clock,
+        tracer=tracer,
+        on_result=tool_context.record_evidence,
     )
     intervention = create_human_in_the_loop()
     primary_agent = Agent(
         agent_id=PRIMARY_AGENT_ID,
         name="AIOA Non-Zero CloudOps",
-        description="Bounded read-only sandbox EC2 inspection agent",
+        description="Bounded read-only sandbox EC2 investigation agent",
         model=model if model is not None else create_bedrock_model(settings),
-        tools=[inspection_tool],
+        tools=[inspection_tool, utilization_tool, evidence_tool],
         interventions=[intervention],
         system_prompt=SYSTEM_PROMPT,
         callback_handler=None,
@@ -129,13 +189,17 @@ def create_primary_agent(
         record_direct_tool_call=True,
         trace_attributes=build_agent_trace_attributes(context.correlation_id),
     )
-    if primary_agent.tool_names != [INSPECT_INSTANCE_TOOL_NAME]:
+    if tuple(primary_agent.tool_names) != CURRENT_TOOL_NAMES:
         raise ContractValidationError("primary agent tool surface is not canonical")
     return PrimaryAgentRuntime(
         agent=primary_agent,
         inspect_instance_tool=inspection_tool,
+        read_utilization_metrics_tool=utilization_tool,
+        build_remediation_evidence_tool=evidence_tool,
         human_in_the_loop=intervention,
+        tool_context=tool_context,
         identity=identity,
         model_settings=settings,
         target=target,
+        proposal_id=proposal_id,
     )

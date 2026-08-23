@@ -3,10 +3,10 @@
 Newly authored work for the **AWS Agents for Humans Hackathon 2026**.
 
 - Track: Professional Agents
-- Status: deterministic Nova 2 compatibility correction complete; live retry blocked by expired AWS SSO
+- Status: complete local read-only investigation flow; live AWS smoke not run without a configured sandbox target
 - Orchestration: one Strands Agent
 - Model platform: Amazon Bedrock
-- Current capability: read-only inspection of one configured sandbox EC2 instance
+- Current capability: scoped instance inspection, typed CPU evidence, and a durable non-authorizing remediation proposal
 
 ## Non-Zero Principle
 

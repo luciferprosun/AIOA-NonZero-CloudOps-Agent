@@ -213,6 +213,26 @@ def test_malformed_numeric_data_fails_explicitly(value: object) -> None:
     assert result.failure.kind is FailureKind.AMBIGUOUS_RESULT
 
 
+def test_wrong_or_missing_cloudwatch_unit_fails_explicitly() -> None:
+    for unit in (None, "Bytes"):
+        response = {"Datapoints": _datapoints(1)}
+        if unit is None:
+            response["Datapoints"][0].pop("Unit")
+        else:
+            response["Datapoints"][0]["Unit"] = unit
+        service, _ = _service(response)
+
+        result = service.read_result(
+            inspection=_inspection(),
+            identity=_identity(),
+            collected_at=COLLECTED_AT,
+        )
+
+        assert result.status is ResultStatus.FAILURE
+        assert result.failure is not None
+        assert result.failure.kind is FailureKind.AMBIGUOUS_RESULT
+
+
 def test_cloudwatch_failure_is_sanitized_dependency_failure() -> None:
     service, _ = _service(RuntimeError("provider-secret-detail"))
 

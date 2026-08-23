@@ -7,6 +7,7 @@ from .errors import WorkflowTransitionError
 
 _COMMON_INVESTIGATION_FAILURES: Final[frozenset[WorkflowState]] = frozenset(
     {
+        WorkflowState.DENIED_BY_POLICY,
         WorkflowState.MODEL_OUTPUT_INVALID,
         WorkflowState.AMBIGUOUS_RESULT,
         WorkflowState.DEPENDENCY_UNAVAILABLE,
@@ -19,6 +20,7 @@ ALLOWED_WORKFLOW_TRANSITIONS: Final[dict[WorkflowState, frozenset[WorkflowState]
     WorkflowState.RECEIVED: frozenset(
         {
             WorkflowState.INVESTIGATING,
+            WorkflowState.DENIED_BY_POLICY,
             WorkflowState.MODEL_OUTPUT_INVALID,
             WorkflowState.DEPENDENCY_UNAVAILABLE,
             WorkflowState.BUDGET_EXHAUSTED,

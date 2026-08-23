@@ -1,5 +1,6 @@
 """Native Strands tool registration for canonical EC2 inspection."""
 
+from collections.abc import Callable
 from typing import Final
 
 from opentelemetry import trace
@@ -11,7 +12,7 @@ from aioa_cloudops_agent.domain.errors import ContractValidationError
 from aioa_cloudops_agent.nz import ResultStatus
 
 from .inspect_instance import InspectInstanceService
-from .models import InvestigationIdentity
+from .models import InspectInstanceResult, InvestigationIdentity
 
 INSPECT_INSTANCE_TOOL_NAME: Final = "inspect_instance"
 
@@ -21,6 +22,7 @@ def create_inspect_instance_tool(
     identity: InvestigationIdentity,
     *,
     tracer: Tracer | None = None,
+    on_result: Callable[[InspectInstanceResult], None] | None = None,
 ) -> DecoratedFunctionTool:
     """Bind one execution correlation ID to the only active Strands tool."""
 
@@ -49,6 +51,8 @@ def create_inspect_instance_tool(
                 span.set_attribute("aws.region", result.value.region)
             elif result.failure is not None:
                 span.set_attribute("aioa.failure_kind", result.failure.kind.value)
+            if on_result is not None:
+                on_result(result)
             return result.model_dump(mode="json")
 
     return inspect_instance

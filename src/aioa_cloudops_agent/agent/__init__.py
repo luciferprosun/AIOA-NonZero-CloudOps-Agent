@@ -2,6 +2,7 @@
 
 from .factory import (
     CURRENT_REGISTERED_TOOL_COUNT,
+    CURRENT_TOOL_NAMES,
     FINAL_TOOL_CAP,
     PRIMARY_AGENT_COUNT,
     PrimaryAgentRuntime,
@@ -9,19 +10,29 @@ from .factory import (
     create_human_in_the_loop,
     create_primary_agent,
 )
+from .investigation_flow import (
+    BoundedInvestigationFlow,
+    InvestigationCompletion,
+    InvestigationFlowResult,
+)
 from .prompts import SYSTEM_PROMPT
-from .runtime import build_inspection_request
+from .runtime import build_inspection_request, build_investigation_request
 from .tracing import PRIMARY_AGENT_ID, build_agent_trace_attributes
 
 __all__ = [
     "CURRENT_REGISTERED_TOOL_COUNT",
+    "CURRENT_TOOL_NAMES",
     "FINAL_TOOL_CAP",
     "PRIMARY_AGENT_COUNT",
     "PRIMARY_AGENT_ID",
     "SYSTEM_PROMPT",
+    "BoundedInvestigationFlow",
+    "InvestigationCompletion",
+    "InvestigationFlowResult",
     "PrimaryAgentRuntime",
     "build_agent_trace_attributes",
     "build_inspection_request",
+    "build_investigation_request",
     "create_bedrock_model",
     "create_human_in_the_loop",
     "create_primary_agent",

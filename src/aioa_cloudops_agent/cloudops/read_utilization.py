@@ -179,12 +179,15 @@ class ReadUtilizationMetricsService:
                 raise UtilizationEvidenceError("CloudWatch datapoint is malformed")
             timestamp = raw_point.get("Timestamp")
             value = raw_point.get("Average")
+            unit = raw_point.get("Unit")
             if not isinstance(timestamp, datetime) or timestamp.tzinfo is None:
                 raise UtilizationEvidenceError("CloudWatch datapoint timestamp is malformed")
             if timestamp.utcoffset() != timedelta(0):
                 raise UtilizationEvidenceError("CloudWatch datapoint timestamp must use UTC")
             if not window_start <= timestamp <= window_end:
                 raise UtilizationEvidenceError("CloudWatch datapoint is outside the requested window")
+            if unit != "Percent":
+                raise UtilizationEvidenceError("CloudWatch datapoint unit is not Percent")
             if (
                 isinstance(value, bool)
                 or not isinstance(value, (int, float))

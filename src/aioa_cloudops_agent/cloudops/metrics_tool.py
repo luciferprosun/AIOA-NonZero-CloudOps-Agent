@@ -21,18 +21,19 @@ READ_UTILIZATION_TOOL_NAME: Final = "read_utilization_metrics"
 
 def create_read_utilization_metrics_tool(
     service: ReadUtilizationMetricsService,
-    inspection: InstanceInspection,
+    inspection: InstanceInspection | Callable[[], InstanceInspection | None],
     identity: InvestigationIdentity,
     *,
     clock: Callable[[], datetime],
     tracer: Tracer | None = None,
+    on_result: Callable[[ControlResult[UtilizationEvidence]], None] | None = None,
 ) -> DecoratedFunctionTool:
     """Bind validated inspection proof and identity to the CloudWatch tool."""
 
     if not isinstance(service, ReadUtilizationMetricsService):
         raise ContractValidationError("service must be ReadUtilizationMetricsService")
-    if not isinstance(inspection, InstanceInspection):
-        raise ContractValidationError("inspection must be an InstanceInspection")
+    if not isinstance(inspection, InstanceInspection) and not callable(inspection):
+        raise ContractValidationError("inspection must be evidence or a callable provider")
     if not isinstance(identity, InvestigationIdentity):
         raise ContractValidationError("identity must be an InvestigationIdentity")
     if not callable(clock):
@@ -62,7 +63,26 @@ def create_read_utilization_metrics_tool(
                     )
                 )
             else:
-                if requested_id != inspection.instance_id:
+                active_inspection = inspection() if callable(inspection) else inspection
+                if active_inspection is None:
+                    result = ControlResult[UtilizationEvidence].failed(
+                        FailureDetail(
+                            kind=FailureKind.VALIDATION_FAILURE,
+                            code="INSPECTION_REQUIRED",
+                            message="Validated instance evidence is required before metrics",
+                            retryable=False,
+                        )
+                    )
+                elif not isinstance(active_inspection, InstanceInspection):
+                    result = ControlResult[UtilizationEvidence].failed(
+                        FailureDetail(
+                            kind=FailureKind.VALIDATION_FAILURE,
+                            code="INSPECTION_INVALID",
+                            message="Inspection provider returned an invalid contract",
+                            retryable=False,
+                        )
+                    )
+                elif requested_id != active_inspection.instance_id:
                     result = ControlResult[UtilizationEvidence].failed(
                         FailureDetail(
                             kind=FailureKind.POLICY_DENIAL,
@@ -73,7 +93,7 @@ def create_read_utilization_metrics_tool(
                     )
                 else:
                     result = service.read_result(
-                        inspection=inspection,
+                        inspection=active_inspection,
                         identity=identity,
                         collected_at=clock(),
                     )
@@ -83,6 +103,8 @@ def create_read_utilization_metrics_tool(
                 span.set_attribute("aioa.classification", result.value.classification.value)
             elif result.failure is not None:
                 span.set_attribute("aioa.failure_kind", result.failure.kind.value)
+            if on_result is not None:
+                on_result(result)
             return result.model_dump(mode="json")
 
     return read_utilization_metrics
