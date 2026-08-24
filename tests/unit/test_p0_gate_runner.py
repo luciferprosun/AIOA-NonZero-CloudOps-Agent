@@ -32,11 +32,19 @@ def test_p0_matrix_definition_and_static_evidence_are_all_valid() -> None:
 
 def test_p0_document_names_every_gate_and_runner_mode() -> None:
     document = (ROOT / "docs/architecture/day-13-p0-gate.md").read_text(encoding="utf-8")
+    armor_document = (
+        ROOT / "docs/architecture/day-13-p0-emergency-disable.md"
+    ).read_text(encoding="utf-8")
 
     assert all(f"P0-{number:02d}" in document for number in range(1, 16))
     assert "scripts/run_p0_gate.py" in document
     assert "--json" in document
     assert "--validate-only" in document
+    assert "AIOA_EMERGENCY_EXECUTION_DISABLED" in armor_document
+    assert "EXECUTOR_EMERGENCY_DISABLED" in armor_document
+    assert "AU-2 tamper-evident audit continuity is not implemented" in armor_document
+    assert "AU-3 reviewer evidence manifest is not implemented" in armor_document
+    assert "Day 14 circuit-breaker work has not started" in armor_document
 
 
 def test_p0_runner_rejects_stale_source_symbol_and_pytest_node() -> None:
