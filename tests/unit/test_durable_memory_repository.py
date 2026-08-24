@@ -43,6 +43,7 @@ TRACE_ID = UUID("01890f6c-3311-7abc-8f4a-6e4f7f0b9b3b")
 CORRELATION_ID = UUID("01890f6c-3311-7abc-8f4a-6e4f7f0b9b3c")
 PROPOSAL_ID = UUID("01890f6c-3311-7abc-8f4a-6e4f7f0b9b3d")
 OTHER_PROPOSAL_ID = UUID("01890f6c-3311-7abc-8f4a-6e4f7f0b9b3e")
+OTHER_RUN_ID = UUID("01890f6c-3311-7abc-8f4a-6e4f7f0b9b40")
 EVENT_ID = UUID("01890f6c-3311-7abc-8f4a-6e4f7f0b9b3f")
 NOW = datetime(2026, 8, 23, 12, 0, tzinfo=UTC)
 DIGEST = "a" * 64
@@ -140,7 +141,10 @@ def _prepare_awaiting_repository(
     return repository, run, proposal, approval
 
 
-def _prepare_approved_repository() -> tuple[
+def _prepare_approved_repository(
+    *,
+    checkpoint_evidence_hash: str | None = DIGEST,
+) -> tuple[
     InMemoryTestDurableTruthRepository,
     Run,
     ActionProposal,
@@ -163,7 +167,11 @@ def _prepare_approved_repository() -> tuple[
             run_id=RUN_ID,
             last_safe_state=WorkflowState.APPROVED,
             resume_metadata={"proposal_id": str(PROPOSAL_ID)},
-            tool_result_hashes={"build_remediation_evidence": DIGEST},
+            tool_result_hashes=(
+                {"build_remediation_evidence": checkpoint_evidence_hash}
+                if checkpoint_evidence_hash is not None
+                else {}
+            ),
             created_at=NOW + timedelta(seconds=6),
         ),
         expected_version=None,
@@ -236,6 +244,25 @@ def test_proposal_and_approval_are_separate_create_only_records() -> None:
     assert repository.get_approval(PROPOSAL_ID) == approval
     with pytest.raises(StorageConflictError, match="conflicting"):
         repository.create_approval(_approval(ApprovalDecision.DENIED))
+
+
+@pytest.mark.parametrize(
+    "binding_change",
+    [
+        {"proposal_id": OTHER_PROPOSAL_ID},
+        {"run_id": OTHER_RUN_ID},
+    ],
+)
+def test_approval_from_another_run_or_proposal_cannot_authorize_execution(
+    binding_change: dict[str, UUID],
+) -> None:
+    repository, _, _, _ = _prepare_awaiting_repository()
+    substituted = _approval().model_copy(update=binding_change)
+
+    with pytest.raises(StorageConflictError):
+        repository.create_approval(substituted)
+
+    assert repository.get_approval(PROPOSAL_ID) is None
 
 
 def test_proposal_transition_is_conditional_and_cannot_be_reversed() -> None:
@@ -391,6 +418,23 @@ def test_durable_prerequisites_require_separate_approval_and_checkpoint() -> Non
     assert proof.idempotency == idempotency
     assert proof.checkpoint.last_safe_state is WorkflowState.APPROVED
     assert not hasattr(proof, "execute")
+
+
+@pytest.mark.parametrize("checkpoint_evidence_hash", [None, "b" * 64])
+def test_missing_or_mismatched_checkpoint_evidence_blocks_execution(
+    checkpoint_evidence_hash: str | None,
+) -> None:
+    repository, _, _, _ = _prepare_approved_repository(
+        checkpoint_evidence_hash=checkpoint_evidence_hash
+    )
+    register_approved_action(
+        repository,
+        PROPOSAL_ID,
+        registered_at=NOW + timedelta(seconds=7),
+    )
+
+    with pytest.raises(DurablePrerequisiteError, match="proposal evidence hash"):
+        load_execution_prerequisites(repository, PROPOSAL_ID)
 
 
 def test_proposal_alone_never_satisfies_approval_prerequisite() -> None:

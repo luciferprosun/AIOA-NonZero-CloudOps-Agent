@@ -85,6 +85,13 @@ def load_execution_prerequisites(
     checkpoint = repository.get_checkpoint(run.run_id)
     if checkpoint is None or checkpoint.last_safe_state is not WorkflowState.APPROVED:
         raise DurablePrerequisiteError("approved safe checkpoint is required")
+    if (
+        checkpoint.tool_result_hashes.get("build_remediation_evidence")
+        != proposal.evidence_hash
+    ):
+        raise DurablePrerequisiteError(
+            "approved safe checkpoint must retain the proposal evidence hash"
+        )
     return ApprovedActionPrerequisites(
         run=run,
         proposal=proposal,

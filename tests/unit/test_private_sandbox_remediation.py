@@ -46,6 +46,7 @@ from aioa_cloudops_agent.remediation import (
 
 INSTANCE_ID = "i-0123456789abcdef0"
 OTHER_INSTANCE_ID = "i-0fedcba9876543210"
+OTHER_PROPOSAL_ID = UUID("01890f6c-3311-7abc-8f4a-6e4f7f0b9b3e")
 RUN_ID = UUID("01890f6c-3311-7abc-8f4a-6e4f7f0b9b3a")
 TRACE_ID = UUID("01890f6c-3311-7abc-8f4a-6e4f7f0b9b3b")
 CORRELATION_ID = UUID("01890f6c-3311-7abc-8f4a-6e4f7f0b9b3c")
@@ -302,11 +303,20 @@ def _coordinator(
     )
 
 
-def test_private_executor_requires_both_live_flags_before_any_aws_call() -> None:
+@pytest.mark.parametrize(
+    "settings",
+    [
+        _settings(aws_mutations_enabled=False),
+        _settings(allow_live_sandbox_stop=False),
+    ],
+)
+def test_private_executor_requires_both_live_flags_before_any_aws_call(
+    settings: SandboxRemediationSettings,
+) -> None:
     client = FakeEc2StopClient()
     executor = Ec2SandboxStopExecutor(
         client,
-        _settings(allow_live_sandbox_stop=False),
+        settings,
         clock=lambda: NOW,
     )
 
@@ -315,6 +325,18 @@ def test_private_executor_requires_both_live_flags_before_any_aws_call() -> None
 
     assert client.describe_calls == []
     assert client.stop_calls == []
+
+
+def test_missing_durable_proposal_blocks_executor_before_any_command() -> None:
+    repository, _ = _repository()
+    executor = RecordingPrivateExecutor()
+
+    result = _coordinator(repository, executor).execute(OTHER_PROPOSAL_ID)
+
+    assert result.status is ResultStatus.FAILURE
+    assert result.failure is not None
+    assert result.failure.code == "PROPOSAL_NOT_FOUND"
+    assert executor.commands == []
 
 
 @pytest.mark.parametrize(

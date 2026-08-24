@@ -430,6 +430,25 @@ def test_duplicate_resume_after_lost_response_keeps_original_decision_timestamp(
     assert model.calls == 2
 
 
+def test_changed_decision_nonce_replay_is_rejected_without_second_tool_call() -> None:
+    flow, repository, _, stop_calls = _flow()
+    interrupt = flow.request(PROPOSAL_ID).value
+    assert interrupt is not None
+    response = _resume(interrupt, ApprovalDecision.APPROVED)
+    first = flow.resume(response)
+
+    replay = flow.resume(
+        response.model_copy(update={"decision_nonce": "decision-nonce-replayed"})
+    )
+
+    assert first.status is ResultStatus.SUCCESS
+    assert replay.status is ResultStatus.FAILURE
+    assert replay.failure is not None
+    assert replay.failure.code == "APPROVAL_DECISION_CONFLICT"
+    assert repository.get_approval(PROPOSAL_ID).decision_nonce == "decision-nonce-0001"
+    assert stop_calls == [PROPOSAL_ID]
+
+
 def test_conflicting_second_decision_is_rejected() -> None:
     flow, repository, _, stop_calls = _flow()
     interrupt = flow.request(PROPOSAL_ID).value

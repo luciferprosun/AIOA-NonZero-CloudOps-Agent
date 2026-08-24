@@ -225,7 +225,12 @@ class EventIdFactory:
         return value
 
 
-def _run(*, max_turns: int = 8, max_elapsed_seconds: int = 60) -> Run:
+def _run(
+    *,
+    max_turns: int = 8,
+    max_tokens: int = 8_192,
+    max_elapsed_seconds: int = 60,
+) -> Run:
     return Run.new(
         run_id=RUN_ID,
         trace_id=TRACE_ID,
@@ -234,7 +239,7 @@ def _run(*, max_turns: int = 8, max_elapsed_seconds: int = 60) -> Run:
         created_at=NOW,
         budget=BudgetCounters(
             max_turns=max_turns,
-            max_tokens=8_192,
+            max_tokens=max_tokens,
             max_elapsed_seconds=max_elapsed_seconds,
         ),
     )
@@ -460,6 +465,22 @@ def test_agent_turn_budget_exhaustion_persists_failure_and_no_proposal() -> None
     assert result.failure is not None
     assert result.failure.kind is FailureKind.BUDGET_EXHAUSTION
     assert repository.get_run(RUN_ID).state is WorkflowState.BUDGET_EXHAUSTED
+    assert repository.get_proposal(PROPOSAL_ID) is None
+    assert runtime.tool_context.tool_calls == ["inspect_instance"]
+    assert model.calls == 1
+    assert cloudwatch.calls == []
+
+
+def test_agent_token_budget_exhaustion_persists_failure_and_no_proposal() -> None:
+    flow, runtime, model, _, cloudwatch, repository = _flow()
+
+    result = flow.execute(_run(max_tokens=10))
+
+    assert result.status is ResultStatus.FAILURE
+    assert result.failure is not None
+    assert result.failure.kind is FailureKind.BUDGET_EXHAUSTION
+    assert repository.get_run(RUN_ID).state is WorkflowState.BUDGET_EXHAUSTED
+    assert repository.get_run(RUN_ID).budget.tokens_used == 10
     assert repository.get_proposal(PROPOSAL_ID) is None
     assert runtime.tool_context.tool_calls == ["inspect_instance"]
     assert model.calls == 1
