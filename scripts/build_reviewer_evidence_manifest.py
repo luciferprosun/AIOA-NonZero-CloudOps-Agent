@@ -1,0 +1,715 @@
+#!/usr/bin/env python3
+"""Build the deterministic, judge-facing AU-3 reviewer evidence manifest."""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import os
+import re
+import stat
+import sys
+import tempfile
+import tomllib
+from contextlib import suppress
+from copy import deepcopy
+from pathlib import Path
+from typing import Any
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from aioa_cloudops_agent.agent import (  # noqa: E402
+    CURRENT_REGISTERED_TOOL_COUNT,
+    CURRENT_TOOL_NAMES,
+    FINAL_TOOL_CAP,
+    PRIMARY_AGENT_COUNT,
+)
+from aioa_cloudops_agent.config import (  # noqa: E402
+    DEFAULT_BEDROCK_MODEL_ID,
+    DEFAULT_BEDROCK_REGION,
+)
+from scripts.run_p0_gate import (  # noqa: E402
+    EXPECTED_PHASE1_TAG,
+    PHASE1_TAG,
+    PRIOR_ART_BLOBS,
+)
+from scripts.run_p0_gate import GATES as P0_GATES  # noqa: E402
+from scripts.run_p1_gate import GATES as P1_GATES  # noqa: E402
+
+SCHEMA_VERSION = "1.0"
+EVIDENCE_SNAPSHOT_COMMIT = "fbb536400594306f2bb3abd31c7064a66735c82d"
+EXPECTED_BEDROCK_REGION = "eu-central-1"
+EXPECTED_MODEL_ID = "eu.amazon.nova-2-lite-v1:0"
+EXPECTED_STRANDS_VERSION = "1.53.0"
+EXPECTED_STRANDS_REQUIREMENT = "strands-agents[otel]==1.53.0"
+P0_PROOF_CASES = 136
+P1_PROOF_CASES = 93
+PRIOR_ARMOR_COMMITS = (
+    "bcc3b478612ec1994e2846657d27d12326302d6c",
+    "4d84d207d900b88d2cae6017640d615f3621c8f4",
+    "1fbf019cb7da82fa74feab16b7f19ac42febc6d6",
+)
+LIVE_EC2_NOT_PROVEN_CLAIM = (
+    "A live EC2 StopInstances event is not yet proven by this repository."
+)
+JSON_PATH = ROOT / "docs/evidence/reviewer-evidence-manifest.json"
+MARKDOWN_PATH = ROOT / "docs/evidence/reviewer-evidence-manifest.md"
+README_PATH = ROOT / "docs/evidence/README.md"
+_STRANDS_DEPENDENCY = re.compile(r"strands[-_]agents(?:\[[^]]+\])?", re.IGNORECASE)
+
+
+def project_strands_requirement(root: Path = ROOT) -> str:
+    """Require the one reviewed Strands requirement, including the OTel extra and exact pin."""
+
+    document = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))
+    dependencies = document.get("project", {}).get("dependencies", [])
+    requirements: list[str] = []
+    for dependency in dependencies:
+        if not isinstance(dependency, str):
+            continue
+        normalized = dependency.strip()
+        if _STRANDS_DEPENDENCY.match(normalized):
+            requirements.append(normalized)
+    if requirements != [EXPECTED_STRANDS_REQUIREMENT]:
+        raise ValueError("pyproject must contain only the reviewed exact Strands OTel pin")
+    return requirements[0]
+
+
+def project_strands_version(root: Path = ROOT) -> str:
+    project_strands_requirement(root)
+    return EXPECTED_STRANDS_VERSION
+
+
+def canonical_claim_material(claim: dict[str, Any]) -> bytes:
+    """Return canonical bytes for every claim field except its derived hash."""
+
+    material = {key: deepcopy(value) for key, value in claim.items() if key != "hash"}
+    for field in ("authority_source", "proof_nodes"):
+        values = material.get(field)
+        if isinstance(values, list) and all(isinstance(value, str) for value in values):
+            material[field] = sorted(values)
+    return json.dumps(
+        material,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+
+
+def claim_hash(claim: dict[str, Any]) -> str:
+    return hashlib.sha256(canonical_claim_material(claim)).hexdigest()
+
+
+def _claim(
+    claim_id: str,
+    claim: str,
+    evidence_kind: str,
+    authority_source: tuple[str, ...],
+    proof_nodes: tuple[str, ...],
+    *,
+    status: str = "PROVEN",
+    scope: str = "Local deterministic",
+    limitations: str,
+    commit_anchor: str = EVIDENCE_SNAPSHOT_COMMIT,
+) -> dict[str, Any]:
+    result: dict[str, Any] = {
+        "claim_id": claim_id,
+        "claim": claim,
+        "evidence_kind": evidence_kind,
+        "authority_source": sorted(authority_source),
+        "proof_nodes": sorted(proof_nodes),
+        "commit_anchor": commit_anchor,
+        "status": status,
+        "scope": scope,
+        "limitations": limitations,
+    }
+    result["hash"] = claim_hash(result)
+    return result
+
+
+def build_claims() -> list[dict[str, Any]]:
+    """Build conservative claims; tests and source prove behavior, never a live event."""
+
+    claims = [
+        _claim(
+            "AGENT-TOPOLOGY-01",
+            "The runtime factory creates one primary Strands Agent.",
+            "TEST",
+            ("src/aioa_cloudops_agent/agent/factory.py::PRIMARY_AGENT_COUNT",),
+            (
+                "P0-01",
+                "tests/unit/test_strands_agent.py::"
+                "test_factory_creates_exactly_one_primary_agent_and_five_canonical_tools",
+            ),
+            limitations="Proves the repository runtime factory, not the topology of an undeployed AWS stack.",
+        ),
+        _claim(
+            "APPROVAL-BINDING-01",
+            "Human approval is explicit and bound to the proposal, request, actor session, and decision nonce.",
+            "TEST",
+            (
+                "src/aioa_cloudops_agent/agent/approval_flow.py::DurableApprovalFlow.resume",
+                "src/aioa_cloudops_agent/nz/contracts.py::Approval.validate_action_binding",
+                "src/aioa_cloudops_agent/persistence/durable_logic.py::validate_approval_binding",
+            ),
+            (
+                "P0-05",
+                "tests/integration/test_durable_hitl_approval_flow.py::"
+                "test_changed_decision_nonce_replay_is_rejected_without_second_tool_call",
+                "tests/unit/test_durable_memory_repository.py::"
+                "test_approval_from_another_run_or_proposal_cannot_authorize_execution",
+            ),
+            scope="mocked AWS",
+            limitations="Does not attest to a real operator approval or a deployed identity provider.",
+        ),
+        _claim(
+            "BOUNDED-FAILURES-01",
+            "Schema correction, dependency retry, circuit suppression, and workflow budgets are finite and typed.",
+            "TEST",
+            (
+                "src/aioa_cloudops_agent/safety/circuit.py::DependencyCircuitBreaker.acquire",
+                "src/aioa_cloudops_agent/safety/retry.py::BoundedReadRetry.run",
+                "src/aioa_cloudops_agent/safety/schema.py::SchemaCorrectionBudget",
+            ),
+            (
+                "P0-12",
+                "P0-13",
+                "P1-03",
+                "tests/unit/test_dependency_circuit_breaker.py::"
+                "test_open_circuit_suppresses_provider_calls_during_cooldown",
+            ),
+            limitations="Process-local circuit state does not suppress failures across separate cold runtimes.",
+        ),
+        _claim(
+            "DEFAULT-DENY-01",
+            "Unknown and NEVER_AUTONOMOUS capabilities are denied by deterministic policy.",
+            "TEST",
+            (
+                "src/aioa_cloudops_agent/nz/authority.py::authority_for_capability",
+                "src/aioa_cloudops_agent/safety/policy.py::DefaultDenyToolPolicy.evaluate",
+            ),
+            (
+                "P0-11",
+                "P1-01",
+                "tests/unit/test_safety_hardening.py::"
+                "test_unknown_tool_alias_defaults_to_policy_denial",
+            ),
+            limitations="Proves the registered policy boundary, not protection from every future code change.",
+        ),
+        _claim(
+            "EXECUTOR-GATES-01",
+            "The private stop executor requires durable prerequisites, exact sandbox scope, both live opt-ins, and an emergency-veto release immediately before write boundaries.",
+            "TEST",
+            (
+                "src/aioa_cloudops_agent/persistence/prerequisites.py::load_execution_prerequisites",
+                "src/aioa_cloudops_agent/remediation/emergency.py::EnvironmentEmergencyExecutionControl.assert_writes_enabled",
+                "src/aioa_cloudops_agent/remediation/executor.py::Ec2SandboxStopExecutor.execute",
+            ),
+            (
+                "P0-06",
+                "tests/unit/test_private_sandbox_remediation.py::"
+                "test_private_executor_requires_both_live_flags_before_any_aws_call",
+                "tests/unit/test_private_sandbox_remediation.py::"
+                "test_emergency_flip_after_dryrun_blocks_live_stop_call",
+            ),
+            scope="mocked AWS",
+            limitations="Proves fail-closed code paths with fakes; it does not prove a deployed role or a live stop.",
+        ),
+        _claim(
+            "IAM-SEPARATION-01",
+            "The checked-in orchestrator policy can invoke only the private executor and has no direct EC2 StopInstances action.",
+            "STATIC",
+            ("infra/iam/cloudops-orchestrator-policy.json#lambda:InvokeFunction",),
+            (
+                "P0-07",
+                "P1-04",
+                "tests/unit/test_iam_policies.py::"
+                "test_orchestrator_can_invoke_only_private_executor_and_cannot_stop_ec2",
+            ),
+            limitations="Validates repository policy documents, not the effective policy of an undeployed AWS role.",
+        ),
+        _claim(
+            "IDEMPOTENCY-01",
+            "A duplicate logical action cannot silently execute twice while durable idempotency state is acknowledged or unresolved.",
+            "TEST",
+            (
+                "src/aioa_cloudops_agent/persistence/prerequisites.py::register_approved_action",
+                "src/aioa_cloudops_agent/persistence/semantic_idempotency.py::derive_action_fingerprint",
+            ),
+            (
+                "P0-08",
+                "tests/unit/test_private_sandbox_remediation.py::"
+                "test_duplicate_acknowledged_action_never_invokes_executor_twice",
+            ),
+            scope="mocked AWS",
+            limitations="Does not prove production DynamoDB availability or a live concurrency event.",
+        ),
+        _claim(
+            "LIVE-EC2-01",
+            LIVE_EC2_NOT_PROVEN_CLAIM,
+            "DOC",
+            (
+                "docs/architecture/day-14-p1-resilience.md#"
+                "Deployment remains deferred to Day 15.",
+            ),
+            (),
+            status="NOT_YET_PROVEN",
+            scope="live AWS",
+            limitations="No sanitized live receipt is present; source and mocked tests prove only bounded capability behavior.",
+        ),
+        _claim(
+            "MODEL-AUTHORITY-01",
+            "Model output cannot itself authorize mutation; execution requires deterministic policy and durable human authority.",
+            "TEST",
+            (
+                "src/aioa_cloudops_agent/agent/hitl.py::DurableProposalHumanInTheLoop",
+                "src/aioa_cloudops_agent/nz/contracts.py::ActionProposal.authorizes_execution",
+                "src/aioa_cloudops_agent/safety/policy.py::DefaultDenyToolPolicy.evaluate",
+            ),
+            (
+                "P0-02",
+                "tests/unit/test_private_sandbox_remediation.py::"
+                "test_model_like_payload_cannot_construct_privileged_execution_command",
+            ),
+            limitations="Does not claim the model is intrinsically safe; authority remains outside the model.",
+        ),
+        _claim(
+            "MODEL-PIN-01",
+            "The default Bedrock model configuration selects Amazon Nova 2 Lite in eu-central-1.",
+            "STATIC",
+            (
+                "src/aioa_cloudops_agent/config/agent.py::DEFAULT_BEDROCK_MODEL_ID",
+                "src/aioa_cloudops_agent/config/agent.py::BedrockSettings",
+            ),
+            (
+                "P0-02",
+                "tests/unit/test_strands_agent.py::"
+                "test_bedrock_provider_uses_explicit_region_model_and_bounds",
+            ),
+            limitations="Proves configuration and request construction, not a live Bedrock invocation.",
+        ),
+        _claim(
+            "P0-GATE-01",
+            "The canonical P0 matrix passed all 15 gates with 136 proof cases at the evidence snapshot commit.",
+            "TEST",
+            ("scripts/run_p0_gate.py::GATES",),
+            tuple(gate.gate_id for gate in P0_GATES),
+            limitations="Records deterministic repository proof; it is not a live AWS deployment test.",
+        ),
+        _claim(
+            "P1-GATE-01",
+            "The canonical P1 matrix passed all 6 gates with 93 proof cases at the evidence snapshot commit.",
+            "TEST",
+            ("scripts/run_p1_gate.py::GATES",),
+            tuple(gate.gate_id for gate in P1_GATES),
+            limitations="Records deterministic failure-engineering proof; clean-clone remote mode depends on public-origin reachability.",
+        ),
+        _claim(
+            "PRIOR-ART-ATTESTATION-01",
+            "The project disclosure states that no prior-project implementation assets were imported.",
+            "OPERATOR_ATTESTATION",
+            (
+                "PRIOR-ART.md#No implementation code, commits, migrations, deployment definitions, or generated assets from prior projects were imported into this repository.",
+            ),
+            ("P0-15",),
+            status="ATTESTED_ONLY",
+            scope="documentation",
+            limitations="Repository scans and disclosure support this statement but cannot prove facts outside the inspected repositories.",
+        ),
+        _claim(
+            "PRIOR-ART-HISTORY-01",
+            "The frozen Phase 1 tag, pre-armor ancestry, and prior-art document blobs remain at their recorded immutable anchors.",
+            "GIT",
+            (
+                "docs/audit/prior-art-june1-forensic-baseline.md",
+                "scripts/run_p0_gate.py::PRIOR_ART_BLOBS",
+            ),
+            (
+                "P0-15",
+                "tests/unit/test_strands_agent.py::test_phase_1_tag_remains_at_frozen_commit",
+            ),
+            limitations="Proves this repository's anchors and frozen forensic documents; external history claims retain their documented evidence limits.",
+        ),
+        _claim(
+            "PROPOSAL-DURABILITY-01",
+            "An ActionProposal is persisted before approval and never authorizes execution by itself.",
+            "TEST",
+            (
+                "src/aioa_cloudops_agent/nz/contracts.py::ActionProposal.authorizes_execution",
+                "src/aioa_cloudops_agent/persistence/nz_dynamodb.py::DynamoDbDurableTruthRepository.create_proposal",
+            ),
+            (
+                "P0-04",
+                "tests/integration/test_read_only_investigation_flow.py::"
+                "test_strands_happy_path_persists_evidence_backed_non_authorizing_proposal",
+            ),
+            scope="mocked AWS",
+            limitations="Proves persistence contracts and mocked repository behavior, not a live DynamoDB write.",
+        ),
+        _claim(
+            "RECOVERY-NO-REPLAY-01",
+            "Restart and lost acknowledgement paths reconcile durable evidence and do not blindly replay mutation.",
+            "TEST",
+            ("src/aioa_cloudops_agent/recovery/coordinator.py::RecoveryCoordinator.recover",),
+            (
+                "P0-10",
+                "tests/unit/test_recovery_reconciliation.py::"
+                "test_lost_executor_ack_observed_running_requires_operator_and_never_replays",
+            ),
+            scope="mocked AWS",
+            limitations="Proves deterministic recovery behavior with fakes, not a live process interruption.",
+        ),
+        _claim(
+            "SDK-PIN-01",
+            "The project dependency declares an exact Strands Agents SDK pin at 1.53.0.",
+            "STATIC",
+            ("pyproject.toml#strands-agents[otel]==1.53.0",),
+            ("P0-01", "P1-06"),
+            limitations="Proves the declared pin and clean install contract, not future package-index availability.",
+        ),
+        _claim(
+            "TOOL-SURFACE-01",
+            "The primary agent exposes exactly the five canonical principal tools derived from the runtime factory.",
+            "TEST",
+            (
+                "src/aioa_cloudops_agent/agent/factory.py::CURRENT_TOOL_NAMES",
+                "src/aioa_cloudops_agent/agent/factory.py::FINAL_TOOL_CAP",
+            ),
+            (
+                "P0-01",
+                "tests/unit/test_strands_agent.py::"
+                "test_factory_creates_exactly_one_primary_agent_and_five_canonical_tools",
+            ),
+            limitations="Counts principal Strands tools in this repository, not infrastructure endpoints.",
+        ),
+        _claim(
+            "VERIFIED-SUCCESS-01",
+            "SUCCESS_WITH_EVIDENCE is reached only after independent verification evidence is durably recorded.",
+            "TEST",
+            (
+                "src/aioa_cloudops_agent/nz/enums.py::WorkflowState.SUCCESS_WITH_EVIDENCE",
+                "src/aioa_cloudops_agent/verification/coordinator.py::BoundedVerificationCoordinator.verify",
+            ),
+            (
+                "P0-09",
+                "tests/unit/test_verification_closure.py::"
+                "test_success_transition_without_durable_verification_evidence_is_rejected",
+            ),
+            scope="mocked AWS",
+            limitations="Proves mocked verification and durable ordering, not a live EC2 observation.",
+        ),
+    ]
+    return sorted(claims, key=lambda item: item["claim_id"])
+
+
+def build_manifest(root: Path = ROOT) -> dict[str, Any]:
+    """Build solely from reviewed constants and current canonical runtime definitions."""
+
+    strands_version = project_strands_version(root)
+    snapshot = {
+        "commit": EVIDENCE_SNAPSHOT_COMMIT,
+        "primary_agent_count": PRIMARY_AGENT_COUNT,
+        "registered_tool_count": CURRENT_REGISTERED_TOOL_COUNT,
+        "canonical_tools": list(CURRENT_TOOL_NAMES),
+        "final_tool_cap": FINAL_TOOL_CAP,
+        "bedrock_model_id": DEFAULT_BEDROCK_MODEL_ID,
+        "bedrock_region": DEFAULT_BEDROCK_REGION,
+        "strands_version": strands_version,
+        "strands_requirement": project_strands_requirement(root),
+        "phase1_tag": {"name": PHASE1_TAG, "commit": EXPECTED_PHASE1_TAG},
+        "prior_armor_commits": list(PRIOR_ARMOR_COMMITS),
+        "prior_art_blobs": dict(sorted(PRIOR_ART_BLOBS.items())),
+        "p0": {
+            "status": "PASS",
+            "gate_count": len(P0_GATES),
+            "proof_cases": P0_PROOF_CASES,
+        },
+        "p1": {
+            "status": "PASS",
+            "gate_count": len(P1_GATES),
+            "proof_cases": P1_PROOF_CASES,
+        },
+    }
+    manifest = {
+        "schema_version": SCHEMA_VERSION,
+        "evidence_snapshot": snapshot,
+        "claims": build_claims(),
+        "live_receipts": [],
+    }
+    manifest["manifest_hash"] = manifest_hash(manifest)
+    return manifest
+
+
+def normalize_manifest(document: dict[str, Any]) -> dict[str, Any]:
+    """Normalize semantic sets while preserving authoritative tool and history ordering."""
+
+    normalized = deepcopy(document)
+    claims = normalized.get("claims")
+    if isinstance(claims, list):
+        for claim in claims:
+            if not isinstance(claim, dict):
+                continue
+            for field in ("authority_source", "proof_nodes"):
+                values = claim.get(field)
+                if isinstance(values, list) and all(isinstance(value, str) for value in values):
+                    claim[field] = sorted(values)
+        normalized["claims"] = sorted(
+            claims,
+            key=lambda item: item.get("claim_id", "") if isinstance(item, dict) else "",
+        )
+    receipts = normalized.get("live_receipts")
+    if isinstance(receipts, list):
+        normalized["live_receipts"] = sorted(
+            receipts,
+            key=lambda item: (
+                str(item.get("claim_id", "")),
+                str(item.get("path", "")),
+                str(item.get("sha256", "")),
+            )
+            if isinstance(item, dict)
+            else ("", "", ""),
+        )
+    return normalized
+
+
+def canonical_manifest_bytes(document: dict[str, Any]) -> bytes:
+    """Return normalized reviewer JSON with stable key and claim ordering."""
+
+    return (
+        json.dumps(
+            normalize_manifest(document),
+            ensure_ascii=False,
+            sort_keys=True,
+            indent=2,
+        )
+        + "\n"
+    ).encode("utf-8")
+
+
+def manifest_hash(document: dict[str, Any]) -> str:
+    """Hash the whole normalized manifest except the derived top-level hash itself."""
+
+    material = normalize_manifest(document)
+    material.pop("manifest_hash", None)
+    canonical = json.dumps(
+        material,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    return hashlib.sha256(canonical).hexdigest()
+
+
+def _markdown_cell(value: object) -> str:
+    return str(value).replace("|", "\\|").replace("\n", " ")
+
+
+def render_markdown(document: dict[str, Any]) -> str:
+    """Render the Markdown view from the same normalized claim model as JSON."""
+
+    manifest = normalize_manifest(document)
+    snapshot = manifest["evidence_snapshot"]
+    claims = manifest["claims"]
+    lines = [
+        "# Reviewer Evidence Manifest",
+        "",
+        "This judge-facing view is generated from the canonical JSON. It is reviewer proof, not runtime authority.",
+        "",
+        f"- Evidence snapshot: `{snapshot['commit']}`",
+        f"- Manifest SHA-256: `{manifest['manifest_hash']}`",
+        f"- Primary agents: `{snapshot['primary_agent_count']}`",
+        f"- Canonical tools: `{', '.join(snapshot['canonical_tools'])}`",
+        f"- Bedrock model: `{snapshot['bedrock_model_id']}` in `{snapshot['bedrock_region']}`",
+        f"- Strands Agents: `{snapshot['strands_version']}`",
+        f"- P0: `{snapshot['p0']['gate_count']}/{snapshot['p0']['gate_count']} PASS`, `{snapshot['p0']['proof_cases']}` proof cases",
+        f"- P1: `{snapshot['p1']['gate_count']}/{snapshot['p1']['gate_count']} PASS`, `{snapshot['p1']['proof_cases']}` proof cases",
+        f"- Claims: `{len(claims)}`",
+        f"- Sanitized live receipts: `{len(manifest['live_receipts'])}`",
+        "",
+        "| Claim ID | Status | Kind | Scope | Conservative claim |",
+        "| --- | --- | --- | --- | --- |",
+    ]
+    lines.extend(
+        "| "
+        + " | ".join(
+            _markdown_cell(claim[field])
+            for field in ("claim_id", "status", "evidence_kind", "scope", "claim")
+        )
+        + " |"
+        for claim in claims
+    )
+    lines.extend(["", "## Exact proof map", ""])
+    for claim in claims:
+        lines.extend(
+            [
+                f"### {claim['claim_id']}",
+                "",
+                claim["claim"],
+                "",
+                f"- Status / kind / scope: `{claim['status']}` / `{claim['evidence_kind']}` / `{claim['scope']}`",
+                f"- Commit anchor: `{claim['commit_anchor']}`",
+                "- Authority source:",
+                *[f"  - `{source}`" for source in claim["authority_source"]],
+                "- Proof nodes:",
+                *(
+                    [f"  - `{node}`" for node in claim["proof_nodes"]]
+                    if claim["proof_nodes"]
+                    else ["  - None: no live receipt is present."]
+                ),
+                f"- Limitations: {claim['limitations']}",
+                f"- Claim SHA-256: `{claim['hash']}`",
+                "",
+            ]
+        )
+    lines.extend(
+        [
+            "## Truthfulness boundary",
+            "",
+            "Static source and mocked tests prove bounded code behavior. They do not prove a live AWS action. A live-event claim remains `NOT_YET_PROVEN` until a separate sanitized receipt is deliberately reviewed and added.",
+            "",
+        ]
+    )
+    return "\n".join(lines)
+
+
+def render_evidence_readme() -> str:
+    """Render the reviewed operating contract for the generated evidence files."""
+
+    return f"""# Reviewer evidence
+
+The AU-3 manifest maps conservative project claims to the source, tests, gates, and immutable Git snapshot that support them. It is a reviewer index only; runtime policy, typed contracts, durable approval, and the private executor remain the authority boundaries.
+
+## Rebuild and validate
+
+From the repository root in the documented development environment:
+
+```bash
+.venv/bin/python scripts/build_reviewer_evidence_manifest.py
+.venv/bin/python scripts/build_reviewer_evidence_manifest.py --check
+.venv/bin/python scripts/validate_reviewer_evidence_manifest.py
+```
+
+The builder is anchored intentionally to L1 commit `{EVIDENCE_SNAPSHOT_COMMIT}`. It does not derive an anchor from the changing `HEAD`, so rebuilding after L2/L3 is byte-for-byte stable and avoids a self-referential commit hash.
+
+## Canonical model
+
+Each claim contains the required `claim_id`, `claim`, `evidence_kind`, `authority_source`, `proof_nodes`, `commit_anchor`, `status`, `scope`, `limitations`, and `hash` fields. Python authority references use `path::symbol`; exact non-Python anchors use `path#text`; a path alone proves a tracked regular file. Pytest proof nodes use their exact `path::test_name`; P0/P1 nodes use exact gate IDs.
+
+Claim hashes are SHA-256 over compact, key-sorted UTF-8 JSON with the derived `hash` removed and set-like source/proof lists sorted. `manifest_hash` covers the normalized complete document except itself. Canonical JSON uses sorted keys, two-space indentation, sorted claims, and one final newline. The Markdown view is generated from the same normalized model.
+
+The validator resolves authority files and Python symbols at each claim's commit, resolves exact pytest nodes, and requires every referenced current source/test blob to remain byte-identical to the reviewed snapshot. It validates gate IDs and Git ancestry, checks the explicitly qualified frozen Phase 1 tag, and requires every prior-art path to remain a tracked regular file with its immutable blob. Runtime one-agent/five-tool facts must also match roots extracted directly from the immutable L1 Git object, so a synchronized five-for-five tool substitution or emptied provenance baseline cannot be regenerated into truth. Nova 2, its runtime region, and exact `strands-agents[otel]==1.53.0` pins are validated independently against frozen expectations.
+
+## Live-proof boundary
+
+Source, static checks, and mocked tests do not prove a live AWS event. The manifest therefore records the live EC2 claim as `NOT_YET_PROVEN` and contains no live receipt. A future positive live claim must use `LIVE_RECEIPT`, reference a separately reviewed and tracked sanitized receipt under `docs/evidence/live-receipts/`, and match its SHA-256.
+
+A receipt has a closed schema: claim binding, exact `ec2:StopInstances` operation and region, distinct nonzero hashed target/request/verification identifiers, stopped observation, `SUCCESS_WITH_EVIDENCE`, explicit UTC event time, operator-attested sanitized-export provenance, the fixed affirmative attestation contract, and `sanitized: true`. The event time must fall deterministically between the L1 snapshot commit and the Git commit that introduced the receipt. Unknown or duplicate fields, noncanonical JSON, contradictory/synthetic attestation, raw provider responses, weak evidence hashes, and privacy material fail validation. Promotion also requires an intentional reviewed builder change; inserting a receipt only into generated JSON fails generator-drift validation.
+
+The validator treats any unreviewed live-mutation statement as receipt-requiring, so relabeling it as a local test cannot bypass the proof boundary. It also rejects local paths, account identifiers, credentials, secret-like material, raw prompts, and private machine metadata.
+"""
+
+
+def _trusted_output_parent(path: Path) -> bool:
+    try:
+        relative = path.relative_to(ROOT)
+    except ValueError:
+        return False
+    current = ROOT
+    for part in relative.parts[:-1]:
+        current /= part
+        try:
+            metadata = current.lstat()
+        except FileNotFoundError:
+            continue
+        if not stat.S_ISDIR(metadata.st_mode) or stat.S_ISLNK(metadata.st_mode):
+            return False
+    return True
+
+
+def _safe_output_bytes(path: Path) -> bytes | None:
+    if not _trusted_output_parent(path):
+        raise OSError("evidence output parent is not a trusted repository directory")
+    try:
+        metadata = path.lstat()
+    except FileNotFoundError:
+        return None
+    if not stat.S_ISREG(metadata.st_mode) or stat.S_ISLNK(metadata.st_mode):
+        raise OSError("evidence output is not a regular file")
+    return path.read_bytes()
+
+
+def _write_if_changed(path: Path, content: bytes) -> None:
+    existing = _safe_output_bytes(path)
+    if existing == content:
+        return
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if not _trusted_output_parent(path):
+        raise OSError("evidence output parent changed during creation")
+    descriptor, temporary_name = tempfile.mkstemp(
+        dir=path.parent,
+        prefix=f".{path.name}.",
+    )
+    try:
+        with os.fdopen(descriptor, "wb") as temporary:
+            temporary.write(content)
+            temporary.flush()
+            os.fsync(temporary.fileno())
+            os.fchmod(temporary.fileno(), 0o644)
+        os.replace(temporary_name, path)
+    except BaseException:
+        with suppress(FileNotFoundError):
+            os.unlink(temporary_name)
+        raise
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--check", action="store_true", help="fail instead of rewriting drift")
+    parser.add_argument("--json", action="store_true", help="emit a stable machine result")
+    args = parser.parse_args()
+
+    claim_count = 0
+    try:
+        manifest = build_manifest()
+        claim_count = len(manifest["claims"])
+        expected_json = canonical_manifest_bytes(manifest)
+        expected_markdown = render_markdown(manifest).encode("utf-8")
+        expected_readme = render_evidence_readme().encode("utf-8")
+        drift = (
+            _safe_output_bytes(JSON_PATH) != expected_json
+            or _safe_output_bytes(MARKDOWN_PATH) != expected_markdown
+            or _safe_output_bytes(README_PATH) != expected_readme
+        )
+        if args.check and drift:
+            status = "FAIL"
+            reason = "GENERATED_EVIDENCE_DRIFT"
+        else:
+            if not args.check:
+                _write_if_changed(JSON_PATH, expected_json)
+                _write_if_changed(MARKDOWN_PATH, expected_markdown)
+                _write_if_changed(README_PATH, expected_readme)
+            status = "PASS"
+            reason = ""
+    except (OSError, ValueError, TypeError, tomllib.TOMLDecodeError):
+        status = "FAIL"
+        reason = "MANIFEST_BUILD_FAILED"
+
+    payload = {
+        "status": status,
+        "claim_count": claim_count if status == "PASS" else 0,
+        "reason": reason,
+    }
+    if args.json:
+        print(json.dumps(payload, sort_keys=True, separators=(",", ":")))
+    elif status == "PASS":
+        print(f"EVIDENCE_BUILD PASS claims={claim_count} deterministic=yes")
+    else:
+        print(f"EVIDENCE_BUILD FAIL reason={reason}")
+    return 0 if status == "PASS" else 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
