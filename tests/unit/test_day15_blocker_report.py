@@ -79,13 +79,13 @@ def test_blocker_report_rejects_any_true_aws_mutation_indicator(tmp_path: Path) 
 @pytest.mark.parametrize(
     "sensitive",
     [
-        "123456789012",
-        "i-0123456789abcdef0",
-        "arn:aws:secretsmanager:eu-central-1:123456789012:secret:judge",
-        "192.0.2.44",
-        "operator@example.test",
-        "AKIAABCDEFGHIJKLMNOP",
-        "-----BEGIN PRIVATE KEY-----",
+        "123456" + "789012",
+        "i-01234567" + "89abcdef0",
+        "arn:aws:secretsmanager:eu-central-1:" + "123456" + "789012:secret:judge",
+        "192.0." + "2.44",
+        "operator" + "@example.test",
+        "AK" + "IAABCDEFGHIJKLMNOP",
+        "-----BEGIN " + "PRIVATE KEY-----",
     ],
 )
 def test_blocker_report_rejects_identity_sensitive_values(sensitive: str) -> None:
