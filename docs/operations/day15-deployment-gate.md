@@ -68,70 +68,50 @@ runbook.
    `aioa-day15-deployer`, deployment-role leaf `AIOANonZeroCloudOpsDay15DeploymentRole`, stack
    `aioa-nonzero-cloudops-day15`, change set `day15-reviewed-release`, artifact path
    `day15/reviewed/aioa-lambda.zip`, `CAPABILITY_IAM`, and all required packaging-bucket controls:
-   encryption at rest, TLS-only access, versioning, all four public-access blocks, and lifecycle
-   expiration no later than three days. Its selected bucket hash, deployment-role ARN hash, and
-   reviewed change-set digest deliberately remain null and `BLOCKED` until an authorized operator
-   supplies those reviewed bindings. No actual account, bucket, role ARN, or target identifier is
+   encryption at rest, TLS-only access, versioning, ownership controls, all four public-access
+   blocks, and current/noncurrent version lifecycle expiration no later than three days. Its selected bucket and
+   deployment-role ARN hashes deliberately remain null and `BLOCKED`. Private identities never
+   replace those nulls in Git; the candidate-bound private receipt supplies authority at run time.
+   The logical change-set name and `CAPABILITY_IAM` are frozen, but an actual change set is
+   intentionally not a G10 prerequisite. No actual account, bucket, role ARN, target, or owner is
    committed.
 
-5. Create `dist/day15/external-preflight.json` only after an authorized operator has performed the
-   separate bounded checks and populated a canonical raw-bindings file outside the repository with
-   mode `0600`. The file must identify the correct account; fixed profile, role, stack, change set,
-   and artifact path; encrypted/private/TLS-only/versioned short-lifecycle bucket; judge-secret
-   create and read authority; exact pre-existing sandbox target/tag/region; sufficient CloudWatch
-   evidence; Nova 2 EU profile access; and owned cost notifications. It also binds the reviewed
-   change-set digest and IAM capability acknowledgement. The stack never creates a budget or
-   guesses a recipient. Thresholds remain USD 10, USD 25, and USD 40.
-
-   A bare boolean file is not evidence. The operator key must contain at least 32 bytes, remain
-   outside the repository with mode `0600`, and match the independently reviewed fingerprint in
-   `requirements/day15-external-trust-policy.json`. That tracked policy is intentionally
-   `BLOCKED` with no fingerprint in this candidate. The schema-v4 HMAC receipt binds the ZIP,
-   manifest, source commit, source and rendered templates, configuration digest, generator,
-   bounded token expiry, cost policy, trust-policy digest, and SHA-256-only external identities.
-   It never contains raw account, profile, role, bucket, secret, target, endpoint, or recipient
-   values. `docs/operations/day15-external-bindings.example.json` shows the protected input shape;
-   its placeholders are deliberately invalid.
-
-   Once the contract hashes and trusted operator fingerprint have been separately reviewed, create
-   the candidate-specific receipt with every explicit confirmation:
+5. Run the G10 closure command once without a contract. It performs no AWS call and writes a
+   sanitized `BLOCKED` receipt containing the exact candidate digest. The command first reruns the
+   complete P0 and P1 matrices and stores their canonical results under `.aioa-private/`; use
+   `--use-existing-gate-results` only when those exact results were just reviewed:
 
    ```bash
-   .venv/bin/python scripts/day15/external_preflight_attestation.py \
-     --configuration-sha256 '<reviewed-configuration-sha256>' \
-     --judge-token-not-after '<reviewed-UTC-expiry>' \
-     --attestation-key-file '<protected-key-outside-repository>' \
-     --external-bindings-file '<protected-raw-bindings-outside-repository>' \
-     --confirm-artifact-bucket-encryption-ready \
-     --confirm-artifact-bucket-lifecycle-ready \
-     --confirm-artifact-bucket-public-access-block-ready \
-     --confirm-artifact-bucket-tls-only-ready \
-     --confirm-artifact-bucket-versioning-ready \
-     --confirm-artifact-path-ready \
-     --confirm-authorized-profile-ready \
-     --confirm-authorized-role-ready \
-     --confirm-change-set-reviewed-ready \
-     --confirm-cloudwatch-sufficient-data-ready \
-     --confirm-correct-account-ready \
-     --confirm-cost-notification-owned \
-     --confirm-iam-capability-acknowledged \
-     --confirm-judge-secret-create-ready \
-     --confirm-judge-secret-read-ready \
-     --confirm-nova-profile-access-ready \
-     --confirm-sandbox-region-ready \
-     --confirm-sandbox-tag-ready \
-     --confirm-sandbox-target-ready \
-     --json
+   .venv/bin/python scripts/day15/run_g10_closure.py --json
    ```
 
-   The generated receipt shape is illustrated in
-   `docs/operations/day15-external-preflight.example.json`. The gate requires the same protected key
-   through `--external-attestation-key-file`, verifies its pinned fingerprint and HMAC in constant
-   time, recomputes every candidate binding, and cross-checks external hashes against the frozen
-   deployment contract. A copied, edited, stale, unsigned, arbitrarily keyed, rebound, or manually
-   invented receipt fails.
+   An authorized operator may then copy
+   `docs/operations/day15-private-contract.example.json` to
+   `.aioa-private/day15-deployment-contract.json`, replace every placeholder, bind the displayed
+   candidate digest, and set mode `0600`. The contract must explicitly name one profile/role,
+   expected account, existing packaging bucket, stack-owned judge-secret policy, existing sandbox
+   ID, exact tag/state/region, CloudWatch window, the pinned Nova profile and bounded probe choice,
+   and an existing budget name plus owner type/target for USD 10/25/40 notifications. Bootstrap
+   writes remain false. Do not discover a target, guess an owner, or copy values into a tracked
+   file.
 
-6. Run the complete local gate with the explicit inputs:
+   Rerunning the same command constructs only the named profile session. It first verifies STS;
+   then uses the fixed single-attempt, region-pinned read allowlist for S3 controls, Secrets Manager
+   IAM simulation, the explicit EC2 instance, CloudWatch data, the exact six routed Nova model
+   resources, at most one 32-token synthetic Nova probe, and the explicit budget subscribers. It
+   never issues an AWS write or EC2 discovery query. The canonical private receipt is atomic,
+   ignored, and mode `0600`; its sanitized companion is also ignored runtime evidence and contains
+   only the candidate, whole-document hashes, booleans, operation names, and public-safe reason
+   codes. Keeping both under `.aioa-private/` prevents the evidence output from dirtying or changing
+   the commit-bound candidate. Any later tracked copy is archival only and is never accepted as
+   deployment authority.
+
+   The older `external_preflight_attestation.py` schema-v5 HMAC format and its two example JSON
+   files remain available solely to validate historical Day 15 evidence. They are not accepted by
+   D15-G10 as deployment authority because they can represent manually asserted booleans and do
+   not bind the complete current candidate.
+
+6. Run the complete local gate with the candidate-bound receipt pair:
 
    ```bash
    .venv/bin/python scripts/day15/run_day15_gate.py \
@@ -139,16 +119,50 @@ runbook.
      --judge-token-not-after '<reviewed-UTC-expiry>' \
      --lambda-configuration-sha256 '<reviewed-configuration-sha256>' \
      --rendered-template '<reviewed-rendered-template>' \
-     --external-attestation-key-file '<protected-key-outside-repository>' \
+     --g10-sanitized-receipt .aioa-private/day15-g10-readiness.json \
+     --g10-private-receipt .aioa-private/day15-external-preflight.json \
      --json
    ```
 
 The stable gates are D15-G01 runtime composition, G02 rendered IAM, G03 SDK retry ownership, G04
 artifact reproducibility/scans, G05 retained state, G06 region, G07 versions/aliases/rollback, G08
 logs/telemetry/cost controls, G09 the single read-only public surface, and G10 external
-prerequisites plus token lifetime. `ready_for_deployment` is true only when all ten are `PASS`.
-Missing SAM rendering, scanner/container proof, build artifacts, or operator prerequisites stays
-visible as `PARTIAL` or `BLOCKED`.
+prerequisites plus token lifetime. All ten passing sets `ready_for_change_set=true`. It deliberately
+leaves `ready_for_deployment=false` and `deployment_authorized=false`: the actual change set does
+not exist yet and therefore cannot already have been reviewed. Missing SAM rendering,
+scanner/container proof, build artifacts, or operator prerequisites stays visible as `PARTIAL` or
+`BLOCKED`.
+
+## Offline predeploy change-set review
+
+Only after G10 passes may the authorized workflow create—but not execute—the application change
+set. Normalize its actual `DescribeChangeSet` result and the digest of the processed `GetTemplate`
+body into one canonical mode-`0600` export. It must include a fresh capture time, the exact two
+read operations, private change-set ARN, candidate and exact rendered/processed-template hashes,
+stack/change-set identity and type, deployment-role hash, every resolved parameter, and the
+complete initial resource diff. The sanitized result binds the whole protected-export hash and a
+hash of the change-set ARN. The first-stage parameter `PublicIngressEnabled` must be `false`.
+Review it against the same G10 receipt pair and exact candidate:
+
+```bash
+.venv/bin/python scripts/day15/change_set_review.py \
+  --change-set-export '<protected-normalized-change-set-export>' \
+  --rendered-template '<reviewed-rendered-template>' \
+  --g10-sanitized-receipt .aioa-private/day15-g10-readiness.json \
+  --g10-private-receipt .aioa-private/day15-external-preflight.json \
+  --output .aioa-private/day15-change-set-review.json \
+  --json
+```
+
+This validator makes no AWS calls and emits only canonical sanitized evidence. Its operative output
+stays ignored so it cannot invalidate the commit-bound candidate; any later tracked copy is
+archival and non-authoritative. It rejects a stale
+candidate or private receipt, stale preflight, edited change-set/template digest, partial or
+duplicate initial diff, changed parameters, unexpected resource class, extra public surface,
+non-exact IAM resource/condition/trust policy, enabled mutation control, wrong region, DynamoDB
+retention/recovery drift, and provisioned concurrency. Even `PASS` has
+`deployment_authorized=false`; a separate deployment coordinator must independently require Day 15
+`10/10` and this exact candidate-bound review before execution.
 
 The remaining frozen tools are AWS CLI `2.36.11`, Python `3.12.3`/x86_64, pip `26.2.1`,
 pip-audit `2.10.1`, and Podman `4.9.3` with the exact Lambda image digest in the toolchain record.

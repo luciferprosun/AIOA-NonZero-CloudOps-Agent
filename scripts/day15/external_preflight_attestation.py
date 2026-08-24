@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Create a candidate-bound, trusted Day 15 operator preflight attestation.
+"""Validate the legacy Day 15 operator-attestation evidence format.
 
-This module never calls AWS. An authorized operator performs the separate read-only
-checks, records the raw resource bindings in a protected file outside the repository,
-and signs only their SHA-256 bindings. The repository-pinned trust policy, not a key
-supplied alongside a receipt, decides which HMAC key is trusted.
+This compatibility module never calls AWS. Its manually confirmed HMAC documents are
+not deployment authority for the current G10 gate; ``run_g10_closure.py`` owns that
+candidate-bound AWS-observation path. The repository-pinned trust policy, not a key
+supplied alongside a legacy receipt, still decides which HMAC key is trusted.
 """
 
 from __future__ import annotations
@@ -64,13 +64,13 @@ EXPECTED_ARTIFACT_PREFIX: Final = "day15/reviewed/"
 CHECK_NAMES: Final = (
     "artifact_bucket_encryption_ready",
     "artifact_bucket_lifecycle_ready",
+    "artifact_bucket_ownership_controls_ready",
     "artifact_bucket_public_access_block_ready",
     "artifact_bucket_tls_only_ready",
     "artifact_bucket_versioning_ready",
     "artifact_path_ready",
     "authorized_profile_ready",
     "authorized_role_ready",
-    "change_set_reviewed_ready",
     "cloudwatch_sufficient_data_ready",
     "correct_account_ready",
     "cost_notification_owned",
@@ -78,7 +78,9 @@ CHECK_NAMES: Final = (
     "judge_secret_create_ready",
     "judge_secret_read_ready",
     "nova_profile_access_ready",
+    "sandbox_ebs_backed_ready",
     "sandbox_region_ready",
+    "sandbox_running_ready",
     "sandbox_tag_ready",
     "sandbox_target_ready",
 )
@@ -86,7 +88,6 @@ EXTERNAL_IDENTITY_NAMES: Final = (
     "artifact_bucket",
     "artifact_path",
     "aws_account_id",
-    "change_set_digest",
     "change_set_name",
     "cloudwatch_evidence_digest",
     "cost_notification_owner",
@@ -316,7 +317,6 @@ def _external_identities_are_valid(identities: Mapping[str, object]) -> bool:
         and _artifact_path_is_valid(str(values["artifact_path"]))
         and values["stack_name"] == EXPECTED_STACK_NAME
         and values["change_set_name"] == EXPECTED_CHANGE_SET_NAME
-        and _valid_sha256(values["change_set_digest"])
         and INSTANCE_PATTERN.fullmatch(str(values["sandbox_instance_id"])) is not None
         and values["sandbox_region"] == EXPECTED_REGION
         and values["sandbox_tag_key"] == EXPECTED_SANDBOX_TAG_KEY
@@ -332,7 +332,7 @@ def external_identity_bindings(path: Path | None) -> dict[str, str]:
     document, raw = _read_protected_bindings(path)
     if set(document) != {"checks", "identities", "schema_version"}:
         raise AttestationFailure("EXTERNAL_RAW_BINDINGS_SCHEMA_INVALID")
-    if document.get("schema_version") != 1:
+    if document.get("schema_version") != 2:
         raise AttestationFailure("EXTERNAL_RAW_BINDINGS_SCHEMA_INVALID")
     checks = document.get("checks")
     if not isinstance(checks, Mapping):
@@ -464,7 +464,7 @@ def _unsigned_receipt(
         "external_identity_bindings": dict(external_bindings),
         "provenance": PROVENANCE,
         "sanitized": True,
-        "schema_version": 4,
+        "schema_version": 5,
         "trust": {
             "operator_hmac_key_sha256": trusted_key_sha256,
             "policy_sha256": trust_policy_sha256,

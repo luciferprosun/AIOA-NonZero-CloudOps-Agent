@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Authenticate the final, non-deploying Day 15 blocker report.
+"""Authenticate the historical, non-deploying Day 15 M2 blocker snapshot.
 
-The validator is intentionally local-only. It binds the report to the reviewed M2
-commit, recomputes every candidate evidence digest, proves the recovered commit
-lineage, and requires an exact nine-pass/one-blocked gate result. A valid BLOCKED
-report is a successful validation outcome; it is never deployment authorization.
+The default paths validate the immutable digests recorded for the reviewed M2
+commit and prove its recovered lineage. Explicit/custom paths, or
+``--validate-current-candidate``, recompute candidate bytes from the current tree.
+Neither successful mode is deployment authorization.
 """
 
 from __future__ import annotations
@@ -29,22 +29,16 @@ from scripts.day15.validate_template import (  # noqa: E402
     load_template,
 )
 
-DEFAULT_REPORT: Final = ROOT / "docs" / "evidence" / "deployment" / (
-    "day15-deployment-blockers.json"
+DEFAULT_REPORT: Final = (
+    ROOT / "docs" / "evidence" / "deployment" / ("day15-deployment-blockers.json")
 )
-DEFAULT_LOCAL_GATE: Final = (
-    ROOT / "docs" / "evidence" / "deployment" / "day15-local-gate-m2.json"
-)
+DEFAULT_LOCAL_GATE: Final = ROOT / "docs" / "evidence" / "deployment" / "day15-local-gate-m2.json"
 DEFAULT_ARTIFACT: Final = ROOT / "dist" / "day15" / "aioa-lambda.zip"
 DEFAULT_MANIFEST: Final = ROOT / "dist" / "day15" / "aioa-lambda.manifest.json"
 DEFAULT_SCAN: Final = ROOT / "dist" / "day15" / "pip-audit.json"
 DEFAULT_RENDERED_TEMPLATE: Final = ROOT / "dist" / "day15" / "rendered-template.yaml"
-DEFAULT_RENDER_PROVENANCE: Final = (
-    ROOT / "dist" / "day15" / "rendered-template.provenance.json"
-)
-DEFAULT_DEPLOYMENT_CONTRACT: Final = (
-    ROOT / "requirements" / "day15-deployment-contract.json"
-)
+DEFAULT_RENDER_PROVENANCE: Final = ROOT / "dist" / "day15" / "rendered-template.provenance.json"
+DEFAULT_DEPLOYMENT_CONTRACT: Final = ROOT / "requirements" / "day15-deployment-contract.json"
 DEFAULT_SOURCE_TEMPLATE: Final = ROOT / "infra" / "sam" / "template.yaml"
 
 RECOVERY_BASELINE: Final = "aa941a989a8b8cd0e40367bb130472e9f3c082a7"
@@ -300,9 +294,7 @@ def _validate_candidate_files(
     ):
         raise BlockerReportFailure("BLOCKER_SCAN_INVALID")
 
-    provenance, _ = _canonical_object(
-        render_provenance_path, "BLOCKER_RENDER_PROVENANCE_INVALID"
-    )
+    provenance, _ = _canonical_object(render_provenance_path, "BLOCKER_RENDER_PROVENANCE_INVALID")
     if (
         provenance.get("status") != "PASS"
         or provenance.get("repository_commit_oid") != FINAL_M2
@@ -368,8 +360,16 @@ def validate_blocker_report(
     render_provenance_path: Path = DEFAULT_RENDER_PROVENANCE,
     deployment_contract_path: Path = DEFAULT_DEPLOYMENT_CONTRACT,
     source_template_path: Path = DEFAULT_SOURCE_TEMPLATE,
+    validate_candidate_files: bool | None = None,
 ) -> dict[str, object]:
-    """Validate the canonical report and every local candidate binding."""
+    """Validate immutable M2 blocker evidence, optionally against supplied files.
+
+    The default report is historical evidence for ``FINAL_M2``. A later candidate is
+    expected to replace generated dist files, so default validation authenticates the
+    sealed report and tracked local-gate bytes without misrepresenting the current
+    worktree as M2. Supplying any candidate path (or setting the explicit flag) turns
+    on byte-for-byte candidate recomputation.
+    """
 
     report, report_raw = _canonical_object(report_path, "BLOCKER_REPORT_INVALID")
     expected_keys = {
@@ -418,9 +418,7 @@ def validate_blocker_report(
     _validate_external_blockers(report.get("missing_or_unproven_external_prerequisites"))
     _validate_no_sensitive_identifiers(report)
 
-    local_gate, local_gate_raw = _canonical_object(
-        local_gate_path, "BLOCKER_LOCAL_GATE_INVALID"
-    )
+    local_gate, local_gate_raw = _canonical_object(local_gate_path, "BLOCKER_LOCAL_GATE_INVALID")
     _validate_local_gate(local_gate, local_gate_raw)
     expected_local_gate = {
         "blocked": 1,
@@ -434,15 +432,30 @@ def validate_blocker_report(
     }
     _require_exact(report.get("local_gate"), expected_local_gate, "BLOCKER_LOCAL_GATE_INVALID")
 
-    _validate_candidate_files(
-        artifact_path=artifact_path,
-        manifest_path=manifest_path,
-        scan_path=scan_path,
-        rendered_template_path=rendered_template_path,
-        render_provenance_path=render_provenance_path,
-        deployment_contract_path=deployment_contract_path,
-        source_template_path=source_template_path,
+    candidate_paths = (
+        (artifact_path, DEFAULT_ARTIFACT),
+        (manifest_path, DEFAULT_MANIFEST),
+        (scan_path, DEFAULT_SCAN),
+        (rendered_template_path, DEFAULT_RENDERED_TEMPLATE),
+        (render_provenance_path, DEFAULT_RENDER_PROVENANCE),
+        (deployment_contract_path, DEFAULT_DEPLOYMENT_CONTRACT),
+        (source_template_path, DEFAULT_SOURCE_TEMPLATE),
     )
+    should_validate_candidate = (
+        any(actual != default for actual, default in candidate_paths)
+        if validate_candidate_files is None
+        else validate_candidate_files
+    )
+    if should_validate_candidate:
+        _validate_candidate_files(
+            artifact_path=artifact_path,
+            manifest_path=manifest_path,
+            scan_path=scan_path,
+            rendered_template_path=rendered_template_path,
+            render_provenance_path=render_provenance_path,
+            deployment_contract_path=deployment_contract_path,
+            source_template_path=source_template_path,
+        )
     return {
         "aws_state_changed": False,
         "local_gate": "9_PASS_1_BLOCKED",
@@ -466,6 +479,7 @@ def main() -> int:
     parser.add_argument("--render-provenance", type=Path, default=DEFAULT_RENDER_PROVENANCE)
     parser.add_argument("--deployment-contract", type=Path, default=DEFAULT_DEPLOYMENT_CONTRACT)
     parser.add_argument("--source-template", type=Path, default=DEFAULT_SOURCE_TEMPLATE)
+    parser.add_argument("--validate-current-candidate", action="store_true")
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args()
     try:
@@ -479,6 +493,7 @@ def main() -> int:
             render_provenance_path=args.render_provenance,
             deployment_contract_path=args.deployment_contract,
             source_template_path=args.source_template,
+            validate_candidate_files=args.validate_current_candidate or None,
         )
     except BlockerReportFailure as error:
         result = {"reason": error.reason, "schema_version": 1, "status": "FAIL"}

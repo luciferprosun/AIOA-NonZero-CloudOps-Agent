@@ -244,7 +244,6 @@ def _trusted_external_receipt(
             "artifact_bucket": "aioa-day15-private-artifacts",
             "artifact_path": "day15/reviewed/aioa-lambda.zip",
             "aws_account_id": account,
-            "change_set_digest": "3" * 64,
             "change_set_name": "day15-reviewed-release",
             "cloudwatch_evidence_digest": "4" * 64,
             "cost_notification_owner": "owner" + "@example.invalid",
@@ -260,7 +259,7 @@ def _trusted_external_receipt(
             "sandbox_tag_value": "true",
             "stack_name": "aioa-nonzero-cloudops-day15",
         },
-        "schema_version": 1,
+        "schema_version": 2,
     }
     raw_path = tmp_path / "external-bindings.json"
     raw_path.write_text(canonical_json(raw) + "\n", encoding="utf-8")
@@ -447,10 +446,7 @@ def test_missing_artifact_and_external_prerequisites_are_reported_as_blocked(
         "LAMBDA_ARTIFACT_REQUIRED",
     }
     assert external_result.status == "BLOCKED"
-    assert set(external_result.reasons) == {
-        "ATTESTATION_RENDERED_TEMPLATE_REQUIRED",
-        "DEPLOYMENT_CONTRACT_SELECTION_REQUIRED",
-    }
+    assert external_result.reasons == ("G10_SANITIZED_RECEIPT_REQUIRED",)
 
 
 def _rollback_request() -> alias_rollback.RollbackRequest:

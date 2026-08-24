@@ -77,10 +77,13 @@ Run the local-only validator with:
 .venv/bin/python scripts/day15/validate_blocker_report.py --json
 ```
 
-It requires canonical JSON, recomputes all candidate hashes, proves the recovered commit ancestry,
-requires the exact nine-pass/one-blocked gate result and full external blocker set, rejects
-identity-sensitive values, and requires every deployment and mutation indicator to remain false.
-A validator `PASS` authenticates this truthful `BLOCKED` report; it never authorizes deployment.
+This is a historical M2 snapshot. The default command verifies its frozen digests and recovered
+commit ancestry without comparing them to a later working tree. Add
+`--validate-current-candidate` (or pass explicit candidate paths) only when validating the current
+candidate bytes; expected drift then fails closed. Both modes require the exact
+nine-pass/one-blocked result and full external blocker set, reject identity-sensitive values, and
+require every deployment and mutation indicator to remain false. A validator `PASS` authenticates
+this truthful historical `BLOCKED` report; it never authorizes deployment.
 
 The next boundary is an authorized operator supplying the separately reviewed contract bindings
 and candidate-bound external receipt. Until D15-G10 also passes, partial deployment remains

@@ -11,6 +11,7 @@ import json
 import os
 import re
 import shutil
+import stat
 import subprocess
 import sys
 from collections.abc import Callable, Iterable, Mapping
@@ -38,9 +39,12 @@ from scripts.day15.build_lambda_artifact import (  # noqa: E402
 )
 from scripts.day15.external_preflight_attestation import (  # noqa: E402
     AttestationFailure,
-    candidate_bindings,
     read_attestation_key,
     validate_receipt,
+)
+from scripts.day15.g10_candidate import (  # noqa: E402
+    CandidateFailure,
+    build_candidate_descriptor,
 )
 from scripts.day15.preflight_region import (  # noqa: E402
     CheckResult,
@@ -51,6 +55,10 @@ from scripts.day15.preflight_region import (  # noqa: E402
 from scripts.day15.render_template import (  # noqa: E402
     RenderFailure,
     verify_rendered_template,
+)
+from scripts.day15.run_g10_closure import (  # noqa: E402
+    ClosureFailure,
+    validate_sanitized_receipt,
 )
 from scripts.day15.validate_template import (  # noqa: E402
     DEFAULT_TEMPLATE,
@@ -65,6 +73,7 @@ from scripts.day15.validate_template import (  # noqa: E402
 DEFAULT_TOOLCHAIN: Final = ROOT / "requirements" / "day15-toolchain.json"
 DEFAULT_DEPLOYMENT_CONTRACT: Final = ROOT / "requirements" / "day15-deployment-contract.json"
 DEFAULT_RECEIPT: Final = ROOT / "dist" / "day15" / "external-preflight.json"
+DEFAULT_G10_SANITIZED_RECEIPT: Final = ROOT / ".aioa-private" / "day15-g10-readiness.json"
 AWS_CLIENTS_SOURCE: Final = ROOT / "src" / "aioa_cloudops_agent" / "aws_clients.py"
 RUNTIME_SOURCE_ROOT: Final = ROOT / "src"
 JUDGE_ROUTER_SOURCES: Final = (
@@ -120,6 +129,8 @@ DEPLOYMENT_CONTRACT_FIXED: Final = {
     "artifact_bucket_controls": {
         "encryption_at_rest_required": True,
         "lifecycle_expiration_days_max": 3,
+        "noncurrent_version_expiration_days_max": 3,
+        "ownership_controls_required": True,
         "public_access_block": {
             "block_public_acls": True,
             "block_public_policy": True,
@@ -136,7 +147,7 @@ DEPLOYMENT_CONTRACT_FIXED: Final = {
     "deployment_profile": "aioa-day15-deployer",
     "deployment_role_name": "AIOANonZeroCloudOpsDay15DeploymentRole",
     "region": "eu-central-1",
-    "schema_version": 1,
+    "schema_version": 2,
     "stack_name": "aioa-nonzero-cloudops-day15",
 }
 DEPLOYMENT_CONTRACT_HASH_FIELDS: Final = frozenset(
@@ -145,11 +156,11 @@ DEPLOYMENT_CONTRACT_HASH_FIELDS: Final = frozenset(
         "deployment_role_arn_sha256",
     }
 )
-DEPLOYMENT_CONTRACT_REVIEW_FIELDS: Final = frozenset({"reviewed_change_set_digest"})
 BUCKET_CONTROL_CHECKS: Final = frozenset(
     {
         "artifact_bucket_encryption_ready",
         "artifact_bucket_lifecycle_ready",
+        "artifact_bucket_ownership_controls_ready",
         "artifact_bucket_public_access_block_ready",
         "artifact_bucket_tls_only_ready",
         "artifact_bucket_versioning_ready",
@@ -411,6 +422,8 @@ class GateContext:
     lambda_configuration_sha256: str | None
     clock: Callable[[], datetime]
     deployment_contract: Path = DEFAULT_DEPLOYMENT_CONTRACT
+    g10_sanitized_receipt: Path | None = None
+    g10_private_receipt: Path | None = None
 
 
 def _result(gate: GateDefinition, status: str, reasons: Iterable[str] = ()) -> GateResult:
@@ -1726,7 +1739,6 @@ def _deployment_contract_result(
     expected_keys = {
         *DEPLOYMENT_CONTRACT_FIXED,
         *DEPLOYMENT_CONTRACT_HASH_FIELDS,
-        *DEPLOYMENT_CONTRACT_REVIEW_FIELDS,
         "status",
     }
     if set(contract) != expected_keys or any(
@@ -1734,9 +1746,8 @@ def _deployment_contract_result(
     ):
         return CheckResult("FAIL", ("DAY15_DEPLOYMENT_CONTRACT_INVALID",))
     hashes = {name: contract.get(name) for name in DEPLOYMENT_CONTRACT_HASH_FIELDS}
-    reviewed = {name: contract.get(name) for name in DEPLOYMENT_CONTRACT_REVIEW_FIELDS}
     contract_status = contract.get("status")
-    selected_values = (*hashes.values(), *reviewed.values())
+    selected_values = tuple(hashes.values())
     if contract_status == "BLOCKED" and all(value is None for value in selected_values):
         return CheckResult("BLOCKED", ("DEPLOYMENT_CONTRACT_SELECTION_REQUIRED",))
     if contract_status != "PASS" or not all(
@@ -1758,7 +1769,6 @@ def _deployment_contract_result(
     expected_external = {
         "artifact_bucket_sha256": hashes["artifact_bucket_sha256"],
         "artifact_path_sha256": _text_sha256(str(DEPLOYMENT_CONTRACT_FIXED["artifact_path"])),
-        "change_set_digest_sha256": _text_sha256(str(reviewed["reviewed_change_set_digest"])),
         "change_set_name_sha256": _text_sha256(str(DEPLOYMENT_CONTRACT_FIXED["change_set_name"])),
         "deployment_profile_sha256": _text_sha256(
             str(DEPLOYMENT_CONTRACT_FIXED["deployment_profile"])
@@ -1771,6 +1781,99 @@ def _deployment_contract_result(
     if any(checks.get(name) != "PASS" for name in BUCKET_CONTROL_CHECKS):
         return CheckResult("FAIL", ("DEPLOYMENT_BUCKET_CONTROLS_NOT_ATTESTED",))
     return CheckResult("PASS")
+
+
+def _deployment_policy_result(contract_path: Path) -> CheckResult:
+    """Validate the tracked policy while forbidding private operator hashes in Git."""
+
+    contract, error = _read_canonical_json(
+        contract_path,
+        unavailable_reason="DAY15_DEPLOYMENT_CONTRACT_REQUIRED",
+    )
+    if error is not None:
+        return CheckResult("BLOCKED" if error.endswith("REQUIRED") else "FAIL", (error,))
+    assert contract is not None
+    expected_keys = {
+        *DEPLOYMENT_CONTRACT_FIXED,
+        *DEPLOYMENT_CONTRACT_HASH_FIELDS,
+        "status",
+    }
+    if (
+        set(contract) != expected_keys
+        or any(contract.get(name) != value for name, value in DEPLOYMENT_CONTRACT_FIXED.items())
+        or contract.get("status") != "BLOCKED"
+        or any(contract.get(name) is not None for name in DEPLOYMENT_CONTRACT_HASH_FIELDS)
+    ):
+        return CheckResult("FAIL", ("TRACKED_DEPLOYMENT_POLICY_INVALID",))
+    return CheckResult("PASS")
+
+
+def _read_private_g10_receipt(path: Path | None) -> tuple[dict[str, object] | None, str | None]:
+    if path is None:
+        return None, None
+    try:
+        metadata = path.lstat()
+    except OSError:
+        return None, "G10_PRIVATE_RECEIPT_REQUIRED"
+    if (
+        stat.S_ISLNK(metadata.st_mode)
+        or not stat.S_ISREG(metadata.st_mode)
+        or stat.S_IMODE(metadata.st_mode) != 0o600
+    ):
+        return None, "G10_PRIVATE_RECEIPT_PROTECTION_INVALID"
+    value, error = _read_canonical_json(
+        path,
+        unavailable_reason="G10_PRIVATE_RECEIPT_REQUIRED",
+    )
+    return value, error
+
+
+def _g10_candidate_receipt_result(
+    sanitized_path: Path | None,
+    private_path: Path | None,
+    *,
+    clock: Callable[[], datetime] = lambda: datetime.now(UTC),
+) -> CheckResult:
+    if sanitized_path is None:
+        return CheckResult("BLOCKED", ("G10_SANITIZED_RECEIPT_REQUIRED",))
+    receipt, error = _read_canonical_json(
+        sanitized_path,
+        unavailable_reason="G10_SANITIZED_RECEIPT_REQUIRED",
+    )
+    if error is not None or receipt is None:
+        return CheckResult(
+            "BLOCKED" if error and error.endswith("REQUIRED") else "FAIL",
+            (error or "G10_SANITIZED_RECEIPT_REQUIRED",),
+        )
+    private_receipt, private_error = _read_private_g10_receipt(private_path)
+    if private_error is not None:
+        return CheckResult(
+            "BLOCKED" if private_error.endswith("REQUIRED") else "FAIL",
+            (private_error,),
+        )
+    try:
+        candidate = build_candidate_descriptor()
+        validate_sanitized_receipt(
+            receipt,
+            expected_candidate=candidate,
+            private_receipt=private_receipt,
+            validation_time=clock(),
+        )
+    except CandidateFailure as failure:
+        return CheckResult("FAIL", (failure.reason,))
+    except ClosureFailure as failure:
+        return CheckResult(failure.status, (failure.reason,))
+    status = receipt.get("status")
+    reasons = receipt.get("reasons")
+    if status == "PASS":
+        return CheckResult("PASS")
+    if (
+        status == "BLOCKED"
+        and isinstance(reasons, list)
+        and all(isinstance(reason, str) for reason in reasons)
+    ):
+        return CheckResult("BLOCKED", tuple(str(reason) for reason in reasons))
+    return CheckResult("FAIL", ("G10_SANITIZED_RECEIPT_STATUS_INVALID",))
 
 
 def _template_token_binding(template: dict[str, object]) -> bool:
@@ -1826,47 +1929,16 @@ def _gate_external(context: GateContext) -> GateResult:
     token = validate_judge_token_not_after(context.judge_token_not_after, clock=context.clock)
     statuses = [token.status]
     reasons = [*token.reasons]
-    try:
-        if context.rendered_template_path is None:
-            raise AttestationFailure(
-                "ATTESTATION_RENDERED_TEMPLATE_REQUIRED",
-                status="BLOCKED",
-            )
-        if context.lambda_configuration_sha256 is None:
-            raise AttestationFailure(
-                "LAMBDA_CONFIGURATION_SHA256_REQUIRED",
-                status="BLOCKED",
-            )
-        if context.judge_token_not_after is None:
-            raise AttestationFailure(
-                "JUDGE_TOKEN_NOT_AFTER_REQUIRED",
-                status="BLOCKED",
-            )
-        bindings = candidate_bindings(
-            artifact=context.artifact,
-            manifest=context.manifest,
-            template=context.template_path,
-            rendered_template=context.rendered_template_path,
-            configuration_sha256=context.lambda_configuration_sha256,
-            judge_token_not_after=context.judge_token_not_after,
-        )
-    except AttestationFailure as failure:
-        statuses.append(failure.status)
-        reasons.append(failure.reason)
-    else:
-        receipt = _receipt_result(
-            context.external_receipt,
-            expected_bindings=bindings,
-            attestation_key=context.external_attestation_key,
-        )
-        statuses.append(receipt.status)
-        reasons.extend(receipt.reasons)
-    deployment_contract = _deployment_contract_result(
-        context.deployment_contract,
-        context.external_receipt,
+    receipt = _g10_candidate_receipt_result(
+        context.g10_sanitized_receipt,
+        context.g10_private_receipt,
+        clock=context.clock,
     )
-    statuses.append(deployment_contract.status)
-    reasons.extend(deployment_contract.reasons)
+    statuses.append(receipt.status)
+    reasons.extend(receipt.reasons)
+    deployment_policy = _deployment_policy_result(context.deployment_contract)
+    statuses.append(deployment_policy.status)
+    reasons.extend(deployment_policy.reasons)
     if not _template_token_binding(context.template):
         statuses.append("FAIL")
         reasons.append("TEMPLATE_JUDGE_TOKEN_EXPIRY_BINDING_MISSING")
@@ -1901,15 +1973,19 @@ def _payload(results: tuple[GateResult, ...], *, mode: str) -> dict[str, object]
         for status in sorted(STATUS_VALUES)
     }
     status = combine_status(*(item.status for item in results))
+    ready_for_change_set = mode == "full" and status == "PASS"
     return {
         "aws_calls_performed": False,
         "counts": counts,
+        "deployment_authorized": False,
         "deployment_performed": False,
         "gate_count": len(results),
         "gates": [item.as_dict() for item in results],
         "mode": mode,
-        "ready_for_deployment": mode == "full" and status == "PASS",
-        "schema_version": 1,
+        "predeploy_change_set_review_required": True,
+        "ready_for_change_set": ready_for_change_set,
+        "ready_for_deployment": False,
+        "schema_version": 2,
         "status": status,
     }
 
@@ -1926,6 +2002,8 @@ def run_gate(
     deployment_contract: Path = DEFAULT_DEPLOYMENT_CONTRACT,
     external_receipt: Path = DEFAULT_RECEIPT,
     external_attestation_key: Path | None = None,
+    g10_sanitized_receipt: Path | None = None,
+    g10_private_receipt: Path | None = None,
     region: str | None,
     judge_token_not_after: str | None,
     lambda_configuration_sha256: str | None = None,
@@ -1961,6 +2039,8 @@ def run_gate(
         lambda_configuration_sha256=lambda_configuration_sha256,
         clock=clock,
         deployment_contract=deployment_contract,
+        g10_sanitized_receipt=g10_sanitized_receipt,
+        g10_private_receipt=g10_private_receipt,
     )
     results = (
         _gate_runtime(context),
@@ -2001,8 +2081,8 @@ def main() -> int:
         type=Path,
         default=DEFAULT_DEPLOYMENT_CONTRACT,
     )
-    parser.add_argument("--external-receipt", type=Path, default=DEFAULT_RECEIPT)
-    parser.add_argument("--external-attestation-key-file", type=Path)
+    parser.add_argument("--g10-sanitized-receipt", type=Path)
+    parser.add_argument("--g10-private-receipt", type=Path)
     parser.add_argument("--region")
     parser.add_argument("--judge-token-not-after")
     parser.add_argument("--lambda-configuration-sha256")
@@ -2021,8 +2101,8 @@ def main() -> int:
             scan_report=args.scan_report,
             toolchain=args.toolchain,
             deployment_contract=args.deployment_contract,
-            external_receipt=args.external_receipt,
-            external_attestation_key=args.external_attestation_key_file,
+            g10_sanitized_receipt=args.g10_sanitized_receipt,
+            g10_private_receipt=args.g10_private_receipt,
             region=args.region,
             judge_token_not_after=args.judge_token_not_after,
             lambda_configuration_sha256=args.lambda_configuration_sha256,

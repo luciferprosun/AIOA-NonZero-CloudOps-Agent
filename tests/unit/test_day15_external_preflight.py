@@ -37,7 +37,6 @@ def _raw_bindings() -> dict[str, object]:
             "artifact_bucket": "aioa-day15-private-artifacts",
             "artifact_path": "day15/reviewed/aioa-lambda.zip",
             "aws_account_id": account,
-            "change_set_digest": hashlib.sha256(b"reviewed-cloudformation-change-set").hexdigest(),
             "change_set_name": "day15-reviewed-release",
             "cloudwatch_evidence_digest": hashlib.sha256(
                 b"sanitized-read-only-cloudwatch-evidence"
@@ -57,7 +56,7 @@ def _raw_bindings() -> dict[str, object]:
             "sandbox_tag_value": "true",
             "stack_name": "aioa-nonzero-cloudops-day15",
         },
-        "schema_version": 1,
+        "schema_version": 2,
     }
 
 
@@ -110,13 +109,13 @@ def test_external_contract_names_every_required_confirmation_and_identity() -> N
     assert attestation.CHECK_NAMES == (
         "artifact_bucket_encryption_ready",
         "artifact_bucket_lifecycle_ready",
+        "artifact_bucket_ownership_controls_ready",
         "artifact_bucket_public_access_block_ready",
         "artifact_bucket_tls_only_ready",
         "artifact_bucket_versioning_ready",
         "artifact_path_ready",
         "authorized_profile_ready",
         "authorized_role_ready",
-        "change_set_reviewed_ready",
         "cloudwatch_sufficient_data_ready",
         "correct_account_ready",
         "cost_notification_owned",
@@ -124,7 +123,9 @@ def test_external_contract_names_every_required_confirmation_and_identity() -> N
         "judge_secret_create_ready",
         "judge_secret_read_ready",
         "nova_profile_access_ready",
+        "sandbox_ebs_backed_ready",
         "sandbox_region_ready",
+        "sandbox_running_ready",
         "sandbox_tag_ready",
         "sandbox_target_ready",
     )
@@ -132,7 +133,6 @@ def test_external_contract_names_every_required_confirmation_and_identity() -> N
         "artifact_bucket",
         "artifact_path",
         "aws_account_id",
-        "change_set_digest",
         "change_set_name",
         "cloudwatch_evidence_digest",
         "cost_notification_owner",
@@ -257,7 +257,7 @@ def test_receipt_contains_only_hashes_for_external_identities(tmp_path: Path) ->
         key=key,
         trust_policy=policy,
     )
-    assert receipt["schema_version"] == 4
+    assert receipt["schema_version"] == 5
     assert receipt["external_identity_bindings"] == external_hashes
     assert set(receipt["checks"]) == set(attestation.CHECK_NAMES)
     assert all(value == "PASS" for value in receipt["checks"].values())

@@ -47,15 +47,21 @@ def _context(
 
 def test_deployment_decision_requires_all_ten_gates_to_pass() -> None:
     passing = tuple(gate._result(definition, "PASS") for definition in gate.GATES)
-    assert gate._payload(passing, mode="full")["ready_for_deployment"] is True
+    ready = gate._payload(passing, mode="full")
+    assert ready["ready_for_change_set"] is True
+    assert ready["predeploy_change_set_review_required"] is True
+    assert ready["ready_for_deployment"] is False
+    assert ready["deployment_authorized"] is False
 
     for status in ("FAIL", "PARTIAL", "BLOCKED"):
         changed = (gate._result(gate.GATES[0], status, (f"TEST_{status}",)), *passing[1:])
         decision = gate._payload(changed, mode="full")
         assert decision["status"] == status
+        assert decision["ready_for_change_set"] is False
         assert decision["ready_for_deployment"] is False
 
     assert gate._payload(passing, mode="validate-only")["ready_for_deployment"] is False
+    assert gate._payload(passing, mode="validate-only")["ready_for_change_set"] is False
 
 
 def test_local_gate_never_performs_aws_api_calls_and_only_probes_cli_version(
@@ -490,7 +496,6 @@ def _passing_deployment_contract_and_receipt() -> tuple[dict[str, object], dict[
         {
             "artifact_bucket_sha256": "a" * 64,
             "deployment_role_arn_sha256": "c" * 64,
-            "reviewed_change_set_digest": "b" * 64,
             "status": "PASS",
         }
     )
@@ -499,7 +504,6 @@ def _passing_deployment_contract_and_receipt() -> tuple[dict[str, object], dict[
         "external_identity_bindings": {
             "artifact_bucket_sha256": "a" * 64,
             "artifact_path_sha256": gate._text_sha256("day15/reviewed/aioa-lambda.zip"),
-            "change_set_digest_sha256": gate._text_sha256("b" * 64),
             "change_set_name_sha256": gate._text_sha256("day15-reviewed-release"),
             "deployment_profile_sha256": gate._text_sha256("aioa-day15-deployer"),
             "deployment_role_arn_sha256": "c" * 64,
@@ -521,10 +525,29 @@ def test_g10_deployment_contract_is_blocked_until_selected_hashes_are_reviewed(
     assert result.reasons == ("DEPLOYMENT_CONTRACT_SELECTION_REQUIRED",)
 
 
+def test_current_g10_uses_tracked_policy_only_and_rejects_private_identity_hashes(
+    tmp_path: Path,
+) -> None:
+    assert gate._deployment_policy_result(gate.DEFAULT_DEPLOYMENT_CONTRACT).status == "PASS"
+    contract = json.loads(gate.DEFAULT_DEPLOYMENT_CONTRACT.read_text(encoding="utf-8"))
+    contract["artifact_bucket_sha256"] = "a" * 64
+    contract["deployment_role_arn_sha256"] = "b" * 64
+    contract["status"] = "PASS"
+    path = tmp_path / "tracked-private-hashes.json"
+    _write_json(path, contract)
+
+    result = gate._deployment_policy_result(path)
+
+    assert result.status == "FAIL"
+    assert result.reasons == ("TRACKED_DEPLOYMENT_POLICY_INVALID",)
+
+
 def test_g10_deployment_contract_binds_names_prefix_hashes_and_bucket_controls(
     tmp_path: Path,
 ) -> None:
     contract, receipt = _passing_deployment_contract_and_receipt()
+    assert "reviewed_change_set_digest" not in contract
+    assert "change_set_digest_sha256" not in receipt["external_identity_bindings"]
     contract_path = tmp_path / "contract.json"
     receipt_path = tmp_path / "receipt.json"
     _write_json(contract_path, contract)
