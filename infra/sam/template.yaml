@@ -428,6 +428,7 @@ Resources:
 
   OrchestratorFunctionUrl:
     Type: AWS::Lambda::Url
+    Condition: PublicIngressEnabledCondition
     DependsOn: OrchestratorAlias
     Properties:
       AuthType: NONE
@@ -584,6 +585,7 @@ Resources:
 
 Outputs:
   OrchestratorFunctionUrl:
+    Condition: PublicIngressEnabledCondition
     Description: Stable alias Function URL; public access still depends on reviewed permissions
     Value:
       Fn::GetAtt:
