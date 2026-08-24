@@ -214,16 +214,77 @@ def _binding_payload() -> dict[str, str]:
     }
 
 
-def test_external_receipt_is_candidate_bound_closed_and_hmac_authenticated(
+def _trusted_external_receipt(
     tmp_path: Path,
-) -> None:
-    receipt = tmp_path / "receipt.json"
+    monkeypatch: pytest.MonkeyPatch,
+    bindings: dict[str, str],
+) -> tuple[dict[str, object], Path, bytes]:
+    key = b"reviewed-operator-key-material-" + (b"x" * 32)
     key_path = tmp_path / "operator.key"
-    key = b"operator-held-day15-key-material!"
     key_path.write_bytes(key)
     key_path.chmod(0o600)
+    policy = tmp_path / "trust-policy.json"
+    policy.write_text(
+        canonical_json(
+            {
+                "algorithm": "HMAC-SHA256",
+                "operator_hmac_key_sha256": hashlib.sha256(key).hexdigest(),
+                "schema_version": 1,
+                "status": "PASS",
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(attestation, "DEFAULT_TRUST_POLICY", policy)
+    account = "".join(("123456", "789012"))
+    raw = {
+        "checks": {name: "PASS" for name in attestation.CHECK_NAMES},
+        "identities": {
+            "artifact_bucket": "aioa-day15-private-artifacts",
+            "artifact_path": "day15/reviewed/aioa-lambda.zip",
+            "aws_account_id": account,
+            "change_set_digest": "3" * 64,
+            "change_set_name": "day15-reviewed-release",
+            "cloudwatch_evidence_digest": "4" * 64,
+            "cost_notification_owner": "owner" + "@example.invalid",
+            "deployment_profile": "aioa-day15-deployer",
+            "deployment_role_arn": (
+                f"arn:aws:iam::{account}:role/AIOANonZeroCloudOpsDay15DeploymentRole"
+            ),
+            "judge_secret_id": "aioa/day15/judge-token",
+            "nova_inference_profile_id": "eu.amazon.nova-2-lite-v1:0",
+            "sandbox_instance_id": "i-" + ("a" * 17),
+            "sandbox_region": "eu-central-1",
+            "sandbox_tag_key": "AIOACloudOpsSandbox",
+            "sandbox_tag_value": "true",
+            "stack_name": "aioa-nonzero-cloudops-day15",
+        },
+        "schema_version": 1,
+    }
+    raw_path = tmp_path / "external-bindings.json"
+    raw_path.write_text(canonical_json(raw) + "\n", encoding="utf-8")
+    raw_path.chmod(0o600)
+    external = attestation.external_identity_bindings(raw_path)
+    return (
+        attestation.create_receipt(
+            bindings,
+            key,
+            external,
+            trust_policy=policy,
+        ),
+        key_path,
+        key,
+    )
+
+
+def test_external_receipt_is_candidate_bound_closed_and_hmac_authenticated(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    receipt = tmp_path / "receipt.json"
     bindings = _binding_payload()
-    payload = attestation.create_receipt(bindings, key)
+    payload, key_path, _ = _trusted_external_receipt(tmp_path, monkeypatch, bindings)
     receipt.write_text(canonical_json(payload) + "\n", encoding="utf-8")
     assert (
         gate._receipt_result(
@@ -244,7 +305,7 @@ def test_external_receipt_is_candidate_bound_closed_and_hmac_authenticated(
     assert rebound.status == "FAIL"
     assert rebound.reasons == ("EXTERNAL_ATTESTATION_SCHEMA_OR_BINDING_INVALID",)
 
-    payload["checks"]["bedrock_access_ready"] = "BLOCKED"
+    payload["checks"]["nova_profile_access_ready"] = "BLOCKED"
     receipt.write_text(canonical_json(payload) + "\n", encoding="utf-8")
     assert (
         gate._receipt_result(
@@ -263,14 +324,11 @@ def test_external_receipt_is_candidate_bound_closed_and_hmac_authenticated(
 def test_external_receipt_rejects_resigned_cost_notification_threshold_drift(
     tmp_path: Path,
     mutation_kind: str,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     receipt_path = tmp_path / "receipt.json"
-    key_path = tmp_path / "operator.key"
-    key = b"operator-held-day15-key-material!"
-    key_path.write_bytes(key)
-    key_path.chmod(0o600)
     bindings = _binding_payload()
-    payload = attestation.create_receipt(bindings, key)
+    payload, key_path, key = _trusted_external_receipt(tmp_path, monkeypatch, bindings)
 
     assert payload["cost_notifications"] == {
         "currency": "USD",
@@ -301,7 +359,10 @@ def test_external_receipt_rejects_resigned_cost_notification_threshold_drift(
     assert result.reasons == ("EXTERNAL_ATTESTATION_SCHEMA_OR_BINDING_INVALID",)
 
 
-def test_external_attestation_key_must_be_private_and_outside_repository(tmp_path: Path) -> None:
+def test_external_attestation_key_must_be_private_trusted_and_outside_repository(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     key = tmp_path / "operator.key"
     key.write_bytes(b"k" * 32)
     key.chmod(0o644)
@@ -310,6 +371,20 @@ def test_external_attestation_key_must_be_private_and_outside_repository(tmp_pat
     assert unsafe.value.reason == "EXTERNAL_ATTESTATION_KEY_PERMISSIONS_UNSAFE"
 
     key.chmod(0o600)
+    policy = tmp_path / "trust-policy.json"
+    policy.write_text(
+        canonical_json(
+            {
+                "algorithm": "HMAC-SHA256",
+                "operator_hmac_key_sha256": hashlib.sha256(b"k" * 32).hexdigest(),
+                "schema_version": 1,
+                "status": "PASS",
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(attestation, "DEFAULT_TRUST_POLICY", policy)
     assert attestation.read_attestation_key(key) == b"k" * 32
 
 
@@ -372,7 +447,10 @@ def test_missing_artifact_and_external_prerequisites_are_reported_as_blocked(
         "LAMBDA_ARTIFACT_REQUIRED",
     }
     assert external_result.status == "BLOCKED"
-    assert external_result.reasons == ("ATTESTATION_RENDERED_TEMPLATE_REQUIRED",)
+    assert set(external_result.reasons) == {
+        "ATTESTATION_RENDERED_TEMPLATE_REQUIRED",
+        "DEPLOYMENT_CONTRACT_SELECTION_REQUIRED",
+    }
 
 
 def _rollback_request() -> alias_rollback.RollbackRequest:

@@ -52,7 +52,8 @@
 - AU2_TAMPER_EVIDENT_AUDIT = EVALUATED_HIGH_RISK_DEFER_UNTIL_AFTER_SUBMISSION_NOT_IMPLEMENTED
 - LIVE_AWS_MUTATION_PROOF = NOT_RUN
 - DAY_14 = COMPLETE_LOCAL_P1_AND_AU3
-- DAY_15_DEPLOYMENT = NOT_STARTED_READINESS_BLOCKERS_DOCUMENTED
+- DAY_15_LOCAL_IMPLEMENTATION = COMPLETE_M1_M2_RECOVERED_AND_REPROVEN
+- DAY_15_DEPLOYMENT = BLOCKED_EXTERNAL_PREREQUISITES_NO_AWS_STATE_CHANGE
 - AGENTCORE = NOT_STARTED_DAY16_OPTIONAL
 - DEMO = NOT_STARTED
 - SUBMISSION = NOT_STARTED
@@ -67,12 +68,13 @@
 
 ## Next-boundary blockers
 
-- No orchestrator Lambda, bounded public ingress/minimal UI, readiness path, or judge route exists yet.
-- Lambda dependency packaging and the orchestrator runtime composition are not implemented.
-- Orchestrator IAM is absent; the executor role must add its required read-only scope check without broadening mutation authority.
-- OTel export, budget notifications/alarms, and durable-table retention/teardown policy are not wired.
-- Read-side and executor-side sandbox environment names must be normalized and proven identical.
+- No authorized, repository-trusted `aioa-day15-deployer` operator attestation is present.
+- The correct hackathon account and deployment-role ARN are not selected and hash-bound.
+- The encrypted, TLS-only, public-blocked, versioned, short-lifecycle artifact bucket is not selected and hash-bound.
+- No reviewed change-set digest or IAM capability acknowledgement is bound to this candidate.
+- The dedicated judge-secret create/read authority, exact pre-existing sandbox target/tag/region, sufficient CloudWatch evidence, Nova 2 EU profile access, and cost-notification owner remain unproven.
 
-See `docs/architecture/day-15-deployment-readiness.md`. These are Day 15 implementation prerequisites, not authorization to deploy now.
+See `docs/evidence/deployment/day15-deployment-blockers.md`. These are external deployment
+prerequisites, not authorization to create resources or mutate the sandbox.
 
 This status file does not authorize deployment, remediation, cloud mutation, or submission.

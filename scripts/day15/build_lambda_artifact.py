@@ -36,6 +36,43 @@ DEFAULT_MANIFEST: Final = ROOT / "dist" / "day15" / "aioa-lambda.manifest.json"
 DEFAULT_SCAN_REPORT: Final = ROOT / "dist" / "day15" / "pip-audit.json"
 TOOLCHAIN_PATH: Final = ROOT / "requirements" / "day15-toolchain.json"
 BUILDER_PATH: Final = Path(__file__).absolute()
+EXPECTED_TOOLCHAIN: Final = {
+    "artifact_builder": {
+        "architecture": "x86_64",
+        "pip_version": "26.2.1",
+        "platform": "manylinux2014_x86_64",
+        "python_version": "3.12.3",
+        "runtime": "python3.12",
+        "zip_compression": "stored",
+    },
+    "aws_cli": {"status": "PASS", "version": "2.36.11"},
+    "cfn_lint": {"name": "cfn-lint", "status": "PASS", "version": "1.52.1"},
+    "dependency_scanner": {
+        "name": "pip-audit",
+        "status": "PASS",
+        "version": "2.10.1",
+    },
+    "lambda_compatible_container": {
+        "engine": "podman",
+        "engine_version": "4.9.3",
+        "image": "public.ecr.aws/lambda/python@sha256:"
+        "3b486b954ce91baf361174c15e3801ceeef6892d0b3301f71c0bfc94db9c6142",
+        "status": "PASS",
+    },
+    "lock_generator": {
+        "name": "pip-tools",
+        "pip_version": "26.1.2",
+        "python_version": "3.12.3",
+        "version": "7.5.3",
+    },
+    "sam_cli": {"status": "PASS", "version": "1.165.0"},
+    "sam_translator": {
+        "name": "aws-sam-translator",
+        "status": "PASS",
+        "version": "1.111.0",
+    },
+    "schema_version": 1,
+}
 
 REQUIRED_DIRECT_DISTRIBUTIONS: Final = frozenset(
     {"boto3", "botocore", "pydantic", "strands-agents", "uuid6"}
@@ -716,9 +753,12 @@ def lambda_container_validation(
             "status": "BLOCKED",
         }
     engine = contract.get("engine")
+    engine_version = contract.get("engine_version")
     image = contract.get("image")
     if (
         engine not in {"docker", "podman"}
+        or not isinstance(engine_version, str)
+        or re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", engine_version) is None
         or not isinstance(image, str)
         or re.fullmatch(r"public\.ecr\.aws/lambda/python@sha256:[0-9a-f]{64}", image) is None
     ):
@@ -731,7 +771,21 @@ def lambda_container_validation(
         "LC_ALL": "C.UTF-8",
         "PATH": os.environ.get("PATH", "/usr/bin:/bin"),
     }
+    # Rootless engines require the caller's existing home for their local storage
+    # metadata. Preserve it unchanged; it is never mounted or exported to Lambda.
+    if (caller_home := os.environ.get("HOME")) is not None:
+        environment["HOME"] = caller_home
     try:
+        version_result = subprocess.run(
+            (executable, "--version"),
+            cwd=ROOT,
+            env=environment,
+            check=False,
+            stdin=subprocess.DEVNULL,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
         inspect_result = subprocess.run(
             (executable, "image", "inspect", image),
             cwd=ROOT,
@@ -744,8 +798,29 @@ def lambda_container_validation(
         )
     except (OSError, subprocess.TimeoutExpired):
         return {"reason": "LAMBDA_CONTAINER_UNAVAILABLE", "status": "BLOCKED"}
+    version_match = re.search(r"(?<![0-9])[0-9]+\.[0-9]+\.[0-9]+(?![0-9])", version_result.stdout)
+    if (
+        version_result.returncode != 0
+        or version_match is None
+        or version_match.group(0) != engine_version
+    ):
+        return {"reason": "CONTAINER_ENGINE_VERSION_MISMATCH", "status": "FAIL"}
     if inspect_result.returncode != 0:
         return {"reason": "LAMBDA_CONTAINER_IMAGE_UNAVAILABLE", "status": "BLOCKED"}
+    try:
+        inspect_payload = json.loads(inspect_result.stdout)
+    except json.JSONDecodeError:
+        return {"reason": "LAMBDA_CONTAINER_INSPECT_INVALID", "status": "FAIL"}
+    inspected = (
+        inspect_payload[0] if isinstance(inspect_payload, list) and inspect_payload else None
+    )
+    expected_digest = image.rsplit("@", 1)[1]
+    if (
+        not isinstance(inspected, dict)
+        or inspected.get("Architecture") != "amd64"
+        or inspected.get("Digest") != expected_digest
+    ):
+        return {"reason": "LAMBDA_CONTAINER_IDENTITY_MISMATCH", "status": "FAIL"}
     command = [
         executable,
         "run",
@@ -755,6 +830,9 @@ def lambda_container_validation(
         "--network=none",
         "--read-only",
         "--cap-drop=ALL",
+        "--cgroups=disabled",
+        "--ipc=none",
+        "--mount=type=bind,src=/dev/pts,dst=/dev/pts,ro=true",
         "--security-opt=no-new-privileges",
         "--entrypoint=/var/lang/bin/python3.12",
         f"--volume={stage}:/var/task:ro",
@@ -778,7 +856,10 @@ def lambda_container_validation(
     if result.returncode != 0:
         return {"reason": "LAMBDA_CONTAINER_IMPORT_FAILED", "status": "FAIL"}
     return {
-        "image_digest": image.rsplit("@", 1)[1],
+        "architecture": "amd64",
+        "engine": engine,
+        "engine_version": engine_version,
+        "image_digest": expected_digest,
         "status": "PASS",
         "validator": "lambda-python3.12-x86_64-container",
     }
@@ -965,6 +1046,7 @@ def dependency_security_scan(
     expected_inventory: tuple[tuple[str, str], ...],
     lock_sha256: str,
     enabled: bool,
+    toolchain: dict[str, object] | None = None,
 ) -> dict[str, object]:
     """Run pip-audit and require it to report the exact locked inventory."""
 
@@ -976,6 +1058,16 @@ def dependency_security_scan(
     }
     if not enabled:
         return {**base, "reasons": ["DEPENDENCY_SCAN_NOT_REQUESTED"], "status": "BLOCKED"}
+    active_toolchain = toolchain if toolchain is not None else _read_toolchain()
+    scanner_contract = active_toolchain.get("dependency_scanner")
+    if (
+        not isinstance(scanner_contract, dict)
+        or scanner_contract.get("status") != "PASS"
+        or scanner_contract.get("name") != "pip-audit"
+        or not isinstance(scanner_contract.get("version"), str)
+    ):
+        return {**base, "reasons": ["PIP_AUDIT_NOT_PINNED"], "status": "FAIL"}
+    expected_scanner_version = str(scanner_contract["version"])
     if importlib.util.find_spec("pip_audit") is None:
         return {**base, "reasons": ["PIP_AUDIT_UNAVAILABLE"], "status": "BLOCKED"}
     try:
@@ -1003,6 +1095,13 @@ def dependency_security_scan(
         )
     except (OSError, subprocess.TimeoutExpired, importlib.metadata.PackageNotFoundError):
         return {**base, "reasons": ["PIP_AUDIT_UNAVAILABLE"], "status": "BLOCKED"}
+    if version != expected_scanner_version:
+        return {
+            **base,
+            "reasons": ["PIP_AUDIT_VERSION_MISMATCH"],
+            "scanner_version": version,
+            "status": "FAIL",
+        }
     try:
         payload = json.loads(result.stdout)
     except json.JSONDecodeError:
@@ -1117,12 +1216,68 @@ def dependency_security_scan(
     }
 
 
+def revalidate_artifact(
+    artifact: Path,
+    lock: Path,
+    template: Path,
+    toolchain_path: Path,
+) -> dict[str, object]:
+    """Freshly re-run every locally authoritative artifact proof used by D15-G04."""
+
+    try:
+        toolchain_raw = toolchain_path.read_bytes()
+        lock_raw = lock.read_bytes()
+    except OSError as error:
+        raise ArtifactFailure(
+            "ARTIFACT_REVALIDATION_INPUT_UNAVAILABLE", status="BLOCKED"
+        ) from error
+    toolchain = _parse_toolchain(toolchain_raw)
+    builder = _validate_builder_identity(toolchain)
+    lock_entries = validate_runtime_lock(lock)
+    archive = inspect_archive(artifact)
+    handlers = discover_lambda_handlers(template)
+    artifact_sha256 = str(archive["sha256"])
+    lock_sha256 = _sha256_bytes(lock_raw)
+    with tempfile.TemporaryDirectory(prefix="aioa-day15-revalidate-") as temporary:
+        stage = Path(temporary)
+        try:
+            with zipfile.ZipFile(artifact) as archive_file:
+                archive_file.extractall(stage)
+        except (OSError, zipfile.BadZipFile) as error:
+            raise ArtifactFailure("ARTIFACT_ARCHIVE_UNREADABLE") from error
+        inventory = validate_distribution_inventory(stage, lock_entries)
+        clean_import = clean_import_handlers(artifact, handlers)
+        container = lambda_container_validation(stage, handlers, toolchain=toolchain)
+        scan = dependency_security_scan(
+            stage,
+            artifact_sha256=artifact_sha256,
+            expected_inventory=inventory,
+            lock_sha256=lock_sha256,
+            enabled=True,
+            toolchain=toolchain,
+        )
+    return {
+        "archive_scan": archive,
+        "builder": builder,
+        "dependencies": [{"name": name, "version": version} for name, version in inventory],
+        "handlers": list(handlers),
+        "lambda_compatible_container_validation": container,
+        "lambda_like_clean_import": clean_import,
+        "scan": scan,
+    }
+
+
 def _parse_toolchain(raw: bytes) -> dict[str, object]:
     try:
         value = json.loads(raw.decode("utf-8"))
     except (UnicodeDecodeError, json.JSONDecodeError) as error:
         raise ArtifactFailure("TOOLCHAIN_RECORD_UNAVAILABLE", status="BLOCKED") from error
-    if not isinstance(value, dict) or value.get("schema_version") != 1:
+    if (
+        not isinstance(value, dict)
+        or value.get("schema_version") != 1
+        or raw != (canonical_json(value) + "\n").encode()
+        or value != EXPECTED_TOOLCHAIN
+    ):
         raise ArtifactFailure("TOOLCHAIN_RECORD_INVALID", status="BLOCKED")
     return value
 
@@ -1228,6 +1383,7 @@ def build_artifact(
             expected_inventory=tuple((entry.name, entry.version) for entry in lock_entries),
             lock_sha256=lock_sha256,
             enabled=run_dependency_scan,
+            toolchain=toolchain,
         )
 
         repository_after = validate_repository_inputs(paths)

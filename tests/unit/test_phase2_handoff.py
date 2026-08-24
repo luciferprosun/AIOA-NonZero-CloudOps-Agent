@@ -37,10 +37,12 @@ def test_day15_handoff_is_complete_but_does_not_authorize_deployment() -> None:
     assert "sam deploy" not in document.casefold()
 
 
-def test_roadmap_records_day14_completion_and_day15_boundary() -> None:
+def test_roadmap_records_day14_completion_and_truthful_day15_external_boundary() -> None:
     document = _document("docs/ROADMAP_STATUS.md")
 
     assert "DAY_14_P1_PROOF_GATE = COMPLETE_EXECUTABLE_6_OF_6_ZERO_SKIPS" in document
     assert "AU3_REVIEWER_EVIDENCE_MANIFEST = COMPLETE_DETERMINISTIC_19_CLAIMS" in document
     assert "DAY_14 = COMPLETE_LOCAL_P1_AND_AU3" in document
-    assert "DAY_15_DEPLOYMENT = NOT_STARTED_READINESS_BLOCKERS_DOCUMENTED" in document
+    assert "DAY_15_LOCAL_IMPLEMENTATION = COMPLETE_M1_M2_RECOVERED_AND_REPROVEN" in document
+    assert "DAY_15_DEPLOYMENT = BLOCKED_EXTERNAL_PREREQUISITES_NO_AWS_STATE_CHANGE" in document
+    assert "No authorized, repository-trusted `aioa-day15-deployer`" in document

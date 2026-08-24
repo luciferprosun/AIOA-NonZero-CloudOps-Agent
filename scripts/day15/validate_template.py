@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib.metadata
 import json
 import os
 import re
@@ -17,6 +18,7 @@ import yaml
 
 ROOT: Final = Path(__file__).resolve().parents[2]
 DEFAULT_TEMPLATE: Final = ROOT / "infra" / "sam" / "template.yaml"
+DEFAULT_TOOLCHAIN: Final = ROOT / "requirements" / "day15-toolchain.json"
 LOGICAL_ID_PATTERN: Final = re.compile(r"^[A-Za-z][A-Za-z0-9]{0,254}$")
 ALLOWED_TOP_LEVEL_KEYS: Final = frozenset(
     {
@@ -34,6 +36,16 @@ ALLOWED_TOP_LEVEL_KEYS: Final = frozenset(
     }
 )
 SHA256_PATTERN: Final = re.compile(r"^[0-9a-f]{64}$")
+SAM_VERSION_PATTERN: Final = re.compile(r"(?:^|\s)version\s+([^\s,]+)", re.IGNORECASE)
+TEMPLATE_TOOL_CONTRACTS: Final = {
+    "cfn_lint": ("cfn-lint", "cfn-lint"),
+    "sam_translator": ("aws-sam-translator", "aws-sam-translator"),
+}
+PINNED_TEMPLATE_TOOL_VERSIONS: Final = {
+    "cfn_lint": "1.52.1",
+    "sam_cli": "1.165.0",
+    "sam_translator": "1.111.0",
+}
 
 
 class TemplateFailure(RuntimeError):
@@ -70,6 +82,124 @@ def canonical_json(value: object) -> str:
     return json.dumps(
         value, allow_nan=False, ensure_ascii=True, separators=(",", ":"), sort_keys=True
     )
+
+
+def load_toolchain(path: Path = DEFAULT_TOOLCHAIN) -> dict[str, object]:
+    """Load the closed, canonical Day 15 toolchain record."""
+
+    try:
+        raw = path.read_text(encoding="utf-8")
+        value = json.loads(raw)
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise TemplateFailure("TEMPLATE_TOOLCHAIN_UNAVAILABLE") from error
+    if (
+        not isinstance(value, dict)
+        or value.get("schema_version") != 1
+        or raw != canonical_json(value) + "\n"
+    ):
+        raise TemplateFailure("TEMPLATE_TOOLCHAIN_INVALID")
+    return value
+
+
+def _version_contract(
+    toolchain: dict[str, object],
+    key: str,
+    *,
+    expected_name: str | None = None,
+) -> str | None:
+    contract = toolchain.get(key)
+    if not isinstance(contract, dict) or contract.get("status") != "PASS":
+        return None
+    if expected_name is not None and contract.get("name") != expected_name:
+        return None
+    version = contract.get("version")
+    return version if isinstance(version, str) and version.strip() == version and version else None
+
+
+def _sam_cli_version(executable: str) -> tuple[str | None, str | None]:
+    try:
+        result = subprocess.run(
+            (executable, "--version"),
+            cwd=ROOT,
+            env=_template_tool_environment(),
+            check=False,
+            stdin=subprocess.DEVNULL,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None, "SAM_CLI_UNAVAILABLE"
+    if result.returncode != 0:
+        return None, "SAM_CLI_UNAVAILABLE"
+    match = SAM_VERSION_PATTERN.search(result.stdout.strip())
+    if match is None:
+        return None, "SAM_CLI_VERSION_INVALID"
+    return match.group(1), None
+
+
+def _template_tool_environment() -> dict[str, str]:
+    return {
+        "AWS_CONFIG_FILE": os.devnull,
+        "AWS_DEFAULT_REGION": "eu-central-1",
+        "AWS_EC2_METADATA_DISABLED": "true",
+        "AWS_IGNORE_CONFIGURED_ENDPOINT_URLS": "true",
+        "AWS_SHARED_CREDENTIALS_FILE": os.devnull,
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8",
+        "PATH": os.environ.get("PATH", "/usr/bin:/bin"),
+        "SAM_CLI_TELEMETRY": "0",
+    }
+
+
+def validate_template_toolchain(
+    path: Path = DEFAULT_TOOLCHAIN,
+) -> tuple[str, tuple[str, ...], dict[str, str]]:
+    """Require exact SAM CLI, cfn-lint, and SAM Translator versions."""
+
+    try:
+        toolchain = load_toolchain(path)
+    except TemplateFailure as error:
+        return "FAIL", (error.reason,), {}
+    reasons: list[str] = []
+    versions: dict[str, str] = {}
+    expected_sam = _version_contract(toolchain, "sam_cli")
+    if expected_sam != PINNED_TEMPLATE_TOOL_VERSIONS["sam_cli"]:
+        reasons.append("SAM_CLI_NOT_PINNED")
+    executable = shutil.which("sam")
+    if executable is None:
+        reasons.append("SAM_CLI_UNAVAILABLE")
+    elif expected_sam is not None:
+        actual_sam, error = _sam_cli_version(executable)
+        if error is not None:
+            reasons.append(error)
+        elif actual_sam != expected_sam:
+            reasons.append("SAM_CLI_VERSION_MISMATCH")
+        else:
+            versions["sam_cli"] = actual_sam
+    for key, (distribution, expected_name) in TEMPLATE_TOOL_CONTRACTS.items():
+        expected = _version_contract(toolchain, key, expected_name=expected_name)
+        reason_prefix = "CFN_LINT" if key == "cfn_lint" else "SAM_TRANSLATOR"
+        if expected != PINNED_TEMPLATE_TOOL_VERSIONS[key]:
+            reasons.append(f"{reason_prefix}_NOT_PINNED")
+            continue
+        try:
+            actual = importlib.metadata.version(distribution)
+        except importlib.metadata.PackageNotFoundError:
+            reasons.append(f"{reason_prefix}_UNAVAILABLE")
+            continue
+        if actual != expected:
+            reasons.append(f"{reason_prefix}_VERSION_MISMATCH")
+            continue
+        versions[key] = actual
+    unique = tuple(sorted(set(reasons)))
+    if any(
+        reason.endswith(("NOT_PINNED", "VERSION_MISMATCH", "VERSION_INVALID")) for reason in unique
+    ):
+        return "FAIL", unique, versions
+    if unique:
+        return "PARTIAL", unique, versions
+    return "PASS", (), versions
 
 
 def load_template(path: Path) -> dict[str, object]:
@@ -212,20 +342,19 @@ def _sam_validate(path: Path) -> tuple[str, tuple[str, ...]]:
     executable = shutil.which("sam")
     if executable is None:
         return "PARTIAL", ("SAM_CLI_UNAVAILABLE",)
-    environment = {
-        "AWS_CONFIG_FILE": os.devnull,
-        "AWS_EC2_METADATA_DISABLED": "true",
-        "AWS_SHARED_CREDENTIALS_FILE": os.devnull,
-        "LANG": "C.UTF-8",
-        "LC_ALL": "C.UTF-8",
-        "PATH": os.environ.get("PATH", "/usr/bin:/bin"),
-        "SAM_CLI_TELEMETRY": "0",
-    }
     try:
         result = subprocess.run(
-            (executable, "validate", "--lint", "--template-file", str(path)),
+            (
+                executable,
+                "validate",
+                "--lint",
+                "--region",
+                "eu-central-1",
+                "--template-file",
+                str(path),
+            ),
             cwd=ROOT,
-            env=environment,
+            env=_template_tool_environment(),
             check=False,
             stdin=subprocess.DEVNULL,
             capture_output=True,
@@ -239,7 +368,11 @@ def _sam_validate(path: Path) -> tuple[str, tuple[str, ...]]:
     return "PASS", ()
 
 
-def validate_template(path: Path = DEFAULT_TEMPLATE) -> dict[str, object]:
+def validate_template(
+    path: Path = DEFAULT_TEMPLATE,
+    *,
+    toolchain_path: Path = DEFAULT_TOOLCHAIN,
+) -> dict[str, object]:
     try:
         template = load_template(path)
         static_reasons = validate_structure(template)
@@ -247,6 +380,11 @@ def validate_template(path: Path = DEFAULT_TEMPLATE) -> dict[str, object]:
         return {
             "checks": [
                 {"check_id": "D15-TEMPLATE-STATIC", "reasons": [error.reason], "status": "FAIL"},
+                {
+                    "check_id": "D15-TEMPLATE-TOOLCHAIN",
+                    "reasons": ["STATIC_TEMPLATE_INVALID"],
+                    "status": "BLOCKED",
+                },
                 {
                     "check_id": "D15-TEMPLATE-SAM",
                     "reasons": ["STATIC_TEMPLATE_INVALID"],
@@ -257,14 +395,33 @@ def validate_template(path: Path = DEFAULT_TEMPLATE) -> dict[str, object]:
             "status": "FAIL",
         }
     static_status = "FAIL" if static_reasons else "PASS"
-    sam_status, sam_reasons = _sam_validate(path)
-    overall = "FAIL" if static_status == "FAIL" or sam_status == "FAIL" else sam_status
+    toolchain_status, toolchain_reasons, versions = validate_template_toolchain(toolchain_path)
+    if toolchain_status == "PASS":
+        sam_status, sam_reasons = _sam_validate(path)
+    else:
+        sam_status, sam_reasons = toolchain_status, toolchain_reasons
+    statuses = (static_status, toolchain_status, sam_status)
+    overall = (
+        "FAIL"
+        if "FAIL" in statuses
+        else "BLOCKED"
+        if "BLOCKED" in statuses
+        else "PARTIAL"
+        if "PARTIAL" in statuses
+        else "PASS"
+    )
     return {
         "checks": [
             {
                 "check_id": "D15-TEMPLATE-STATIC",
                 "reasons": list(static_reasons),
                 "status": static_status,
+            },
+            {
+                "check_id": "D15-TEMPLATE-TOOLCHAIN",
+                "reasons": list(toolchain_reasons),
+                "status": toolchain_status,
+                "versions": versions,
             },
             {
                 "check_id": "D15-TEMPLATE-SAM",
@@ -284,9 +441,10 @@ def _exit_code(status: str) -> int:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--template", type=Path, default=DEFAULT_TEMPLATE)
+    parser.add_argument("--toolchain", type=Path, default=DEFAULT_TOOLCHAIN)
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args()
-    payload = validate_template(args.template)
+    payload = validate_template(args.template, toolchain_path=args.toolchain)
     if args.json:
         print(canonical_json(payload))
     else:

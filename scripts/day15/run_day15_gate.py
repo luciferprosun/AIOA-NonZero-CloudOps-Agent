@@ -8,7 +8,10 @@ import ast
 import base64
 import hashlib
 import json
+import os
 import re
+import shutil
+import subprocess
 import sys
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass
@@ -29,6 +32,7 @@ from scripts.day15.build_lambda_artifact import (  # noqa: E402
     BuildPaths,
     discover_lambda_handlers,
     inspect_archive,
+    revalidate_artifact,
     validate_repository_inputs,
     validate_runtime_lock,
 )
@@ -44,6 +48,10 @@ from scripts.day15.preflight_region import (  # noqa: E402
     validate_judge_token_not_after,
     validate_region,
 )
+from scripts.day15.render_template import (  # noqa: E402
+    RenderFailure,
+    verify_rendered_template,
+)
 from scripts.day15.validate_template import (  # noqa: E402
     DEFAULT_TEMPLATE,
     TemplateFailure,
@@ -55,6 +63,7 @@ from scripts.day15.validate_template import (  # noqa: E402
 )
 
 DEFAULT_TOOLCHAIN: Final = ROOT / "requirements" / "day15-toolchain.json"
+DEFAULT_DEPLOYMENT_CONTRACT: Final = ROOT / "requirements" / "day15-deployment-contract.json"
 DEFAULT_RECEIPT: Final = ROOT / "dist" / "day15" / "external-preflight.json"
 AWS_CLIENTS_SOURCE: Final = ROOT / "src" / "aioa_cloudops_agent" / "aws_clients.py"
 RUNTIME_SOURCE_ROOT: Final = ROOT / "src"
@@ -95,10 +104,250 @@ RUNTIME_PROOF_CONTRACTS: Final = (
 )
 ROLLBACK_RUNBOOK: Final = ROOT / "docs" / "operations" / "day15-deployment-gate.md"
 ROLLBACK_TOOL: Final = ROOT / "scripts" / "day15" / "alias_rollback.py"
+ROLLBACK_PROOF: Final = ROOT / "tests" / "unit" / "test_day15_gate.py"
+ROLLBACK_PROOF_NAMES: Final = (
+    "test_alias_rollback_plan_is_read_first_stable_and_alias_only",
+    "test_alias_rollback_requires_reviewed_hash_then_reconciles_both_aliases",
+    "test_alias_partial_update_reports_explicit_reconciliation",
+)
 STATUS_VALUES: Final = frozenset({"PASS", "FAIL", "PARTIAL", "BLOCKED"})
 SHA256_PATTERN: Final = re.compile(r"^[0-9a-f]{64}$")
 ABSOLUTE_PATH_PATTERN: Final = re.compile(r"(?:^|\s)(?:/home/|/tmp/|[A-Za-z]:\\Users\\)")
 TIMESTAMP_KEY_PATTERN: Final = re.compile(r"(?:^|_)(?:time|timestamp|created_at|built_at)(?:$|_)")
+PINNED_AWS_CLI_VERSION: Final = "2.36.11"
+AWS_CLI_VERSION_PATTERN: Final = re.compile(r"^aws-cli/([^\s]+)(?:\s|$)")
+DEPLOYMENT_CONTRACT_FIXED: Final = {
+    "artifact_bucket_controls": {
+        "encryption_at_rest_required": True,
+        "lifecycle_expiration_days_max": 3,
+        "public_access_block": {
+            "block_public_acls": True,
+            "block_public_policy": True,
+            "ignore_public_acls": True,
+            "restrict_public_buckets": True,
+        },
+        "tls_only_required": True,
+        "versioning_required": True,
+    },
+    "artifact_path": "day15/reviewed/aioa-lambda.zip",
+    "artifact_prefix": "day15/reviewed/",
+    "capabilities": ["CAPABILITY_IAM"],
+    "change_set_name": "day15-reviewed-release",
+    "deployment_profile": "aioa-day15-deployer",
+    "deployment_role_name": "AIOANonZeroCloudOpsDay15DeploymentRole",
+    "region": "eu-central-1",
+    "schema_version": 1,
+    "stack_name": "aioa-nonzero-cloudops-day15",
+}
+DEPLOYMENT_CONTRACT_HASH_FIELDS: Final = frozenset(
+    {
+        "artifact_bucket_sha256",
+        "deployment_role_arn_sha256",
+    }
+)
+DEPLOYMENT_CONTRACT_REVIEW_FIELDS: Final = frozenset({"reviewed_change_set_digest"})
+BUCKET_CONTROL_CHECKS: Final = frozenset(
+    {
+        "artifact_bucket_encryption_ready",
+        "artifact_bucket_lifecycle_ready",
+        "artifact_bucket_public_access_block_ready",
+        "artifact_bucket_tls_only_ready",
+        "artifact_bucket_versioning_ready",
+    }
+)
+EXPECTED_ASSUME_ROLE_POLICY: Final = {
+    "Statement": [
+        {
+            "Action": ["sts:AssumeRole"],
+            "Effect": "Allow",
+            "Principal": {"Service": "lambda.amazonaws.com"},
+        }
+    ],
+    "Version": "2012-10-17",
+}
+EXPECTED_ROLE_POLICIES: Final = {
+    "RemediationExecutorRole": {
+        "BoundedXRayDelivery": [
+            {
+                "Action": ["xray:PutTraceSegments", "xray:PutTelemetryRecords"],
+                "Effect": "Allow",
+                "Resource": "*",
+            }
+        ],
+        "FreshSandboxScopeRead": [
+            {
+                "Action": ["ec2:DescribeInstances"],
+                "Condition": {"StringEquals": {"aws:RequestedRegion": "eu-central-1"}},
+                "Effect": "Allow",
+                "Resource": "*",
+            }
+        ],
+        "RemediationLogDelivery": [
+            {
+                "Action": ["logs:CreateLogStream", "logs:PutLogEvents"],
+                "Effect": "Allow",
+                "Resource": {
+                    "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:"
+                    "log-group:/aws/lambda/${AWS::StackName}-remediation-executor:*"
+                },
+            }
+        ],
+        "StopConfiguredTaggedSandboxOnly": [
+            {
+                "Action": ["ec2:StopInstances"],
+                "Condition": {
+                    "StringEquals": {
+                        "aws:RequestedRegion": "eu-central-1",
+                        "aws:ResourceTag/AIOACloudOpsSandbox": "true",
+                    }
+                },
+                "Effect": "Allow",
+                "Resource": {
+                    "Fn::Sub": "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:"
+                    "instance/${SandboxInstanceId}"
+                },
+            }
+        ],
+    },
+    "OrchestratorRole": {
+        "BoundedXRayDelivery": [
+            {
+                "Action": ["xray:PutTraceSegments", "xray:PutTelemetryRecords"],
+                "Effect": "Allow",
+                "Resource": "*",
+            }
+        ],
+        "DurableItemOnlyState": [
+            {
+                "Action": ["dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:UpdateItem"],
+                "Effect": "Allow",
+                "Resource": {"Fn::GetAtt": ["StateTable", "Arn"]},
+            }
+        ],
+        "InvokeNovaTwoLiteEuProfileOnly": [
+            {
+                "Action": ["bedrock:InvokeModelWithResponseStream"],
+                "Condition": {"StringEquals": {"aws:RequestedRegion": "eu-central-1"}},
+                "Effect": "Allow",
+                "Resource": {
+                    "Fn::Sub": "arn:${AWS::Partition}:bedrock:${AWS::Region}:"
+                    "${AWS::AccountId}:inference-profile/eu.amazon.nova-2-lite-v1:0"
+                },
+                "Sid": "InvokeExactEuInferenceProfile",
+            },
+            {
+                "Action": ["bedrock:InvokeModelWithResponseStream"],
+                "Condition": {
+                    "StringEquals": {
+                        "aws:RequestedRegion": "eu-central-1",
+                        "bedrock:InferenceProfileArn": {
+                            "Fn::Sub": "arn:${AWS::Partition}:bedrock:${AWS::Region}:"
+                            "${AWS::AccountId}:inference-profile/"
+                            "eu.amazon.nova-2-lite-v1:0"
+                        },
+                    }
+                },
+                "Effect": "Allow",
+                "Resource": [
+                    {
+                        "Fn::Sub": "arn:${AWS::Partition}:bedrock:eu-central-1::"
+                        "foundation-model/amazon.nova-2-lite-v1:0"
+                    },
+                    {
+                        "Fn::Sub": "arn:${AWS::Partition}:bedrock:eu-north-1::"
+                        "foundation-model/amazon.nova-2-lite-v1:0"
+                    },
+                    {
+                        "Fn::Sub": "arn:${AWS::Partition}:bedrock:eu-south-1::"
+                        "foundation-model/amazon.nova-2-lite-v1:0"
+                    },
+                    {
+                        "Fn::Sub": "arn:${AWS::Partition}:bedrock:eu-south-2::"
+                        "foundation-model/amazon.nova-2-lite-v1:0"
+                    },
+                    {
+                        "Fn::Sub": "arn:${AWS::Partition}:bedrock:eu-west-1::"
+                        "foundation-model/amazon.nova-2-lite-v1:0"
+                    },
+                    {
+                        "Fn::Sub": "arn:${AWS::Partition}:bedrock:eu-west-3::"
+                        "foundation-model/amazon.nova-2-lite-v1:0"
+                    },
+                ],
+                "Sid": "InvokeProfileDestinationModelsOnly",
+            },
+        ],
+        "InvokePrivateExecutorAliasOnly": [
+            {
+                "Action": ["lambda:InvokeFunction"],
+                "Effect": "Allow",
+                "Resource": {"Ref": "RemediationExecutorAlias"},
+            }
+        ],
+        "OrchestratorLogDelivery": [
+            {
+                "Action": ["logs:CreateLogStream", "logs:PutLogEvents"],
+                "Effect": "Allow",
+                "Resource": {
+                    "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:"
+                    "log-group:/aws/lambda/${AWS::StackName}-orchestrator:*"
+                },
+            }
+        ],
+        "ReadConfiguredSandboxEvidence": [
+            {
+                "Action": ["ec2:DescribeInstances", "cloudwatch:GetMetricStatistics"],
+                "Condition": {"StringEquals": {"aws:RequestedRegion": "eu-central-1"}},
+                "Effect": "Allow",
+                "Resource": "*",
+            }
+        ],
+        "ReadDedicatedJudgeSecretOnly": [
+            {
+                "Action": ["secretsmanager:GetSecretValue"],
+                "Effect": "Allow",
+                "Resource": {"Ref": "JudgeTokenSecret"},
+            }
+        ],
+    },
+}
+FORBIDDEN_COST_RESOURCE_TYPES: Final = frozenset(
+    {
+        "AWS::ApiGateway::RestApi",
+        "AWS::Budgets::Budget",
+        "AWS::EC2::NatGateway",
+        "AWS::ECS::Cluster",
+        "AWS::ECS::Service",
+        "AWS::EKS::Cluster",
+        "AWS::ElastiCache::CacheCluster",
+        "AWS::ElastiCache::ReplicationGroup",
+        "AWS::Events::Rule",
+        "AWS::OpenSearchService::Domain",
+        "AWS::RDS::DBCluster",
+        "AWS::RDS::DBInstance",
+        "AWS::SQS::Queue",
+        "AWS::Scheduler::Schedule",
+        "AWS::StepFunctions::StateMachine",
+    }
+)
+FORBIDDEN_COST_RESOURCE_PREFIXES: Final = (
+    "AWS::ApiGateway::",
+    "AWS::ApiGatewayV2::",
+    "AWS::Budgets::",
+    "AWS::EC2::NatGateway",
+    "AWS::ECS::",
+    "AWS::EKS::",
+    "AWS::ElastiCache::",
+    "AWS::Elasticsearch::",
+    "AWS::Events::",
+    "AWS::MemoryDB::",
+    "AWS::OpenSearchService::",
+    "AWS::OpenSearchServerless::",
+    "AWS::RDS::",
+    "AWS::SQS::",
+    "AWS::Scheduler::",
+    "AWS::StepFunctions::",
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -161,6 +410,7 @@ class GateContext:
     judge_token_not_after: str | None
     lambda_configuration_sha256: str | None
     clock: Callable[[], datetime]
+    deployment_contract: Path = DEFAULT_DEPLOYMENT_CONTRACT
 
 
 def _result(gate: GateDefinition, status: str, reasons: Iterable[str] = ()) -> GateResult:
@@ -486,16 +736,36 @@ def _server_budget_contract_is_exact(tree: ast.Module) -> bool:
 def _fresh_request_runtime_contract_is_exact(tree: ast.Module) -> bool:
     runtime = _class_definition(tree, "JudgeInvestigationRuntime")
     investigate = _class_method(runtime, "investigate") if runtime is not None else None
-    if investigate is None:
+    investigate_run = _class_method(runtime, "_investigate_run") if runtime is not None else None
+    if investigate is None or investigate_run is None:
         return False
-    required_per_request_calls = {
-        "new_judge_budget",
+    if not {"new_judge_budget", "_investigate_run"} <= _call_names(investigate):
+        return False
+    required_fresh_construction = {
         "_session_manager_factory",
         "_model_factory",
         "_agent_factory",
         "_flow_factory",
     }
-    return required_per_request_calls <= _call_names(investigate)
+    if not required_fresh_construction <= _call_names(investigate_run):
+        return False
+    agent_calls = [
+        item
+        for item in ast.walk(investigate_run)
+        if isinstance(item, ast.Call) and _call_name(item) == "_agent_factory"
+    ]
+    if len(agent_calls) != 1:
+        return False
+    tracer = next(
+        (keyword.value for keyword in agent_calls[0].keywords if keyword.arg == "tracer"),
+        None,
+    )
+    return (
+        isinstance(tracer, ast.Attribute)
+        and tracer.attr == "_tracer"
+        and isinstance(tracer.value, ast.Name)
+        and tracer.value.id == "self"
+    )
 
 
 def _cold_start_resume_contract_is_exact(tree: ast.Module) -> bool:
@@ -576,7 +846,67 @@ def _gate_runtime(context: GateContext) -> GateResult:
 def _gate_iam(context: GateContext) -> GateResult:
     gate = GATES[1]
     reasons: list[str] = []
-    template = context.rendered_template or context.template
+    if context.rendered_template_path is None:
+        if context.template_has_sam:
+            return _result(gate, "BLOCKED", ("RENDERED_IAM_TEMPLATE_REQUIRED",))
+        template = context.template
+    else:
+        try:
+            verified_template, _ = verify_rendered_template(
+                template=context.template_path,
+                toolchain=context.toolchain,
+                rendered_template=context.rendered_template_path,
+            )
+        except RenderFailure as error:
+            return _result(gate, error.status, (error.reason,))
+        if context.rendered_template != verified_template:
+            return _result(gate, "FAIL", ("RENDERED_TEMPLATE_CONTEXT_MISMATCH",))
+        template = verified_template
+    resources = template.get("Resources", {})
+    iam_resources = {
+        name: resource
+        for name, resource in resources.items()
+        if isinstance(name, str)
+        and isinstance(resource, Mapping)
+        and isinstance(resource.get("Type"), str)
+        and str(resource["Type"]).startswith("AWS::IAM::")
+    }
+    roles = resources_of_type(template, "AWS::IAM::Role")
+    if set(iam_resources) != set(EXPECTED_ROLE_POLICIES) or set(roles) != set(
+        EXPECTED_ROLE_POLICIES
+    ):
+        reasons.append("IAM_RESOURCE_ALLOWLIST_INVALID")
+    for role_name, expected_policies in EXPECTED_ROLE_POLICIES.items():
+        role = roles.get(role_name)
+        properties = _properties(role) if role is not None else {}
+        policies = properties.get("Policies")
+        actual_policies: dict[str, object] = {}
+        if isinstance(policies, list):
+            for policy in policies:
+                if not isinstance(policy, Mapping) or set(policy) != {
+                    "PolicyDocument",
+                    "PolicyName",
+                }:
+                    reasons.append("IAM_INLINE_POLICY_SCHEMA_INVALID")
+                    continue
+                name = policy.get("PolicyName")
+                document = policy.get("PolicyDocument")
+                if not isinstance(name, str) or name in actual_policies:
+                    reasons.append("IAM_INLINE_POLICY_SCHEMA_INVALID")
+                    continue
+                actual_policies[name] = document
+        else:
+            reasons.append("IAM_INLINE_POLICY_SCHEMA_INVALID")
+        expected_documents = {
+            name: {"Statement": statements, "Version": "2012-10-17"}
+            for name, statements in expected_policies.items()
+        }
+        if (
+            set(properties) != {"AssumeRolePolicyDocument", "Policies"}
+            or properties.get("AssumeRolePolicyDocument") != EXPECTED_ASSUME_ROLE_POLICY
+            or actual_policies != expected_documents
+        ):
+            reasons.append("IAM_ROLE_POLICY_ALLOWLIST_INVALID")
     statements = _policy_statements(template)
     all_actions: list[tuple[str, str, Mapping[str, object]]] = []
     for owner, statement in statements:
@@ -643,15 +973,10 @@ def _gate_iam(context: GateContext) -> GateResult:
         for owner, _, statement in invokes
     ):
         reasons.append("QUALIFIED_PRIVATE_INVOKE_PERMISSION_MISSING")
-    raw_managed = resources_of_type(context.template, "AWS::IAM::ManagedPolicy")
+    raw_managed = resources_of_type(template, "AWS::IAM::ManagedPolicy")
     for resource in raw_managed.values():
         if not _properties(resource).get("Roles"):
             reasons.append("DETACHED_MANAGED_POLICY_FORBIDDEN")
-    incomplete = (
-        "BLOCKED" if context.rendered_template is None and context.template_has_sam else None
-    )
-    if incomplete is not None and not reasons:
-        return _result(gate, incomplete, ("RENDERED_IAM_TEMPLATE_REQUIRED",))
     return _result(gate, _status_for(reasons), reasons)
 
 
@@ -747,11 +1072,24 @@ def _gate_artifact(context: GateContext) -> GateResult:
         context.scan_report,
         unavailable_reason="DEPENDENCY_SCAN_REPORT_REQUIRED",
     )
+    toolchain, toolchain_error = _read_canonical_json(
+        context.toolchain,
+        unavailable_reason="DAY15_TOOLCHAIN_RECORD_REQUIRED",
+    )
     if manifest_error:
         (blockers if manifest_error.endswith("REQUIRED") else failures).append(manifest_error)
     if scan_error:
         (blockers if scan_error.endswith("REQUIRED") else failures).append(scan_error)
-    if blockers or failures or manifest is None or scan is None or not context.artifact.is_file():
+    if toolchain_error:
+        (blockers if toolchain_error.endswith("REQUIRED") else failures).append(toolchain_error)
+    if (
+        blockers
+        or failures
+        or manifest is None
+        or scan is None
+        or toolchain is None
+        or not context.artifact.is_file()
+    ):
         status = "FAIL" if failures else "BLOCKED"
         return _result(gate, status, (*failures, *blockers))
     try:
@@ -760,6 +1098,16 @@ def _gate_artifact(context: GateContext) -> GateResult:
     except (ArtifactFailure, OSError):
         return _result(gate, "FAIL", ("LAMBDA_ARTIFACT_INVALID",))
     artifact_sha = hashlib.sha256(artifact_raw).hexdigest()
+    try:
+        fresh = revalidate_artifact(
+            context.artifact,
+            context.lock,
+            context.template_path,
+            context.toolchain,
+        )
+    except ArtifactFailure as error:
+        (blockers if error.status in {"BLOCKED", "PARTIAL"} else failures).append(error.reason)
+        fresh = None
     try:
         repository = validate_repository_inputs(
             BuildPaths(
@@ -796,6 +1144,12 @@ def _gate_artifact(context: GateContext) -> GateResult:
     ]
     if dependencies != expected_dependencies:
         failures.append("ARTIFACT_DEPENDENCY_INVENTORY_MISMATCH")
+    if manifest.get("lambda_like_clean_import") != "PASS":
+        failures.append("LAMBDA_CLEAN_IMPORT_PROOF_INVALID")
+    if manifest.get("archive_scan") != archive:
+        failures.append("ARTIFACT_ARCHIVE_SCAN_PROOF_INVALID")
+    if manifest.get("builder") != toolchain.get("artifact_builder"):
+        failures.append("ARTIFACT_BUILDER_TOOLCHAIN_MISMATCH")
     if repository is not None and manifest.get("repository") != repository:
         failures.append("ARTIFACT_COMMIT_BINDING_MISMATCH")
     rebuild = manifest.get("deterministic_rebuild")
@@ -815,7 +1169,20 @@ def _gate_artifact(context: GateContext) -> GateResult:
         failures.append("ARTIFACT_HANDLER_INVENTORY_MISMATCH")
     if not _metadata_is_public_safe(manifest) or not _metadata_is_public_safe(scan):
         failures.append("ARTIFACT_EVIDENCE_HAS_HOST_OR_TIME_METADATA")
-    if scan.get("artifact_sha256") != artifact_sha or scan.get("lock_sha256") != lock_sha:
+    scanner_contract = toolchain.get("dependency_scanner")
+    expected_scanner_version = (
+        scanner_contract.get("version") if isinstance(scanner_contract, Mapping) else None
+    )
+    if (
+        scan.get("artifact_sha256") != artifact_sha
+        or scan.get("lock_sha256") != lock_sha
+        or scan.get("scanner") != "pip-audit"
+        or scan.get("scanner_version") != expected_scanner_version
+        or scan.get("audited_dependency_count") != len(lock_entries)
+        or scan.get("expected_dependency_count") != len(lock_entries)
+        or scan.get("vulnerability_count") != 0
+        or scan.get("vulnerabilities") != []
+    ):
         failures.append("DEPENDENCY_SCAN_HASH_MISMATCH")
     scan_status = scan.get("status")
     if scan_status == "FAIL":
@@ -831,6 +1198,56 @@ def _gate_artifact(context: GateContext) -> GateResult:
         failures.append("LAMBDA_CONTAINER_VALIDATION_FAILED")
     elif container.get("status") in {"PARTIAL", "BLOCKED"}:
         blockers.append("LAMBDA_CONTAINER_VALIDATION_BLOCKED")
+    container_contract = toolchain.get("lambda_compatible_container")
+    if isinstance(container, Mapping) and isinstance(container_contract, Mapping):
+        image = container_contract.get("image")
+        expected_digest = (
+            image.rsplit("@", 1)[1] if isinstance(image, str) and "@" in image else None
+        )
+        if (
+            container.get("engine") != container_contract.get("engine")
+            or container.get("engine_version") != container_contract.get("engine_version")
+            or container.get("image_digest") != expected_digest
+            or container.get("architecture") != "amd64"
+        ):
+            failures.append("LAMBDA_CONTAINER_IDENTITY_INVALID")
+    if fresh is not None:
+        fresh_scan = fresh.get("scan")
+        fresh_container = fresh.get("lambda_compatible_container_validation")
+        if fresh.get("archive_scan") != archive:
+            failures.append("FRESH_ARCHIVE_SCAN_MISMATCH")
+        if fresh.get("lambda_like_clean_import") != "PASS":
+            failures.append("FRESH_CLEAN_IMPORT_FAILED")
+        if fresh.get("builder") != manifest.get("builder"):
+            failures.append("FRESH_BUILDER_IDENTITY_MISMATCH")
+        if fresh.get("dependencies") != dependencies or fresh.get("handlers") != manifest.get(
+            "handlers"
+        ):
+            failures.append("FRESH_ARTIFACT_INVENTORY_MISMATCH")
+        if isinstance(fresh_scan, Mapping):
+            fresh_scan_status = fresh_scan.get("status")
+            if fresh_scan_status == "FAIL":
+                failures.append("FRESH_DEPENDENCY_SCAN_FAILED")
+            elif fresh_scan_status in {"BLOCKED", "PARTIAL"}:
+                blockers.append("FRESH_DEPENDENCY_SCAN_BLOCKED")
+            elif fresh_scan_status != "PASS":
+                failures.append("FRESH_DEPENDENCY_SCAN_INVALID")
+            elif fresh_scan != scan:
+                failures.append("FRESH_DEPENDENCY_SCAN_MISMATCH")
+        else:
+            failures.append("FRESH_DEPENDENCY_SCAN_INVALID")
+        if isinstance(fresh_container, Mapping):
+            fresh_container_status = fresh_container.get("status")
+            if fresh_container_status == "FAIL":
+                failures.append("FRESH_CONTAINER_VALIDATION_FAILED")
+            elif fresh_container_status in {"BLOCKED", "PARTIAL"}:
+                blockers.append("FRESH_CONTAINER_VALIDATION_BLOCKED")
+            elif fresh_container_status != "PASS":
+                failures.append("FRESH_CONTAINER_VALIDATION_INVALID")
+            elif fresh_container != container:
+                failures.append("FRESH_CONTAINER_VALIDATION_MISMATCH")
+        else:
+            failures.append("FRESH_CONTAINER_VALIDATION_INVALID")
     if failures:
         return _result(gate, "FAIL", failures)
     if blockers:
@@ -896,6 +1313,132 @@ def _gate_region(context: GateContext) -> GateResult:
         reasons.append("TEMPLATE_REGION_GUARD_MISSING")
         status = "FAIL"
     return _result(gate, status, reasons)
+
+
+def _string_constants(node: ast.AST) -> frozenset[str]:
+    return frozenset(
+        item.value
+        for item in ast.walk(node)
+        if isinstance(item, ast.Constant) and isinstance(item.value, str)
+    )
+
+
+def _expression_contract(node: ast.expr) -> str | None:
+    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+        return node.value
+    if isinstance(node, ast.Name):
+        return f"${node.id}"
+    if isinstance(node, ast.Attribute):
+        prefix = _expression_contract(node.value)
+        return f"{prefix}.{node.attr}" if prefix is not None else None
+    return None
+
+
+def _aws_json_command_contract(function: ast.FunctionDef) -> tuple[str, ...] | None:
+    calls = [
+        item
+        for item in ast.walk(function)
+        if isinstance(item, ast.Call) and _call_name(item) == "_aws_json"
+    ]
+    if len(calls) != 1 or not calls[0].args or not isinstance(calls[0].args[0], ast.Tuple):
+        return None
+    values = tuple(_expression_contract(item) for item in calls[0].args[0].elts)
+    if any(value is None for value in values):
+        return None
+    return tuple(str(value) for value in values)
+
+
+def _rollback_contract_is_exact() -> bool:
+    tree = _python_tree(ROLLBACK_TOOL)
+    proof_tree = _python_tree(ROLLBACK_PROOF)
+    if tree is None or proof_tree is None:
+        return False
+    expected_operations = {
+        "_stack_functions": (
+            "cloudformation",
+            "describe-stack-resources",
+            "--stack-name",
+            "$request.stack_name",
+        ),
+        "_alias_version": (
+            "lambda",
+            "get-alias",
+            "--function-name",
+            "$function_name",
+            "--name",
+            "live",
+        ),
+        "_validate_version_exists": (
+            "lambda",
+            "get-function",
+            "--function-name",
+            "$function_name",
+            "--qualifier",
+            "$version",
+        ),
+        "_update_alias": (
+            "lambda",
+            "update-alias",
+            "--function-name",
+            "$function_name",
+            "--name",
+            "live",
+            "--function-version",
+            "$version",
+        ),
+    }
+    functions = {item.name: item for item in tree.body if isinstance(item, ast.FunctionDef)}
+    callers = {name for name, function in functions.items() if "_aws_json" in _call_names(function)}
+    if callers != set(expected_operations):
+        return False
+    if any(
+        (function := functions.get(name)) is None
+        or _aws_json_command_contract(function) != operation
+        for name, operation in expected_operations.items()
+    ):
+        return False
+    build_plan = functions.get("build_plan")
+    execute_plan = functions.get("execute_plan")
+    if build_plan is None or execute_plan is None:
+        return False
+    if not {
+        "_stack_functions",
+        "_alias_version",
+        "_validate_version_exists",
+        "_validate_request",
+    } <= _call_names(build_plan):
+        return False
+    if not {"_update_alias", "build_plan"} <= _call_names(execute_plan):
+        return False
+    if not {
+        "alias-only-rollback-no-rebuild",
+        "PLAN_CONFIRMATION_REQUIRED",
+        "ALIAS_RECONCILIATION_REQUIRED",
+        "ALIASES_MATCH_CAPTURED_VERSIONS",
+        "live",
+    } <= _string_constants(tree):
+        return False
+    forbidden_operations = {
+        "create-alias",
+        "delete-function",
+        "delete-provisioned-concurrency-config",
+        "publish-version",
+        "put-provisioned-concurrency-config",
+        "update-function-code",
+        "update-function-configuration",
+    }
+    if forbidden_operations & _string_constants(tree):
+        return False
+    proof_functions = {
+        item.name: item
+        for item in proof_tree.body
+        if isinstance(item, ast.FunctionDef) and item.name.startswith("test_")
+    }
+    return all(
+        (test := proof_functions.get(name)) is not None
+        and any(isinstance(item, (ast.Assert, ast.With)) for item in ast.walk(test))
+        for name in ROLLBACK_PROOF_NAMES
+    )
 
 
 def _gate_versions(context: GateContext) -> GateResult:
@@ -969,8 +1512,10 @@ def _gate_versions(context: GateContext) -> GateResult:
         digest_status = "FAIL"
         digest_reasons = ("LAMBDA_CONFIGURATION_MODEL_INVALID",)
     reasons.extend(digest_reasons)
-    if not ROLLBACK_RUNBOOK.is_file() or not ROLLBACK_TOOL.is_file():
+    if not ROLLBACK_RUNBOOK.is_file():
         reasons.append("ALIAS_ROLLBACK_RUNBOOK_REQUIRED")
+    if not _rollback_contract_is_exact():
+        reasons.append("ALIAS_ONLY_ROLLBACK_CONTRACT_INVALID")
     failure_reasons = [
         reason for reason in reasons if reason != "LAMBDA_CONFIGURATION_SHA256_REQUIRED"
     ]
@@ -1001,6 +1546,24 @@ def _gate_observability(context: GateContext) -> GateResult:
         reasons.append("NON_AGENTCORE_TELEMETRY_REQUIRED")
     if "agentcore" in template_text:
         reasons.append("AGENTCORE_TELEMETRY_FORBIDDEN")
+    resources = context.template.get("Resources", {})
+    resource_types = (
+        {
+            str(resource.get("Type"))
+            for resource in resources.values()
+            if isinstance(resource, Mapping) and isinstance(resource.get("Type"), str)
+        }
+        if isinstance(resources, Mapping)
+        else set()
+    )
+    if any(
+        resource_type in FORBIDDEN_COST_RESOURCE_TYPES
+        or resource_type.startswith(FORBIDDEN_COST_RESOURCE_PREFIXES)
+        for resource_type in resource_types
+    ):
+        reasons.append("FORBIDDEN_COST_RESOURCE_PRESENT")
+    if any("provisionedconcurrency" in item.casefold() for item in _walk_strings(context.template)):
+        reasons.append("PROVISIONED_CONCURRENCY_FORBIDDEN")
     return _result(gate, _status_for(reasons), reasons)
 
 
@@ -1144,6 +1707,72 @@ def _receipt_result(
     return CheckResult("PASS")
 
 
+def _text_sha256(value: str) -> str:
+    return hashlib.sha256(value.encode("utf-8")).hexdigest()
+
+
+def _deployment_contract_result(
+    contract_path: Path,
+    receipt_path: Path,
+) -> CheckResult:
+    contract, contract_error = _read_canonical_json(
+        contract_path,
+        unavailable_reason="DAY15_DEPLOYMENT_CONTRACT_REQUIRED",
+    )
+    if contract_error is not None:
+        status = "BLOCKED" if contract_error.endswith("REQUIRED") else "FAIL"
+        return CheckResult(status, (contract_error,))
+    assert contract is not None
+    expected_keys = {
+        *DEPLOYMENT_CONTRACT_FIXED,
+        *DEPLOYMENT_CONTRACT_HASH_FIELDS,
+        *DEPLOYMENT_CONTRACT_REVIEW_FIELDS,
+        "status",
+    }
+    if set(contract) != expected_keys or any(
+        contract.get(name) != value for name, value in DEPLOYMENT_CONTRACT_FIXED.items()
+    ):
+        return CheckResult("FAIL", ("DAY15_DEPLOYMENT_CONTRACT_INVALID",))
+    hashes = {name: contract.get(name) for name in DEPLOYMENT_CONTRACT_HASH_FIELDS}
+    reviewed = {name: contract.get(name) for name in DEPLOYMENT_CONTRACT_REVIEW_FIELDS}
+    contract_status = contract.get("status")
+    selected_values = (*hashes.values(), *reviewed.values())
+    if contract_status == "BLOCKED" and all(value is None for value in selected_values):
+        return CheckResult("BLOCKED", ("DEPLOYMENT_CONTRACT_SELECTION_REQUIRED",))
+    if contract_status != "PASS" or not all(
+        isinstance(value, str) and SHA256_PATTERN.fullmatch(value) is not None
+        for value in selected_values
+    ):
+        return CheckResult("FAIL", ("DAY15_DEPLOYMENT_CONTRACT_INVALID",))
+    receipt, receipt_error = _read_canonical_json(
+        receipt_path,
+        unavailable_reason="EXTERNAL_PREFLIGHT_RECEIPT_REQUIRED",
+    )
+    if receipt_error is not None or receipt is None:
+        status = "BLOCKED" if receipt_error and receipt_error.endswith("REQUIRED") else "FAIL"
+        return CheckResult(status, (receipt_error or "EXTERNAL_PREFLIGHT_RECEIPT_REQUIRED",))
+    external = receipt.get("external_identity_bindings")
+    checks = receipt.get("checks")
+    if not isinstance(external, Mapping) or not isinstance(checks, Mapping):
+        return CheckResult("FAIL", ("DEPLOYMENT_CONTRACT_RECEIPT_BINDING_INVALID",))
+    expected_external = {
+        "artifact_bucket_sha256": hashes["artifact_bucket_sha256"],
+        "artifact_path_sha256": _text_sha256(str(DEPLOYMENT_CONTRACT_FIXED["artifact_path"])),
+        "change_set_digest_sha256": _text_sha256(str(reviewed["reviewed_change_set_digest"])),
+        "change_set_name_sha256": _text_sha256(str(DEPLOYMENT_CONTRACT_FIXED["change_set_name"])),
+        "deployment_profile_sha256": _text_sha256(
+            str(DEPLOYMENT_CONTRACT_FIXED["deployment_profile"])
+        ),
+        "deployment_role_arn_sha256": hashes["deployment_role_arn_sha256"],
+        "stack_name_sha256": _text_sha256(str(DEPLOYMENT_CONTRACT_FIXED["stack_name"])),
+    }
+    if any(external.get(name) != value for name, value in expected_external.items()):
+        return CheckResult("FAIL", ("DEPLOYMENT_CONTRACT_RECEIPT_BINDING_INVALID",))
+    if any(checks.get(name) != "PASS" for name in BUCKET_CONTROL_CHECKS):
+        return CheckResult("FAIL", ("DEPLOYMENT_BUCKET_CONTROLS_NOT_ATTESTED",))
+    return CheckResult("PASS")
+
+
 def _template_token_binding(template: dict[str, object]) -> bool:
     for name, function in _functions(template).items():
         if not _is_orchestrator(name, function):
@@ -1152,6 +1781,44 @@ def _template_token_binding(template: dict[str, object]) -> bool:
         variables = environment.get("Variables") if isinstance(environment, Mapping) else None
         return isinstance(variables, Mapping) and "JUDGE_TOKEN_NOT_AFTER" in variables
     return False
+
+
+def _aws_cli_tool_result(toolchain: Mapping[str, object]) -> CheckResult:
+    contract = toolchain.get("aws_cli")
+    if contract != {"status": "PASS", "version": PINNED_AWS_CLI_VERSION}:
+        return CheckResult("FAIL", ("AWS_CLI_NOT_EXACTLY_PINNED",))
+    executable = shutil.which("aws")
+    if executable is None:
+        return CheckResult("BLOCKED", ("PINNED_AWS_CLI_UNAVAILABLE",))
+    environment = {
+        "AWS_CONFIG_FILE": os.devnull,
+        "AWS_EC2_METADATA_DISABLED": "true",
+        "AWS_IGNORE_CONFIGURED_ENDPOINT_URLS": "true",
+        "AWS_SHARED_CREDENTIALS_FILE": os.devnull,
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8",
+        "PATH": os.environ.get("PATH", "/usr/bin:/bin"),
+    }
+    try:
+        result = subprocess.run(
+            (executable, "--version"),
+            cwd=ROOT,
+            env=environment,
+            check=False,
+            stdin=subprocess.DEVNULL,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return CheckResult("BLOCKED", ("PINNED_AWS_CLI_UNAVAILABLE",))
+    output = f"{result.stdout}{result.stderr}".strip()
+    match = AWS_CLI_VERSION_PATTERN.match(output)
+    if result.returncode != 0 or match is None:
+        return CheckResult("BLOCKED", ("AWS_CLI_VERSION_UNAVAILABLE",))
+    if match.group(1) != PINNED_AWS_CLI_VERSION:
+        return CheckResult("FAIL", ("AWS_CLI_VERSION_MISMATCH",))
+    return CheckResult("PASS")
 
 
 def _gate_external(context: GateContext) -> GateResult:
@@ -1194,6 +1861,12 @@ def _gate_external(context: GateContext) -> GateResult:
         )
         statuses.append(receipt.status)
         reasons.extend(receipt.reasons)
+    deployment_contract = _deployment_contract_result(
+        context.deployment_contract,
+        context.external_receipt,
+    )
+    statuses.append(deployment_contract.status)
+    reasons.extend(deployment_contract.reasons)
     if not _template_token_binding(context.template):
         statuses.append("FAIL")
         reasons.append("TEMPLATE_JUDGE_TOKEN_EXPIRY_BINDING_MISSING")
@@ -1205,10 +1878,9 @@ def _gate_external(context: GateContext) -> GateResult:
         statuses.append("BLOCKED" if toolchain_error.endswith("REQUIRED") else "FAIL")
         reasons.append(toolchain_error)
     elif toolchain is not None:
-        aws_cli = toolchain.get("aws_cli")
-        if not isinstance(aws_cli, Mapping) or aws_cli.get("status") != "PASS":
-            statuses.append("BLOCKED")
-            reasons.append("PINNED_AWS_CLI_UNAVAILABLE")
+        aws_cli = _aws_cli_tool_result(toolchain)
+        statuses.append(aws_cli.status)
+        reasons.extend(aws_cli.reasons)
     return _result(gate, combine_status(*statuses), reasons)
 
 
@@ -1251,6 +1923,7 @@ def run_gate(
     manifest: Path = DEFAULT_MANIFEST,
     scan_report: Path = DEFAULT_SCAN_REPORT,
     toolchain: Path = DEFAULT_TOOLCHAIN,
+    deployment_contract: Path = DEFAULT_DEPLOYMENT_CONTRACT,
     external_receipt: Path = DEFAULT_RECEIPT,
     external_attestation_key: Path | None = None,
     region: str | None,
@@ -1287,6 +1960,7 @@ def run_gate(
         judge_token_not_after=judge_token_not_after,
         lambda_configuration_sha256=lambda_configuration_sha256,
         clock=clock,
+        deployment_contract=deployment_contract,
     )
     results = (
         _gate_runtime(context),
@@ -1322,6 +1996,11 @@ def main() -> int:
     parser.add_argument("--manifest", type=Path, default=DEFAULT_MANIFEST)
     parser.add_argument("--scan-report", type=Path, default=DEFAULT_SCAN_REPORT)
     parser.add_argument("--toolchain", type=Path, default=DEFAULT_TOOLCHAIN)
+    parser.add_argument(
+        "--deployment-contract",
+        type=Path,
+        default=DEFAULT_DEPLOYMENT_CONTRACT,
+    )
     parser.add_argument("--external-receipt", type=Path, default=DEFAULT_RECEIPT)
     parser.add_argument("--external-attestation-key-file", type=Path)
     parser.add_argument("--region")
@@ -1341,6 +2020,7 @@ def main() -> int:
             manifest=args.manifest,
             scan_report=args.scan_report,
             toolchain=args.toolchain,
+            deployment_contract=args.deployment_contract,
             external_receipt=args.external_receipt,
             external_attestation_key=args.external_attestation_key_file,
             region=args.region,

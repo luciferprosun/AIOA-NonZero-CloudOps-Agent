@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import errno
+import json
 import os
 import re
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 from scripts.day15 import build_lambda_artifact as artifact
@@ -389,7 +391,7 @@ def _fake_dependency_scan(
     returncode: int = 0,
 ) -> dict[str, object]:
     monkeypatch.setattr(artifact.importlib.util, "find_spec", lambda _name: object())
-    monkeypatch.setattr(artifact.importlib.metadata, "version", lambda _name: "9.9.9")
+    monkeypatch.setattr(artifact.importlib.metadata, "version", lambda _name: "2.10.1")
     monkeypatch.setattr(
         artifact.subprocess,
         "run",
@@ -406,6 +408,7 @@ def _fake_dependency_scan(
         expected_inventory=(("alpha", "1"), ("beta", "2")),
         lock_sha256="b" * 64,
         enabled=True,
+        toolchain=artifact._read_toolchain(),
     )
 
 
@@ -427,6 +430,81 @@ def test_dependency_scan_pass_requires_exact_complete_locked_inventory(
     assert report["status"] == "PASS"
     assert report["audited_dependency_count"] == 2
     assert report["expected_dependency_count"] == 2
+
+
+def test_dependency_scan_rejects_installed_scanner_version_drift(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(artifact.importlib.util, "find_spec", lambda _name: object())
+    monkeypatch.setattr(artifact.importlib.metadata, "version", lambda _name: "2.10.0")
+
+    report = artifact.dependency_security_scan(
+        tmp_path,
+        artifact_sha256="a" * 64,
+        expected_inventory=(),
+        lock_sha256="b" * 64,
+        enabled=True,
+        toolchain=artifact._read_toolchain(),
+    )
+
+    assert report["status"] == "FAIL"
+    assert report["reasons"] == ["PIP_AUDIT_VERSION_MISMATCH"]
+
+
+def test_container_validation_binds_engine_version_platform_and_manifest_digest(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    toolchain = artifact._read_toolchain()
+    contract = toolchain["lambda_compatible_container"]
+    assert isinstance(contract, dict)
+    image = str(contract["image"])
+    digest = image.rsplit("@", 1)[1]
+    monkeypatch.setattr(artifact.shutil, "which", lambda _name: "/usr/bin/podman")
+    calls: list[tuple[str, ...]] = []
+
+    def fake_run(command: object, **_kwargs: object) -> SimpleNamespace:
+        arguments = tuple(command)  # type: ignore[arg-type]
+        calls.append(arguments)
+        if arguments[-1] == "--version":
+            return SimpleNamespace(returncode=0, stdout="podman version 4.9.3\n")
+        if arguments[1:3] == ("image", "inspect"):
+            return SimpleNamespace(
+                returncode=0,
+                stdout=json.dumps([{"Architecture": "amd64", "Digest": digest}]),
+            )
+        return SimpleNamespace(returncode=0, stdout="")
+
+    monkeypatch.setattr(artifact.subprocess, "run", fake_run)
+
+    result = artifact.lambda_container_validation(tmp_path, (), toolchain=toolchain)
+
+    assert result == {
+        "architecture": "amd64",
+        "engine": "podman",
+        "engine_version": "4.9.3",
+        "image_digest": digest,
+        "status": "PASS",
+        "validator": "lambda-python3.12-x86_64-container",
+    }
+    run_command = next(arguments for arguments in calls if "run" in arguments)
+    assert {
+        "--cap-drop=ALL",
+        "--cgroups=disabled",
+        "--ipc=none",
+        "--mount=type=bind,src=/dev/pts,dst=/dev/pts,ro=true",
+        "--network=none",
+        "--read-only",
+        "--security-opt=no-new-privileges",
+    } <= set(run_command)
+    assert "--pull=never" in run_command
+    assert "--platform=linux/amd64" in run_command
+
+    changed = dict(toolchain)
+    changed["lambda_compatible_container"] = {**contract, "engine_version": "4.9.2"}
+    mismatch = artifact.lambda_container_validation(tmp_path, (), toolchain=changed)
+    assert mismatch == {"reason": "CONTAINER_ENGINE_VERSION_MISMATCH", "status": "FAIL"}
 
 
 @pytest.mark.parametrize(
@@ -592,6 +670,22 @@ def test_exact_builder_identity_is_loaded_from_toolchain() -> None:
         artifact._validate_builder_identity(changed)
     assert mismatch.value.reason == "BUILDER_IDENTITY_NOT_PINNED"
     assert mismatch.value.status == "BLOCKED"
+
+
+def test_toolchain_parser_rejects_self_fulfilling_version_or_digest_drift() -> None:
+    toolchain = artifact._read_toolchain()
+    changed = dict(toolchain)
+    changed["dependency_scanner"] = {
+        "name": "pip-audit",
+        "status": "PASS",
+        "version": "999.0.0",
+    }
+
+    with pytest.raises(artifact.ArtifactFailure) as failure:
+        artifact._parse_toolchain((artifact.canonical_json(changed) + "\n").encode())
+
+    assert failure.value.reason == "TOOLCHAIN_RECORD_INVALID"
+    assert failure.value.status == "BLOCKED"
 
 
 def test_builder_source_contains_no_literal_account_placeholder_or_legacy_tag_contract() -> None:
