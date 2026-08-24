@@ -4,6 +4,12 @@ from collections.abc import Callable, Mapping
 from enum import StrEnum
 from typing import Final, TypeVar
 
+from .circuit import (
+    CircuitDependency,
+    CircuitPermit,
+    DependencyCircuitBreaker,
+)
+
 
 class RetryOperationClass(StrEnum):
     """Closed operation classes used by the automatic retry matrix."""
@@ -41,12 +47,37 @@ _TRANSIENT_CODES: Final[frozenset[str]] = frozenset(
     }
 )
 _TRANSIENT_HTTP_STATUSES: Final[frozenset[int]] = frozenset({429, 500, 502, 503, 504})
+_PERMANENT_CODES: Final[frozenset[str]] = frozenset(
+    {
+        "AccessDenied",
+        "AccessDeniedException",
+        "InvalidClientTokenId",
+        "InvalidParameter",
+        "InvalidParameterValue",
+        "ResourceNotFoundException",
+        "UnauthorizedOperation",
+        "UnrecognizedClientException",
+        "ValidationError",
+        "ValidationException",
+    }
+)
+_TRANSIENT_TRANSPORT_ERRORS: Final[frozenset[tuple[str, str]]] = frozenset(
+    {
+        ("botocore.exceptions", "ConnectTimeoutError"),
+        ("botocore.exceptions", "ConnectionClosedError"),
+        ("botocore.exceptions", "EndpointConnectionError"),
+        ("botocore.exceptions", "ReadTimeoutError"),
+    }
+)
 
 
 def is_known_transient_read_error(error: Exception) -> bool:
     """Recognize only allow-listed transient read failures; AccessDenied is permanent."""
 
     if isinstance(error, (TimeoutError, ConnectionError)):
+        return True
+    error_type = type(error)
+    if (error_type.__module__, error_type.__name__) in _TRANSIENT_TRANSPORT_ERRORS:
         return True
     response = getattr(error, "response", None)
     if not isinstance(response, Mapping):
@@ -55,10 +86,21 @@ def is_known_transient_read_error(error: Exception) -> bool:
     code = details.get("Code") if isinstance(details, Mapping) else None
     metadata = response.get("ResponseMetadata")
     status = metadata.get("HTTPStatusCode") if isinstance(metadata, Mapping) else None
+    if code in _PERMANENT_CODES:
+        return False
     return code in _TRANSIENT_CODES or status in _TRANSIENT_HTTP_STATUSES
 
 
 ResultValue = TypeVar("ResultValue")
+
+
+class ReadRetryStateUnavailableError(RuntimeError):
+    """Audit-safe failure when the bounded retry guard cannot continue."""
+
+    reason_code: Final = "READ_RETRY_STATE_UNAVAILABLE"
+
+    def __init__(self) -> None:
+        super().__init__("Bounded read retry state is unavailable")
 
 
 class BoundedReadRetry:
@@ -69,6 +111,8 @@ class BoundedReadRetry:
         *,
         max_attempts: int = 2,
         sleeper: Callable[[int], None] | None = None,
+        circuit_breaker: DependencyCircuitBreaker | None = None,
+        dependency: CircuitDependency | None = None,
     ) -> None:
         if isinstance(max_attempts, bool) or not isinstance(max_attempts, int):
             raise TypeError("max_attempts must be an integer")
@@ -76,8 +120,18 @@ class BoundedReadRetry:
             raise ValueError("read retry max_attempts must be between 1 and 3")
         if sleeper is not None and not callable(sleeper):
             raise TypeError("sleeper must be callable")
+        if (circuit_breaker is None) != (dependency is None):
+            raise ValueError("circuit_breaker and dependency must be configured together")
+        if circuit_breaker is not None and not isinstance(
+            circuit_breaker, DependencyCircuitBreaker
+        ):
+            raise TypeError("circuit_breaker must be DependencyCircuitBreaker")
+        if dependency is not None and not isinstance(dependency, CircuitDependency):
+            raise TypeError("dependency must be CircuitDependency")
         self._max_attempts = max_attempts
         self._sleeper = sleeper or (lambda _: None)
+        self._circuit_breaker = circuit_breaker
+        self._dependency = dependency
 
     @property
     def max_attempts(self) -> int:
@@ -98,11 +152,31 @@ class BoundedReadRetry:
             RetryOperationClass.VERIFICATION_POLL,
         }:
             raise ValueError("automatic retry is restricted to read-only operations")
-        for attempt in range(1, self._max_attempts + 1):
+        permit: CircuitPermit | None = None
+        if self._circuit_breaker is not None and self._dependency is not None:
+            permit = self._circuit_breaker.acquire(self._dependency)
+        attempt_cap = 1 if permit is not None and permit.half_open else self._max_attempts
+        for attempt in range(1, attempt_cap + 1):
             try:
-                return operation()
+                result = operation()
             except Exception as error:
-                if attempt >= self._max_attempts or not is_known_transient_read_error(error):
+                transient = is_known_transient_read_error(error)
+                if attempt < attempt_cap and transient:
+                    try:
+                        self._sleeper(attempt)
+                    except Exception as sleeper_error:
+                        if permit is not None and self._circuit_breaker is not None:
+                            self._circuit_breaker.record_transient_failure(permit)
+                        raise ReadRetryStateUnavailableError() from sleeper_error
+                    continue
+                if permit is not None and self._circuit_breaker is not None:
+                    if transient:
+                        self._circuit_breaker.record_transient_failure(permit)
+                    else:
+                        self._circuit_breaker.record_permanent_outcome(permit)
                     raise
-                self._sleeper(attempt)
+                raise
+            if permit is not None and self._circuit_breaker is not None:
+                self._circuit_breaker.record_success(permit)
+            return result
         raise AssertionError("bounded retry loop returned no result")

@@ -320,7 +320,7 @@ def test_scope_denial_and_dependency_failure_are_distinguishable() -> None:
     assert unavailable.status is ResultStatus.FAILURE
     assert unavailable.failure is not None
     assert unavailable.failure.kind is FailureKind.DEPENDENCY_UNAVAILABLE
-    assert unavailable.failure.retryable is True
+    assert unavailable.failure.retryable is False
     assert "provider-secret-detail" not in unavailable.model_dump_json()
 
 

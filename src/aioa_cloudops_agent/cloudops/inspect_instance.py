@@ -17,7 +17,11 @@ from aioa_cloudops_agent.persistence.models import (
     ProvenanceEventType,
     ProvenanceRecord,
 )
-from aioa_cloudops_agent.safety.retry import BoundedReadRetry
+from aioa_cloudops_agent.safety import (
+    CircuitOpenError,
+    CircuitStateUnavailableError,
+)
+from aioa_cloudops_agent.safety.retry import BoundedReadRetry, is_known_transient_read_error
 
 from .ec2_readonly import Ec2DescribeInstancesClient
 from .models import (
@@ -58,11 +62,18 @@ class InstanceInspectionError(DomainError):
 class InstanceInspectionDependencyError(DomainError):
     """Raised when EC2 evidence cannot be read from the provider dependency."""
 
-    def __init__(self, message: str) -> None:
+    def __init__(
+        self,
+        message: str,
+        *,
+        failure_code: str = "EC2_DESCRIBE_UNAVAILABLE",
+        retryable: bool = True,
+    ) -> None:
+        self.failure_code = failure_code
         super().__init__(
             code=ErrorCode.CLOUDOPS_RESPONSE_INVALID,
             message=message,
-            retryable=True,
+            retryable=retryable,
         )
 
 
@@ -155,9 +166,22 @@ class InspectInstanceService:
             response = self._retry.run(
                 lambda: self._client.describe_instances(InstanceIds=[requested_id])
             )
+        except CircuitOpenError as error:
+            raise InstanceInspectionDependencyError(
+                "EC2 read is suppressed by the dependency circuit",
+                failure_code="EC2_READ_CIRCUIT_OPEN",
+                retryable=False,
+            ) from error
+        except CircuitStateUnavailableError as error:
+            raise InstanceInspectionDependencyError(
+                "EC2 dependency circuit state is unavailable",
+                failure_code="EC2_READ_CIRCUIT_UNAVAILABLE",
+                retryable=False,
+            ) from error
         except Exception as error:
             raise InstanceInspectionDependencyError(
-                "DescribeInstances dependency is unavailable"
+                "DescribeInstances dependency is unavailable",
+                retryable=is_known_transient_read_error(error),
             ) from error
         response_mapping = _required_mapping(response, "response")
         instance = _single_returned_instance(response_mapping)
@@ -218,9 +242,9 @@ class InspectInstanceService:
             return ControlResult[InstanceInspection].failed(
                 FailureDetail(
                     kind=FailureKind.DEPENDENCY_UNAVAILABLE,
-                    code="EC2_DESCRIBE_UNAVAILABLE",
+                    code=error.failure_code,
                     message=error.message,
-                    retryable=True,
+                    retryable=error.retryable,
                 )
             )
         except ContractValidationError as error:

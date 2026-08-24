@@ -61,6 +61,14 @@ DIGEST = "a" * 64
 REQUEST_HASH = "b" * 64
 
 
+def _identity() -> InvestigationIdentity:
+    return InvestigationIdentity(
+        run_id=RUN_ID,
+        trace_id=TRACE_ID,
+        correlation_id=CORRELATION_ID,
+    )
+
+
 class UuidFactory:
     def __init__(self, start: int) -> None:
         self.value = start
@@ -290,7 +298,7 @@ def test_verify_tool_is_auto_read_only_and_accepts_only_proposal_reference() -> 
         calls.append(proposal_id)
         return {"status": "SUCCESS", "value": "verified", "failure": None}
 
-    verify_tool = create_verify_instance_state_tool(handler)
+    verify_tool = create_verify_instance_state_tool(handler, _identity())
     schema = verify_tool.tool_spec["inputSchema"]["json"]
 
     assert verify_tool.tool_name == "verify_instance_state"

@@ -81,11 +81,13 @@ class RecordingTracer:
 
 
 def test_agent_trace_attributes_propagate_uuidv7_correlation() -> None:
-    correlation_id = generate_correlation_id()
+    identity = _identity()
 
-    attributes = build_agent_trace_attributes(correlation_id)
+    attributes = build_agent_trace_attributes(identity)
 
-    assert attributes["aioa.correlation_id"] == str(correlation_id)
+    assert attributes["aioa.run_id"] == str(identity.run_id)
+    assert attributes["aioa.trace_id"] == str(identity.trace_id)
+    assert attributes["aioa.correlation_id"] == str(identity.correlation_id)
     assert attributes["aioa.agent_id"] == "aioa-nonzero-cloudops-primary"
     assert attributes["aioa.authority_gate"] == "AUTO"
     assert attributes["aioa.operation_class"] == "READ_ONLY"

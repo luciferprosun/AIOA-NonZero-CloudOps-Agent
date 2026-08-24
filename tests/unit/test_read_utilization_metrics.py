@@ -233,6 +233,81 @@ def test_wrong_or_missing_cloudwatch_unit_fails_explicitly() -> None:
         assert result.failure.kind is FailureKind.AMBIGUOUS_RESULT
 
 
+@pytest.mark.parametrize(
+    "response",
+    [
+        {"Datapoints": []},
+        {
+            "Datapoints": [
+                {
+                    "Timestamp": COLLECTED_AT - timedelta(minutes=5),
+                    "Unit": "Percent",
+                }
+            ]
+        },
+        {
+            "Datapoints": [
+                {
+                    "Timestamp": COLLECTED_AT - timedelta(hours=2),
+                    "Average": 0.0,
+                    "Unit": "Percent",
+                }
+            ]
+        },
+        {
+            "Datapoints": [
+                {
+                    "Timestamp": COLLECTED_AT - timedelta(minutes=5),
+                    "Average": 0.0,
+                    "Unit": "Percent",
+                },
+                {
+                    "Timestamp": COLLECTED_AT - timedelta(minutes=10),
+                    "Average": 0.0,
+                    "Unit": "Bytes",
+                },
+            ]
+        },
+        {
+            "Datapoints": [
+                {
+                    "Timestamp": COLLECTED_AT - timedelta(minutes=5),
+                    "Average": 0.0,
+                    "Unit": "Percent",
+                },
+                {
+                    "Timestamp": COLLECTED_AT - timedelta(minutes=5),
+                    "Average": 99.0,
+                    "Unit": "Percent",
+                },
+            ]
+        },
+    ],
+    ids=("empty", "missing-average", "stale", "mixed-units", "contradictory"),
+)
+def test_cloudwatch_ambiguity_matrix_never_guesses_zero(
+    response: dict[str, object],
+) -> None:
+    service, _ = _service(response)
+
+    result = service.read_result(
+        inspection=_inspection(),
+        identity=_identity(),
+        collected_at=COLLECTED_AT,
+    )
+
+    if result.status is ResultStatus.SUCCESS:
+        assert result.value is not None
+        assert result.value.classification is UtilizationClassification.AMBIGUOUS
+        assert result.value.average_cpu_percent is None
+        assert result.value.datapoint_count == 0
+    else:
+        assert result.failure is not None
+        assert result.failure.kind is FailureKind.AMBIGUOUS_RESULT
+        assert result.failure.code == "METRIC_EVIDENCE_INVALID"
+        assert result.value is None
+
+
 def test_cloudwatch_failure_is_sanitized_dependency_failure() -> None:
     service, _ = _service(RuntimeError("provider-secret-detail"))
 
@@ -245,7 +320,7 @@ def test_cloudwatch_failure_is_sanitized_dependency_failure() -> None:
     assert result.status is ResultStatus.FAILURE
     assert result.failure is not None
     assert result.failure.kind is FailureKind.DEPENDENCY_UNAVAILABLE
-    assert result.failure.retryable is True
+    assert result.failure.retryable is False
     assert "provider-secret-detail" not in result.model_dump_json()
 
 

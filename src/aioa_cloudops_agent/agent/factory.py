@@ -39,6 +39,11 @@ from aioa_cloudops_agent.remediation import (
     create_stop_sandbox_instance_tool,
     unavailable_stop_request,
 )
+from aioa_cloudops_agent.safety import (
+    BoundedReadRetry,
+    CircuitDependency,
+    DependencyCircuitBreaker,
+)
 from aioa_cloudops_agent.verification import (
     VERIFY_INSTANCE_STATE_TOOL_NAME,
     VerificationRequestHandler,
@@ -82,6 +87,7 @@ class PrimaryAgentRuntime:
     model_settings: BedrockSettings
     target: SandboxTarget
     proposal_id: UUID
+    dependency_circuit: DependencyCircuitBreaker
 
     @property
     def registered_tool_names(self) -> tuple[str, ...]:
@@ -156,6 +162,7 @@ def create_primary_agent(
     durable_repository: DurableTruthRepository | None = None,
     stop_request_handler: StopRequestHandler | None = None,
     verification_request_handler: VerificationRequestHandler | None = None,
+    dependency_circuit: DependencyCircuitBreaker | None = None,
 ) -> PrimaryAgentRuntime:
     """Create one Strands Agent with the canonical bounded five-tool surface."""
 
@@ -177,11 +184,24 @@ def create_primary_agent(
     settings = model_settings if model_settings is not None else BedrockSettings()
     if not isinstance(settings, BedrockSettings):
         raise ContractValidationError("model_settings must be BedrockSettings")
+    active_circuit = (
+        dependency_circuit
+        if dependency_circuit is not None
+        else DependencyCircuitBreaker()
+    )
+    if not isinstance(active_circuit, DependencyCircuitBreaker):
+        raise ContractValidationError(
+            "dependency_circuit must be DependencyCircuitBreaker"
+        )
 
     inspection_service = InspectInstanceService(
         ec2_client,
         target,
         region=settings.region,
+        retry=BoundedReadRetry(
+            circuit_breaker=active_circuit,
+            dependency=CircuitDependency.EC2_READ,
+        ),
     )
     policy = idle_policy if idle_policy is not None else IdlePolicySettings()
     if not isinstance(policy, IdlePolicySettings):
@@ -190,6 +210,10 @@ def create_primary_agent(
         cloudwatch_client,
         target,
         policy,
+        retry=BoundedReadRetry(
+            circuit_breaker=active_circuit,
+            dependency=CircuitDependency.CLOUDWATCH_READ,
+        ),
     )
     evidence_service = BuildRemediationEvidenceService(target)
     tool_context = InvestigationToolContext(identity=identity)
@@ -220,10 +244,12 @@ def create_primary_agent(
     )
     stop_tool = create_stop_sandbox_instance_tool(
         stop_request_handler or unavailable_stop_request,
+        identity,
         tracer=tracer,
     )
     verification_tool = create_verify_instance_state_tool(
         verification_request_handler or unavailable_verification_request,
+        identity,
         tracer=tracer,
     )
     intervention = create_human_in_the_loop(
@@ -250,7 +276,7 @@ def create_primary_agent(
         callback_handler=None,
         load_tools_from_directory=False,
         record_direct_tool_call=True,
-        trace_attributes=build_agent_trace_attributes(context.correlation_id),
+        trace_attributes=build_agent_trace_attributes(identity),
     )
     if tuple(primary_agent.tool_names) != CURRENT_TOOL_NAMES:
         raise ContractValidationError("primary agent tool surface is not canonical")
@@ -267,4 +293,5 @@ def create_primary_agent(
         model_settings=settings,
         target=target,
         proposal_id=proposal_id,
+        dependency_circuit=active_circuit,
     )

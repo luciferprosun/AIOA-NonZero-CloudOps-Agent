@@ -9,6 +9,7 @@ from opentelemetry.trace import Tracer
 from strands import tool
 from strands.tools.decorator import DecoratedFunctionTool
 
+from aioa_cloudops_agent.cloudops import InvestigationIdentity
 from aioa_cloudops_agent.domain.errors import ContractValidationError
 from aioa_cloudops_agent.domain.identifiers import validate_correlation_id
 from aioa_cloudops_agent.nz import ControlResult, FailureDetail, FailureKind
@@ -33,6 +34,7 @@ def unavailable_verification_request(proposal_id: UUID) -> dict[str, object]:
 
 def create_verify_instance_state_tool(
     handler: VerificationRequestHandler,
+    identity: InvestigationIdentity,
     *,
     tracer: Tracer | None = None,
 ) -> DecoratedFunctionTool:
@@ -40,6 +42,8 @@ def create_verify_instance_state_tool(
 
     if not callable(handler):
         raise ContractValidationError("verification request handler must be callable")
+    if not isinstance(identity, InvestigationIdentity):
+        raise ContractValidationError("identity must be an InvestigationIdentity")
     active_tracer = tracer or trace.get_tracer("aioa_cloudops_agent.verification")
 
     @tool(name=VERIFY_INSTANCE_STATE_TOOL_NAME)
@@ -47,6 +51,9 @@ def create_verify_instance_state_tool(
         """Read back the exact approved sandbox state and persist typed proof."""
 
         with active_tracer.start_as_current_span("cloudops.verify_instance_state") as span:
+            span.set_attribute("aioa.run_id", str(identity.run_id))
+            span.set_attribute("aioa.trace_id", str(identity.trace_id))
+            span.set_attribute("aioa.correlation_id", str(identity.correlation_id))
             span.set_attribute("aioa.tool_name", VERIFY_INSTANCE_STATE_TOOL_NAME)
             span.set_attribute("aioa.authority_gate", "AUTO")
             span.set_attribute("aioa.operation_class", "READ_ONLY")

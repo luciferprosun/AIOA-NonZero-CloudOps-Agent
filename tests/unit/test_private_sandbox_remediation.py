@@ -8,6 +8,7 @@ from uuid import UUID
 import pytest
 from pydantic import ValidationError
 
+from aioa_cloudops_agent.cloudops import InvestigationIdentity
 from aioa_cloudops_agent.config import SandboxRemediationSettings
 from aioa_cloudops_agent.domain import AuthorityGate
 from aioa_cloudops_agent.nz import (
@@ -70,6 +71,14 @@ EVENT_IDS = tuple(
 NOW = datetime(2026, 8, 23, 19, 0, tzinfo=UTC)
 DIGEST = "a" * 64
 REQUEST_HASH = "b" * 64
+
+
+def _identity() -> InvestigationIdentity:
+    return InvestigationIdentity(
+        run_id=RUN_ID,
+        trace_id=TRACE_ID,
+        correlation_id=CORRELATION_ID,
+    )
 
 
 class EventIdFactory:
@@ -765,7 +774,7 @@ def test_stop_tool_accepts_only_proposal_reference_and_no_mutation_options() -> 
         calls.append(proposal_id)
         return {"status": "SUCCESS", "value": "accepted", "failure": None}
 
-    stop_tool = create_stop_sandbox_instance_tool(handler)
+    stop_tool = create_stop_sandbox_instance_tool(handler, _identity())
     schema = stop_tool.tool_spec["inputSchema"]["json"]
 
     assert schema["required"] == ["proposal_id"]
@@ -788,7 +797,8 @@ def test_model_like_payload_cannot_construct_privileged_execution_command() -> N
 
 def test_model_and_tool_payload_cannot_set_emergency_state() -> None:
     stop_tool = create_stop_sandbox_instance_tool(
-        lambda _proposal_id: {"status": "FAILURE", "value": None, "failure": None}
+        lambda _proposal_id: {"status": "FAILURE", "value": None, "failure": None},
+        _identity(),
     )
     schema = stop_tool.tool_spec["inputSchema"]["json"]
     payload = _command().model_dump(mode="json")

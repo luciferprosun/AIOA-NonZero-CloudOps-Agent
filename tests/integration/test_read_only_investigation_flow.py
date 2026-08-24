@@ -151,12 +151,19 @@ class FakeEc2Client:
 
 
 class FakeCloudWatchClient:
-    def __init__(self, values: tuple[float, ...]) -> None:
+    def __init__(
+        self,
+        values: tuple[float, ...],
+        response: dict[str, object] | None = None,
+    ) -> None:
         self.values = values
+        self.response = response
         self.calls: list[dict[str, object]] = []
 
     def get_metric_statistics(self, **kwargs: object) -> dict[str, object]:
         self.calls.append(kwargs)
+        if self.response is not None:
+            return self.response
         return {
             "Datapoints": [
                 {
@@ -252,6 +259,7 @@ def _flow(
     ec2_client: FakeEc2Client | None = None,
     repository: RecordingRepository | None = None,
     monotonic: Callable[[], float] | None = None,
+    cloudwatch_response: dict[str, object] | None = None,
 ) -> tuple[
     BoundedInvestigationFlow,
     object,
@@ -262,7 +270,7 @@ def _flow(
 ]:
     actual_model = model or ScriptedInvestigationModel()
     actual_ec2 = ec2_client or FakeEc2Client()
-    cloudwatch = FakeCloudWatchClient(values)
+    cloudwatch = FakeCloudWatchClient(values, cloudwatch_response)
     actual_repository = repository or RecordingRepository()
     identity = InvestigationIdentity(
         run_id=RUN_ID,
@@ -349,6 +357,89 @@ def test_missing_metrics_end_ambiguous_without_proposal() -> None:
     assert result.failure.kind is FailureKind.AMBIGUOUS_RESULT
     assert repository.get_run(RUN_ID).state is WorkflowState.AMBIGUOUS_RESULT
     assert repository.get_proposal(PROPOSAL_ID) is None
+
+
+@pytest.mark.parametrize(
+    "response",
+    [
+        {"Datapoints": []},
+        {
+            "Datapoints": [
+                {
+                    "Timestamp": NOW - timedelta(minutes=5),
+                    "Unit": "Percent",
+                }
+            ]
+        },
+        {
+            "Datapoints": [
+                {
+                    "Timestamp": NOW - timedelta(hours=2),
+                    "Average": 0.0,
+                    "Unit": "Percent",
+                }
+            ]
+        },
+        {
+            "Datapoints": [
+                {
+                    "Timestamp": NOW - timedelta(minutes=5),
+                    "Average": 0.0,
+                    "Unit": "Percent",
+                },
+                {
+                    "Timestamp": NOW - timedelta(minutes=10),
+                    "Average": 0.0,
+                    "Unit": "Bytes",
+                },
+            ]
+        },
+        {
+            "Datapoints": [
+                {
+                    "Timestamp": NOW - timedelta(minutes=5),
+                    "Average": 0.0,
+                    "Unit": "Percent",
+                },
+                {
+                    "Timestamp": NOW - timedelta(minutes=5),
+                    "Average": 99.0,
+                    "Unit": "Percent",
+                },
+            ]
+        },
+    ],
+    ids=("empty", "missing-average", "stale", "mixed-units", "contradictory"),
+)
+def test_ambiguous_cloudwatch_evidence_never_creates_idle_proposal(
+    response: dict[str, object],
+) -> None:
+    flow, runtime, _, _, _, repository = _flow(cloudwatch_response=response)
+
+    result = flow.execute(_run())
+
+    assert result.status is ResultStatus.FAILURE
+    assert result.failure is not None
+    assert result.failure.kind is FailureKind.AMBIGUOUS_RESULT
+    assert result.failure.code in {"EVIDENCE_AMBIGUOUS", "METRIC_EVIDENCE_INVALID"}
+    assert any(
+        reason in result.failure.message.casefold()
+        for reason in (
+            "ambiguous",
+            "duplicate",
+            "malformed",
+            "missing",
+            "outside",
+            "unit",
+        )
+    )
+    assert repository.get_run(RUN_ID).state is WorkflowState.AMBIGUOUS_RESULT
+    assert repository.get_proposal(PROPOSAL_ID) is None
+    assert repository.proposal_creates == 0
+    utilization = runtime.tool_context.utilization()
+    if utilization is not None:
+        assert utilization.classification.value == "AMBIGUOUS"
+        assert utilization.average_cpu_percent is None
 
 
 def test_sandbox_tag_failure_stops_cloudwatch_and_denies_policy() -> None:

@@ -8,7 +8,8 @@ from typing import Final
 from aioa_cloudops_agent.config import IdlePolicySettings
 from aioa_cloudops_agent.domain import AuthorityGate, AwsOperationClass, ContractValidationError
 from aioa_cloudops_agent.nz import ControlResult, FailureDetail, FailureKind
-from aioa_cloudops_agent.safety.retry import BoundedReadRetry
+from aioa_cloudops_agent.safety import CircuitOpenError, CircuitStateUnavailableError
+from aioa_cloudops_agent.safety.retry import BoundedReadRetry, is_known_transient_read_error
 
 from .cloudwatch_readonly import CloudWatchGetMetricStatisticsClient
 from .metrics_models import (
@@ -27,6 +28,18 @@ class UtilizationScopeError(ValueError):
 
 class UtilizationDependencyError(RuntimeError):
     """Raised when CloudWatch cannot provide the requested observation."""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        failure_code: str = "CLOUDWATCH_UNAVAILABLE",
+        retryable: bool = True,
+    ) -> None:
+        self.message = message
+        self.failure_code = failure_code
+        self.retryable = retryable
+        super().__init__(message)
 
 
 class UtilizationEvidenceError(ValueError):
@@ -102,9 +115,22 @@ class ReadUtilizationMetricsService:
                     Unit="Percent",
                 )
             )
+        except CircuitOpenError as error:
+            raise UtilizationDependencyError(
+                "CloudWatch read is suppressed by the dependency circuit",
+                failure_code="CLOUDWATCH_READ_CIRCUIT_OPEN",
+                retryable=False,
+            ) from error
+        except CircuitStateUnavailableError as error:
+            raise UtilizationDependencyError(
+                "CloudWatch dependency circuit state is unavailable",
+                failure_code="CLOUDWATCH_READ_CIRCUIT_UNAVAILABLE",
+                retryable=False,
+            ) from error
         except Exception as error:
             raise UtilizationDependencyError(
-                "CloudWatch utilization dependency is unavailable"
+                "CloudWatch utilization dependency is unavailable",
+                retryable=is_known_transient_read_error(error),
             ) from error
         datapoints = self._normalize_datapoints(
             response,
@@ -151,9 +177,9 @@ class ReadUtilizationMetricsService:
             return ControlResult[UtilizationEvidence].failed(
                 FailureDetail(
                     kind=FailureKind.DEPENDENCY_UNAVAILABLE,
-                    code="CLOUDWATCH_UNAVAILABLE",
+                    code=error.failure_code,
                     message=str(error),
-                    retryable=True,
+                    retryable=error.retryable,
                 )
             )
         except (ContractValidationError, UtilizationEvidenceError) as error:

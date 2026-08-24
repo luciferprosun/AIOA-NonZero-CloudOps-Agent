@@ -9,6 +9,7 @@ from opentelemetry.trace import Tracer
 from strands import tool
 from strands.tools.decorator import DecoratedFunctionTool
 
+from aioa_cloudops_agent.cloudops import InvestigationIdentity
 from aioa_cloudops_agent.domain.errors import ContractValidationError
 from aioa_cloudops_agent.domain.identifiers import validate_correlation_id
 from aioa_cloudops_agent.nz import ControlResult, FailureDetail, FailureKind
@@ -33,6 +34,7 @@ def unavailable_stop_request(proposal_id: UUID) -> dict[str, object]:
 
 def create_stop_sandbox_instance_tool(
     handler: StopRequestHandler,
+    identity: InvestigationIdentity,
     *,
     tracer: Tracer | None = None,
 ) -> DecoratedFunctionTool:
@@ -40,6 +42,8 @@ def create_stop_sandbox_instance_tool(
 
     if not callable(handler):
         raise ContractValidationError("stop request handler must be callable")
+    if not isinstance(identity, InvestigationIdentity):
+        raise ContractValidationError("identity must be an InvestigationIdentity")
     active_tracer = tracer or trace.get_tracer("aioa_cloudops_agent.remediation")
 
     @tool(name=STOP_SANDBOX_INSTANCE_TOOL_NAME)
@@ -47,6 +51,9 @@ def create_stop_sandbox_instance_tool(
         """Request the approval-bound sandbox stop using one durable proposal reference."""
 
         with active_tracer.start_as_current_span("cloudops.stop_sandbox_instance") as span:
+            span.set_attribute("aioa.run_id", str(identity.run_id))
+            span.set_attribute("aioa.trace_id", str(identity.trace_id))
+            span.set_attribute("aioa.correlation_id", str(identity.correlation_id))
             span.set_attribute("aioa.tool_name", STOP_SANDBOX_INSTANCE_TOOL_NAME)
             span.set_attribute("aioa.authority_gate", "PLAN_AND_CONFIRM")
             span.set_attribute("aioa.operation_class", "MUTATION")

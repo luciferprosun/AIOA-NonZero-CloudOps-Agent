@@ -1,5 +1,14 @@
 """Deterministic safety controls that remain outside model authority."""
 
+from .circuit import (
+    CircuitBreakerSettings,
+    CircuitDependency,
+    CircuitOpenError,
+    CircuitSnapshot,
+    CircuitState,
+    CircuitStateUnavailableError,
+    DependencyCircuitBreaker,
+)
 from .failures import (
     FAILURE_WORKFLOW_STATE,
     BoundaryRisk,
@@ -10,6 +19,7 @@ from .policy import DefaultDenyToolPolicy, PolicyDecision, PolicyDisposition
 from .retry import (
     AUTOMATIC_RETRY_ALLOWED,
     BoundedReadRetry,
+    ReadRetryStateUnavailableError,
     RetryOperationClass,
     is_known_transient_read_error,
 )
@@ -21,9 +31,17 @@ __all__ = [
     "BoundaryRisk",
     "BoundedReadRetry",
     "BoundedSchemaCorrection",
+    "CircuitBreakerSettings",
+    "CircuitDependency",
+    "CircuitOpenError",
+    "CircuitSnapshot",
+    "CircuitState",
+    "CircuitStateUnavailableError",
     "DefaultDenyToolPolicy",
+    "DependencyCircuitBreaker",
     "PolicyDecision",
     "PolicyDisposition",
+    "ReadRetryStateUnavailableError",
     "RetryOperationClass",
     "SchemaCorrectionBudget",
     "is_known_transient_read_error",

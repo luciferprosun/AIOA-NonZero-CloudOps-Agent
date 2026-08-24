@@ -1,9 +1,11 @@
 import json
+from contextlib import AbstractContextManager
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import UUID
 
+import pytest
 from strands.models import Model
 
 from aioa_cloudops_agent.agent import (
@@ -41,6 +43,11 @@ from aioa_cloudops_agent.persistence.memory import InMemoryTestDurableTruthRepos
 from aioa_cloudops_agent.remediation import (
     StopExecutionCommand,
     StopSandboxInstanceCoordinator,
+)
+from aioa_cloudops_agent.safety import (
+    BoundedReadRetry,
+    CircuitDependency,
+    DependencyCircuitBreaker,
 )
 from aioa_cloudops_agent.verification import (
     BoundedVerificationCoordinator,
@@ -226,6 +233,37 @@ class RecordingRepository(InMemoryTestDurableTruthRepository):
         return super().append_audit_event(event)
 
 
+class RecordingSpan:
+    def __init__(self) -> None:
+        self.attributes: dict[str, object] = {}
+
+    def set_attribute(self, name: str, value: object) -> None:
+        self.attributes[name] = value
+
+
+class SpanContext(AbstractContextManager[RecordingSpan]):
+    def __init__(self, span: RecordingSpan) -> None:
+        self.span = span
+
+    def __enter__(self) -> RecordingSpan:
+        return self.span
+
+    def __exit__(self, *args: object) -> None:
+        return None
+
+
+class RecordingTracer:
+    def __init__(self) -> None:
+        self.span_names: list[str] = []
+        self.spans: list[RecordingSpan] = []
+
+    def start_as_current_span(self, name: str) -> SpanContext:
+        self.span_names.append(name)
+        span = RecordingSpan()
+        self.spans.append(span)
+        return SpanContext(span)
+
+
 @dataclass(slots=True)
 class WorkflowHarness:
     runtime: PrimaryAgentRuntime
@@ -238,6 +276,7 @@ class WorkflowHarness:
     model: FullWorkflowModel
     ec2: SequencedEc2Client
     executor: RecordingPrivateExecutor
+    tracer: RecordingTracer
 
 
 def _build_harness() -> WorkflowHarness:
@@ -246,6 +285,8 @@ def _build_harness() -> WorkflowHarness:
     ec2 = SequencedEc2Client()
     cloudwatch = IdleCloudWatchClient()
     executor = RecordingPrivateExecutor()
+    tracer = RecordingTracer()
+    dependency_circuit = DependencyCircuitBreaker()
     target = SandboxTarget(instance_id=INSTANCE_ID)
     identity = InvestigationIdentity(
         run_id=RUN_ID,
@@ -261,7 +302,14 @@ def _build_harness() -> WorkflowHarness:
     verification = BoundedVerificationCoordinator(
         repository,
         VerifyInstanceStateService(
-            InspectInstanceService(ec2, target),
+            InspectInstanceService(
+                ec2,
+                target,
+                retry=BoundedReadRetry(
+                    circuit_breaker=dependency_circuit,
+                    dependency=CircuitDependency.VERIFICATION_READ,
+                ),
+            ),
             target,
         ),
         settings=VerificationSettings(max_attempts=2, interval_seconds=0),
@@ -288,6 +336,8 @@ def _build_harness() -> WorkflowHarness:
         durable_repository=repository,
         stop_request_handler=remediation.for_tool,
         verification_request_handler=verification.for_tool,
+        dependency_circuit=dependency_circuit,
+        tracer=tracer,
     )
     return WorkflowHarness(
         runtime=runtime,
@@ -317,6 +367,7 @@ def _build_harness() -> WorkflowHarness:
         model=model,
         ec2=ec2,
         executor=executor,
+        tracer=tracer,
     )
 
 
@@ -403,3 +454,100 @@ def test_full_mocked_denied_e2e_is_terminal_with_zero_executor_calls() -> None:
     assert harness.executor.commands == []
     assert harness.ec2.calls == [[INSTANCE_ID]]
     assert harness.model.calls == 6
+
+
+def test_full_workflow_preserves_trace_lineage_across_agent_tools_store_execution_and_verification() -> None:
+    harness = _build_harness()
+
+    investigation = harness.investigation.execute(harness.run)
+    assert investigation.value is not None
+    interrupt = harness.approval.request(PROPOSAL_ID).value
+    assert interrupt is not None
+    resolution = harness.approval.resume(
+        _resume_request(interrupt, ApprovalDecision.APPROVED)
+    )
+
+    assert resolution.status is ResultStatus.SUCCESS
+    identity_attributes = {
+        "aioa.run_id": str(RUN_ID),
+        "aioa.trace_id": str(TRACE_ID),
+        "aioa.correlation_id": str(CORRELATION_ID),
+    }
+    assert all(
+        harness.runtime.agent.trace_attributes[name] == value
+        for name, value in identity_attributes.items()
+    )
+    assert harness.tracer.span_names == [
+        "cloudops.inspect_instance",
+        "cloudops.read_utilization_metrics",
+        "cloudops.build_remediation_evidence",
+        "cloudops.stop_sandbox_instance",
+        "cloudops.verify_instance_state",
+    ]
+    assert all(
+        all(span.attributes[name] == value for name, value in identity_attributes.items())
+        for span in harness.tracer.spans
+    )
+
+    proposal = harness.repository.get_proposal(PROPOSAL_ID)
+    approval = harness.repository.get_approval(PROPOSAL_ID)
+    verification = harness.repository.get_verification_evidence(RUN_ID, PROPOSAL_ID)
+    run = harness.repository.get_run(RUN_ID)
+    command = harness.executor.commands[0]
+    assert proposal is not None and proposal.run_id == RUN_ID
+    assert interrupt.payload.run_id == RUN_ID
+    assert interrupt.trace_id == TRACE_ID
+    assert interrupt.correlation_id == CORRELATION_ID
+    assert approval is not None and approval.run_id == RUN_ID
+    assert run is not None
+    assert (run.run_id, run.trace_id, run.correlation_id) == (
+        RUN_ID,
+        TRACE_ID,
+        CORRELATION_ID,
+    )
+    assert (command.run_id, command.trace_id, command.correlation_id) == (
+        RUN_ID,
+        TRACE_ID,
+        CORRELATION_ID,
+    )
+    assert verification is not None
+    assert (
+        verification.run_id,
+        verification.trace_id,
+        verification.correlation_id,
+    ) == (RUN_ID, TRACE_ID, CORRELATION_ID)
+    assert all(event.run_id == RUN_ID for event in harness.repository.events)
+    assert all(
+        event.metadata["trace_id"] == str(TRACE_ID)
+        and event.metadata["correlation_id"] == str(CORRELATION_ID)
+        for event in harness.repository.events
+    )
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("run_id", UUID("01890f6c-3311-7abc-8f4a-6e4f7f0b9b4a")),
+        ("trace_id", UUID("01890f6c-3311-7abc-8f4a-6e4f7f0b9b4b")),
+        ("correlation_id", UUID("01890f6c-3311-7abc-8f4a-6e4f7f0b9b4c")),
+    ],
+)
+def test_substituted_workflow_identity_fails_closed_without_execution(
+    field: str,
+    value: UUID,
+) -> None:
+    harness = _build_harness()
+    substituted = harness.run.model_copy(update={field: value})
+
+    result = harness.investigation.execute(substituted)
+
+    assert result.status is ResultStatus.FAILURE
+    assert result.failure is not None
+    assert result.failure.kind is not None
+    assert result.failure.code == "RUN_IDENTITY_INVALID"
+    assert harness.repository.get_run(RUN_ID) is None
+    assert harness.repository.get_proposal(PROPOSAL_ID) is None
+    assert harness.repository.get_approval(PROPOSAL_ID) is None
+    assert harness.model.calls == 0
+    assert harness.executor.commands == []
+    assert harness.ec2.calls == []

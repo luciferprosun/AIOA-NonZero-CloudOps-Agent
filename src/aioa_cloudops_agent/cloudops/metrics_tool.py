@@ -103,6 +103,7 @@ def create_read_utilization_metrics_tool(
                 span.set_attribute("aioa.classification", result.value.classification.value)
             elif result.failure is not None:
                 span.set_attribute("aioa.failure_kind", result.failure.kind.value)
+                span.set_attribute("aioa.failure_code", result.failure.code)
             if on_result is not None:
                 on_result(result)
             return result.model_dump(mode="json")
