@@ -12,12 +12,15 @@ import pytest
 import scripts.build_reviewer_evidence_manifest as builder
 import scripts.validate_reviewer_evidence_manifest as validator
 from scripts.build_reviewer_evidence_manifest import (
+    DAY15_FINAL_BLOCKER_COMMIT,
+    DAY15_G10_COMMIT,
     DAY15_M1_COMMIT,
     DAY15_M2_COMMIT,
     DAY15_ORIGINAL_M1_COMMIT,
     DAY15_ORIGINAL_M2_COMMIT,
     DAY15_ORIGINAL_M3_COMMIT,
     DAY15_RECOVERY_LINEAGE,
+    DAY15_SECRET_FIX_COMMIT,
     DAY15_START_COMMIT,
     EVIDENCE_SNAPSHOT_COMMIT,
     EXPECTED_STRANDS_REQUIREMENT,
@@ -597,7 +600,7 @@ def test_changed_but_ancestral_claim_commit_anchor_is_rejected() -> None:
 
 
 def test_commit_hash_numeric_run_is_not_misclassified_as_an_account_id() -> None:
-    reviewed_commit = f"Reviewed candidate `{DAY15_M2_COMMIT}`."
+    reviewed_commit = f"Reviewed candidate `{DAY15_G10_COMMIT}`."
     actual_account = reviewed_commit + " AWS account " + "123456789012"
 
     assert "ACCOUNT_ID_MATERIAL" not in validator._scan_private_material(reviewed_commit)
@@ -618,7 +621,7 @@ def test_day15_candidate_and_claim_anchors_are_exact_recovery_objects() -> None:
             "stop_sandbox_instance",
             "verify_instance_state",
         ],
-        "commit": DAY15_M2_COMMIT,
+        "commit": DAY15_G10_COMMIT,
         "day15_gate_ids": [f"D15-G{index:02d}" for index in range(1, 11)],
         "final_tool_cap": 5,
         "m1_commit": DAY15_M1_COMMIT,
@@ -639,6 +642,7 @@ def test_day15_candidate_and_claim_anchors_are_exact_recovery_objects() -> None:
         DAY15_ORIGINAL_M1_COMMIT,
         DAY15_M1_COMMIT,
         DAY15_M2_COMMIT,
+        DAY15_G10_COMMIT,
     }
     original_m1_claims = {
         "AGENT-TOPOLOGY-01",
@@ -660,10 +664,10 @@ def test_day15_candidate_and_claim_anchors_are_exact_recovery_objects() -> None:
         "DAY15-RUNTIME-GUARDS-01",
         "DAY15-TELEMETRY-01",
     }
-    final_m2_claims = {
-        "DAY15-DEPLOYMENT-GATE-01",
+    historical_m2_claims = {
         "DAY15-RELEASE-SAFETY-01",
     }
+    current_g10_claims = {"DAY15-DEPLOYMENT-GATE-01"}
     assert all(
         _claim(manifest, claim_id)["commit_anchor"] == DAY15_ORIGINAL_M1_COMMIT
         for claim_id in original_m1_claims
@@ -674,7 +678,11 @@ def test_day15_candidate_and_claim_anchors_are_exact_recovery_objects() -> None:
     )
     assert all(
         _claim(manifest, claim_id)["commit_anchor"] == DAY15_M2_COMMIT
-        for claim_id in final_m2_claims
+        for claim_id in historical_m2_claims
+    )
+    assert all(
+        _claim(manifest, claim_id)["commit_anchor"] == DAY15_G10_COMMIT
+        for claim_id in current_g10_claims
     )
     assert _claim(manifest, "LIVE-EC2-01")["commit_anchor"] == EVIDENCE_SNAPSHOT_COMMIT
     assert manifest["evidence_snapshot"]["commit"] == EVIDENCE_SNAPSHOT_COMMIT
@@ -699,11 +707,52 @@ def test_day15_anchor_chain_preserves_every_recovery_commit_as_single_parent_his
         DAY15_ORIGINAL_M3_COMMIT,
         DAY15_M1_COMMIT,
         DAY15_M2_COMMIT,
+        DAY15_FINAL_BLOCKER_COMMIT,
+        DAY15_SECRET_FIX_COMMIT,
+        DAY15_G10_COMMIT,
     )
     for parent, child in pairwise(DAY15_RECOVERY_LINEAGE):
         assert parents(child) == [child, parent]
     assert validator.collect_frozen_day15_gate_ids() == tuple(
         f"D15-G{index:02d}" for index in range(1, 11)
+    )
+
+
+def test_current_g10_authority_replaces_historical_external_attestation_proof() -> None:
+    manifest = build_manifest()
+    claim = _claim(manifest, "DAY15-DEPLOYMENT-GATE-01")
+
+    assert claim["commit_anchor"] == DAY15_G10_COMMIT
+    assert claim["authority_source"] == sorted(
+        [
+            "scripts/day15/g10_aws_preflight.py::observe_aws_preflight",
+            "scripts/day15/g10_aws_preflight.py::validate_private_observation_receipt",
+            "scripts/day15/g10_candidate.py::build_candidate_descriptor",
+            "scripts/day15/run_g10_closure.py::run_closure",
+            "scripts/day15/run_g10_closure.py::validate_sanitized_receipt",
+            "scripts/day15/run_day15_gate.py::GATES",
+            "scripts/day15/run_day15_gate.py::_g10_candidate_receipt_result",
+            "scripts/day15/run_day15_gate.py::run_gate",
+        ]
+    )
+    assert all(
+        "external_preflight_attestation" not in reference
+        and "test_day15_external_preflight" not in reference
+        for reference in [*claim["authority_source"], *claim["proof_nodes"]]
+    )
+    assert "No AWS API call" in claim["limitations"]
+
+
+def test_m2_release_safety_remains_explicitly_historical() -> None:
+    claim = _claim(build_manifest(), "DAY15-RELEASE-SAFETY-01")
+
+    assert claim["commit_anchor"] == DAY15_M2_COMMIT
+    assert claim["claim"].startswith("At the reviewed M2 anchor")
+    assert claim["limitations"].startswith("Historical M2 repository evidence only")
+    assert not any(
+        reference.startswith("tests/unit/test_day15_deployment_gate.py::")
+        or reference.startswith("tests/unit/test_day15_gate.py::")
+        for reference in claim["proof_nodes"]
     )
 
 

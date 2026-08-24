@@ -48,6 +48,9 @@ DAY15_ORIGINAL_M2_COMMIT = "8e4583ac9341cb7b66de47cf0e7b2a442ac67b32"
 DAY15_ORIGINAL_M3_COMMIT = "30c2a30cda0ac6d6e2003166daf6c29bf2c764f0"
 DAY15_M1_COMMIT = "f2ee79c09ba174ba72cb527b70c095f412151758"
 DAY15_M2_COMMIT = "36fd17df981dfa593d4e63f6a143410317410763"
+DAY15_FINAL_BLOCKER_COMMIT = "ce35a67f6491ea92aeef534d0dc4f5dc4a8da7ff"
+DAY15_SECRET_FIX_COMMIT = "5a6127f43a9251a72203c0eb6c7a903d817599f7"
+DAY15_G10_COMMIT = "3464bc869e7a11acb5aab61ae279cf196a1ebd0f"
 DAY15_RECOVERY_LINEAGE = (
     DAY15_START_COMMIT,
     DAY15_ORIGINAL_M1_COMMIT,
@@ -55,6 +58,9 @@ DAY15_RECOVERY_LINEAGE = (
     DAY15_ORIGINAL_M3_COMMIT,
     DAY15_M1_COMMIT,
     DAY15_M2_COMMIT,
+    DAY15_FINAL_BLOCKER_COMMIT,
+    DAY15_SECRET_FIX_COMMIT,
+    DAY15_G10_COMMIT,
 )
 DAY15_CANDIDATE_STATUS = "LOCAL_IMPLEMENTATION_CANDIDATE"
 EXPECTED_BEDROCK_REGION = "eu-central-1"
@@ -447,36 +453,37 @@ def build_claims() -> list[dict[str, Any]]:
         ),
         _claim(
             "DAY15-DEPLOYMENT-GATE-01",
-            "The local Day 15 controller defines exactly ten stable gates, never authorizes deployment in validate-only mode, and blocks when artifact or external prerequisites are absent.",
+            "The Day 15 controller implements candidate-bound G10 closure with exact private-contract selection, a fixed read-only AWS-operation allowlist, bound private and sanitized receipts, and ten fail-closed local gates that never authorize deployment.",
             "TEST",
             (
-                "scripts/day15/external_preflight_attestation.py::validate_receipt",
-                "scripts/day15/render_template.py::verify_rendered_template",
+                "scripts/day15/g10_aws_preflight.py::observe_aws_preflight",
+                "scripts/day15/g10_aws_preflight.py::validate_private_observation_receipt",
+                "scripts/day15/g10_candidate.py::build_candidate_descriptor",
+                "scripts/day15/run_g10_closure.py::run_closure",
+                "scripts/day15/run_g10_closure.py::validate_sanitized_receipt",
                 "scripts/day15/run_day15_gate.py::GATES",
-                "scripts/day15/run_day15_gate.py::_payload",
+                "scripts/day15/run_day15_gate.py::_g10_candidate_receipt_result",
                 "scripts/day15/run_day15_gate.py::run_gate",
             ),
             (
                 *(gate.gate_id for gate in DAY15_GATES),
-                "tests/unit/test_day15_deployment_gate.py::"
-                "test_deployment_decision_requires_all_ten_gates_to_pass",
-                "tests/unit/test_day15_deployment_gate.py::"
-                "test_g02_requires_authenticated_render_and_exact_closed_role_allowlists",
-                "tests/unit/test_day15_deployment_gate.py::"
-                "test_g04_reexecutes_clean_import_archive_dependency_and_container_proofs",
-                "tests/unit/test_day15_deployment_gate.py::"
-                "test_g10_deployment_contract_is_blocked_until_selected_hashes_are_reviewed",
-                "tests/unit/test_day15_deployment_gate.py::"
-                "test_local_gate_never_performs_aws_api_calls_and_only_probes_cli_version",
-                "tests/unit/test_day15_external_preflight.py::"
-                "test_external_contract_names_every_required_confirmation_and_identity",
+                "tests/unit/test_day15_g10_aws_preflight.py::"
+                "test_every_client_is_region_pinned_endpoint_hardened_and_single_attempt",
+                "tests/unit/test_day15_g10_aws_preflight.py::"
+                "test_happy_path_has_exact_read_ledger_zero_writes_and_redacted_repr",
+                "tests/unit/test_day15_g10_candidate.py::"
+                "test_candidate_descriptor_is_stable_closed_and_binds_actual_reviewer_manifest",
+                "tests/unit/test_day15_g10_closure.py::"
+                "test_day15_g10_accepts_only_candidate_bound_private_and_sanitized_pair",
+                "tests/unit/test_day15_g10_closure.py::"
+                "test_day15_g10_rejects_stale_authenticated_receipt",
+                "tests/unit/test_day15_g10_closure.py::"
+                "test_no_private_binding_is_blocked_and_performs_no_aws_call",
                 "tests/unit/test_day15_gate.py::"
                 "test_gate_matrix_has_exact_stable_ids_status_vocabulary_and_validate_only_output",
-                "tests/unit/test_day15_gate.py::"
-                "test_missing_artifact_and_external_prerequisites_are_reported_as_blocked",
             ),
-            commit_anchor=DAY15_M2_COMMIT,
-            limitations="Proves local fail-closed decision logic and gate definitions; external prerequisite satisfaction is outside repository-only proof.",
+            commit_anchor=DAY15_G10_COMMIT,
+            limitations="Proves candidate and receipt binding plus bounded adapter behavior with local fakes. No AWS API call, external-prerequisite success, change set, or deployment is attested.",
         ),
         _claim(
             "DAY15-JUDGE-SURFACE-01",
@@ -502,7 +509,7 @@ def build_claims() -> list[dict[str, Any]]:
         ),
         _claim(
             "DAY15-RELEASE-SAFETY-01",
-            "The Day 15 candidate uses a hash-locked runtime and template-enforced retained state, explicit region, conditioned URL permissions, immutable aliases, bounded concurrency, and reviewed alias rollback.",
+            "At the reviewed M2 anchor, the Day 15 candidate used a hash-locked runtime and template-enforced retained state, explicit region, conditioned URL permissions, immutable aliases, bounded concurrency, and reviewed alias rollback.",
             "TEST",
             (
                 "infra/sam/template.yaml",
@@ -528,12 +535,6 @@ def build_claims() -> list[dict[str, Any]]:
                 "test_runtime_rebuild_uses_two_distinct_clean_installs",
                 "tests/unit/test_day15_artifact.py::"
                 "test_runtime_lock_is_complete_exact_and_hash_locked",
-                "tests/unit/test_day15_deployment_gate.py::"
-                "test_g07_requires_semantic_alias_only_rollback_and_executable_proofs",
-                "tests/unit/test_day15_deployment_gate.py::"
-                "test_g08_rejects_every_forbidden_cost_service",
-                "tests/unit/test_day15_gate.py::"
-                "test_alias_rollback_requires_reviewed_hash_then_reconciles_both_aliases",
                 "tests/unit/test_day15_render_template.py::"
                 "test_renderer_is_byte_deterministic_and_verifies_source_tools_and_commit",
                 "tests/unit/test_day15_render_template.py::"
@@ -548,7 +549,7 @@ def build_claims() -> list[dict[str, Any]]:
                 "test_state_table_is_retained_recoverable_encrypted_and_deletion_protected",
             ),
             commit_anchor=DAY15_M2_COMMIT,
-            limitations="Proves repository artifact, template, and rollback contracts; it does not prove a built release was installed in an account.",
+            limitations="Historical M2 repository evidence only; it proves the reviewed artifact and template contracts at that immutable anchor, not current G10 authority, a built release installed in an account, or any deployment.",
         ),
         _claim(
             "DAY15-RUNTIME-GUARDS-01",
@@ -652,7 +653,7 @@ def build_manifest(root: Path = ROOT) -> dict[str, Any]:
         "status": DAY15_CANDIDATE_STATUS,
         "start_commit": DAY15_START_COMMIT,
         "m1_commit": DAY15_M1_COMMIT,
-        "commit": DAY15_M2_COMMIT,
+        "commit": DAY15_G10_COMMIT,
         "primary_agent_count": PRIMARY_AGENT_COUNT,
         "registered_tool_count": CURRENT_REGISTERED_TOOL_COUNT,
         "canonical_tools": list(CURRENT_TOOL_NAMES),
@@ -828,7 +829,7 @@ From the repository root in the documented development environment:
 .venv/bin/python scripts/validate_reviewer_evidence_manifest.py
 ```
 
-The immutable Phase 1 / Day 14 baseline remains anchored to `{EVIDENCE_SNAPSHOT_COMMIT}`. Unchanged Day 15 M1 claims remain at their original reviewed commit `{DAY15_ORIGINAL_M1_COMMIT}`; recovered telemetry, cold-resume, runtime-guard, and approval-binding claims use `{DAY15_M1_COMMIT}`; and release claims use `{DAY15_M2_COMMIT}`. The preserved additive lineage, in order, is `{DAY15_START_COMMIT}`, then `{DAY15_ORIGINAL_M1_COMMIT}`, `{DAY15_ORIGINAL_M2_COMMIT}`, `{DAY15_ORIGINAL_M3_COMMIT}`, `{DAY15_M1_COMMIT}`, and `{DAY15_M2_COMMIT}`. The candidate snapshot is deliberately `LOCAL_IMPLEMENTATION_CANDIDATE`; it is not deployment proof. The builder never derives an anchor from changing `HEAD`, and the post-M2 evidence commit is never an anchor, avoiding a self-referential commit hash.
+The immutable Phase 1 / Day 14 baseline remains anchored to `{EVIDENCE_SNAPSHOT_COMMIT}`. Unchanged Day 15 M1 claims remain at their original reviewed commit `{DAY15_ORIGINAL_M1_COMMIT}`; recovered telemetry, cold-resume, runtime-guard, and approval-binding claims use `{DAY15_M1_COMMIT}`; historical release-safety evidence remains at `{DAY15_M2_COMMIT}`; and current candidate-bound G10 authority is anchored to `{DAY15_G10_COMMIT}`. The preserved additive lineage, in order, is `{DAY15_START_COMMIT}`, then `{DAY15_ORIGINAL_M1_COMMIT}`, `{DAY15_ORIGINAL_M2_COMMIT}`, `{DAY15_ORIGINAL_M3_COMMIT}`, `{DAY15_M1_COMMIT}`, `{DAY15_M2_COMMIT}`, `{DAY15_FINAL_BLOCKER_COMMIT}`, `{DAY15_SECRET_FIX_COMMIT}`, and `{DAY15_G10_COMMIT}`. The candidate snapshot is deliberately `LOCAL_IMPLEMENTATION_CANDIDATE`; it records no live AWS observation, change set, or deployment. The builder never derives an anchor from changing `HEAD`, and a later evidence-only commit is never an anchor, avoiding a self-referential commit hash.
 
 ## Canonical model
 
@@ -836,7 +837,7 @@ Each claim contains the required `claim_id`, `claim`, `evidence_kind`, `authorit
 
 Claim hashes are SHA-256 over compact, key-sorted UTF-8 JSON with the derived `hash` removed and set-like source/proof lists sorted. `manifest_hash` covers the normalized complete document except itself. Canonical JSON uses sorted keys, two-space indentation, sorted claims, and one final newline. The Markdown view is generated from the same normalized model.
 
-The validator resolves authority files and Python symbols at each claim's exact reviewed commit, resolves exact pytest nodes, and requires every referenced current source/test blob to remain byte-identical to that anchor. It admits only the frozen baseline, original M1, recovered M1, and final M2 claim anchors; verifies the complete preserved single-parent recovery chain; and extracts the Day 15 gate IDs independently from the immutable final M2 Git object. It also checks the explicitly qualified frozen Phase 1 tag and requires every prior-art path to remain a tracked regular file with its immutable blob. Runtime one-agent/five-tool facts must match roots extracted directly from the immutable baseline object, so a synchronized five-for-five tool substitution or emptied provenance baseline cannot be regenerated into truth. Nova 2, its runtime region, and exact `strands-agents[otel]==1.53.0` pins are validated independently against frozen expectations.
+The validator resolves authority files and Python symbols at each claim's exact reviewed commit, resolves exact pytest nodes, and requires every referenced current source/test blob to remain byte-identical to that anchor. It admits only the frozen baseline, original M1, recovered M1, historical M2, and current G10 claim anchors; verifies the complete preserved single-parent recovery chain; and extracts the Day 15 gate IDs independently from the immutable G10 Git object. It also checks the explicitly qualified frozen Phase 1 tag and requires every prior-art path to remain a tracked regular file with its immutable blob. Runtime one-agent/five-tool facts must match roots extracted directly from the immutable baseline object, so a synchronized five-for-five tool substitution or emptied provenance baseline cannot be regenerated into truth. Nova 2, its runtime region, and exact `strands-agents[otel]==1.53.0` pins are validated independently against frozen expectations.
 
 ## Live-proof boundary
 

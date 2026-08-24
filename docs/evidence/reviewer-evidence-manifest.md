@@ -3,10 +3,10 @@
 This judge-facing view is generated from the canonical JSON. It is reviewer proof, not runtime authority.
 
 - Frozen Phase 1 / Day 14 snapshot: `fbb536400594306f2bb3abd31c7064a66735c82d`
-- Day 15 local candidate snapshot: `36fd17df981dfa593d4e63f6a143410317410763` (`LOCAL_IMPLEMENTATION_CANDIDATE`)
-- Day 15 additive recovery lineage: `aa941a989a8b8cd0e40367bb130472e9f3c082a7` -> `17d5f4637dbd69a33eff1cbb46282c36b19ce6ad` -> `8e4583ac9341cb7b66de47cf0e7b2a442ac67b32` -> `30c2a30cda0ac6d6e2003166daf6c29bf2c764f0` -> `f2ee79c09ba174ba72cb527b70c095f412151758` -> `36fd17df981dfa593d4e63f6a143410317410763`
+- Day 15 local candidate snapshot: `3464bc869e7a11acb5aab61ae279cf196a1ebd0f` (`LOCAL_IMPLEMENTATION_CANDIDATE`)
+- Day 15 additive recovery lineage: `aa941a989a8b8cd0e40367bb130472e9f3c082a7` -> `17d5f4637dbd69a33eff1cbb46282c36b19ce6ad` -> `8e4583ac9341cb7b66de47cf0e7b2a442ac67b32` -> `30c2a30cda0ac6d6e2003166daf6c29bf2c764f0` -> `f2ee79c09ba174ba72cb527b70c095f412151758` -> `36fd17df981dfa593d4e63f6a143410317410763` -> `ce35a67f6491ea92aeef534d0dc4f5dc4a8da7ff` -> `5a6127f43a9251a72203c0eb6c7a903d817599f7` -> `3464bc869e7a11acb5aab61ae279cf196a1ebd0f`
 - Day 15 gates: `D15-G01, D15-G02, D15-G03, D15-G04, D15-G05, D15-G06, D15-G07, D15-G08, D15-G09, D15-G10`
-- Manifest SHA-256: `5480099e8aedf80dbafbaed5d9e2a6dc994f559ce9ab97df53820cdcdc8b373e`
+- Manifest SHA-256: `dbdebd918901bfb51a74f6fd0bd2d42c06c298387a88b59fafdd5f69732fc99e`
 - Primary agents: `1`
 - Canonical tools: `inspect_instance, read_utilization_metrics, build_remediation_evidence, stop_sandbox_instance, verify_instance_state`
 - Bedrock model: `eu.amazon.nova-2-lite-v1:0` in `eu-central-1`
@@ -23,9 +23,9 @@ This judge-facing view is generated from the canonical JSON. It is reviewer proo
 | BOUNDED-FAILURES-01 | PROVEN | TEST | Local deterministic | Schema correction, dependency retry, circuit suppression, and workflow budgets are finite and typed. |
 | DAY15-AWS-CLIENT-BOUNDS-01 | PROVEN | TEST | Local deterministic | Critical AWS clients own explicit one-attempt transport configuration, and the bounded model wrapper suppresses repeated warm-runtime failures without a hidden retry. |
 | DAY15-COLD-RESUME-01 | PROVEN | TEST | mocked AWS | A fresh Agent runtime can restore a durable native interrupt using trusted principal identity and a server-issued one-time challenge, while no approval or resume route is public. |
-| DAY15-DEPLOYMENT-GATE-01 | PROVEN | TEST | Local deterministic | The local Day 15 controller defines exactly ten stable gates, never authorizes deployment in validate-only mode, and blocks when artifact or external prerequisites are absent. |
+| DAY15-DEPLOYMENT-GATE-01 | PROVEN | TEST | Local deterministic | The Day 15 controller implements candidate-bound G10 closure with exact private-contract selection, a fixed read-only AWS-operation allowlist, bound private and sanitized receipts, and ten fail-closed local gates that never authorize deployment. |
 | DAY15-JUDGE-SURFACE-01 | PROVEN | TEST | Local deterministic | The Day 15 application exposes health, readiness, same-origin UI, and token-protected read-only investigation and status routes; approval and mutation routes fail before services. |
-| DAY15-RELEASE-SAFETY-01 | PROVEN | TEST | Local deterministic | The Day 15 candidate uses a hash-locked runtime and template-enforced retained state, explicit region, conditioned URL permissions, immutable aliases, bounded concurrency, and reviewed alias rollback. |
+| DAY15-RELEASE-SAFETY-01 | PROVEN | TEST | Local deterministic | At the reviewed M2 anchor, the Day 15 candidate used a hash-locked runtime and template-enforced retained state, explicit region, conditioned URL permissions, immutable aliases, bounded concurrency, and reviewed alias rollback. |
 | DAY15-RUNTIME-GUARDS-01 | PROVEN | TEST | mocked AWS | Judge inputs cannot set authority or budgets; fresh investigations use exact server budgets, atomic daily quota reservations, and finite read-only status observations. |
 | DAY15-TELEMETRY-01 | PROVEN | TEST | Local deterministic | Judge telemetry exports only allowlisted identifiers and bounded classifications while structured logging discards prompts, secrets, and tool arguments. |
 | DEFAULT-DENY-01 | PROVEN | TEST | Local deterministic | Unknown and NEVER_AUTONOMOUS capabilities are denied by deterministic policy. |
@@ -129,16 +129,19 @@ A fresh Agent runtime can restore a durable native interrupt using trusted princ
 
 ### DAY15-DEPLOYMENT-GATE-01
 
-The local Day 15 controller defines exactly ten stable gates, never authorizes deployment in validate-only mode, and blocks when artifact or external prerequisites are absent.
+The Day 15 controller implements candidate-bound G10 closure with exact private-contract selection, a fixed read-only AWS-operation allowlist, bound private and sanitized receipts, and ten fail-closed local gates that never authorize deployment.
 
 - Status / kind / scope: `PROVEN` / `TEST` / `Local deterministic`
-- Commit anchor: `36fd17df981dfa593d4e63f6a143410317410763`
+- Commit anchor: `3464bc869e7a11acb5aab61ae279cf196a1ebd0f`
 - Authority source:
-  - `scripts/day15/external_preflight_attestation.py::validate_receipt`
-  - `scripts/day15/render_template.py::verify_rendered_template`
+  - `scripts/day15/g10_aws_preflight.py::observe_aws_preflight`
+  - `scripts/day15/g10_aws_preflight.py::validate_private_observation_receipt`
+  - `scripts/day15/g10_candidate.py::build_candidate_descriptor`
   - `scripts/day15/run_day15_gate.py::GATES`
-  - `scripts/day15/run_day15_gate.py::_payload`
+  - `scripts/day15/run_day15_gate.py::_g10_candidate_receipt_result`
   - `scripts/day15/run_day15_gate.py::run_gate`
+  - `scripts/day15/run_g10_closure.py::run_closure`
+  - `scripts/day15/run_g10_closure.py::validate_sanitized_receipt`
 - Proof nodes:
   - `D15-G01`
   - `D15-G02`
@@ -150,16 +153,15 @@ The local Day 15 controller defines exactly ten stable gates, never authorizes d
   - `D15-G08`
   - `D15-G09`
   - `D15-G10`
-  - `tests/unit/test_day15_deployment_gate.py::test_deployment_decision_requires_all_ten_gates_to_pass`
-  - `tests/unit/test_day15_deployment_gate.py::test_g02_requires_authenticated_render_and_exact_closed_role_allowlists`
-  - `tests/unit/test_day15_deployment_gate.py::test_g04_reexecutes_clean_import_archive_dependency_and_container_proofs`
-  - `tests/unit/test_day15_deployment_gate.py::test_g10_deployment_contract_is_blocked_until_selected_hashes_are_reviewed`
-  - `tests/unit/test_day15_deployment_gate.py::test_local_gate_never_performs_aws_api_calls_and_only_probes_cli_version`
-  - `tests/unit/test_day15_external_preflight.py::test_external_contract_names_every_required_confirmation_and_identity`
+  - `tests/unit/test_day15_g10_aws_preflight.py::test_every_client_is_region_pinned_endpoint_hardened_and_single_attempt`
+  - `tests/unit/test_day15_g10_aws_preflight.py::test_happy_path_has_exact_read_ledger_zero_writes_and_redacted_repr`
+  - `tests/unit/test_day15_g10_candidate.py::test_candidate_descriptor_is_stable_closed_and_binds_actual_reviewer_manifest`
+  - `tests/unit/test_day15_g10_closure.py::test_day15_g10_accepts_only_candidate_bound_private_and_sanitized_pair`
+  - `tests/unit/test_day15_g10_closure.py::test_day15_g10_rejects_stale_authenticated_receipt`
+  - `tests/unit/test_day15_g10_closure.py::test_no_private_binding_is_blocked_and_performs_no_aws_call`
   - `tests/unit/test_day15_gate.py::test_gate_matrix_has_exact_stable_ids_status_vocabulary_and_validate_only_output`
-  - `tests/unit/test_day15_gate.py::test_missing_artifact_and_external_prerequisites_are_reported_as_blocked`
-- Limitations: Proves local fail-closed decision logic and gate definitions; external prerequisite satisfaction is outside repository-only proof.
-- Claim SHA-256: `dfe98712084bc0697d606e32ee7fbc0b38a1172604e434dd5d5f6e9fc0242f5d`
+- Limitations: Proves candidate and receipt binding plus bounded adapter behavior with local fakes. No AWS API call, external-prerequisite success, change set, or deployment is attested.
+- Claim SHA-256: `8d822ba861550e78b0169d48d0babb9bdc5f51cba40ff8cfe4d856ffb64b2f08`
 
 ### DAY15-JUDGE-SURFACE-01
 
@@ -181,7 +183,7 @@ The Day 15 application exposes health, readiness, same-origin UI, and token-prot
 
 ### DAY15-RELEASE-SAFETY-01
 
-The Day 15 candidate uses a hash-locked runtime and template-enforced retained state, explicit region, conditioned URL permissions, immutable aliases, bounded concurrency, and reviewed alias rollback.
+At the reviewed M2 anchor, the Day 15 candidate used a hash-locked runtime and template-enforced retained state, explicit region, conditioned URL permissions, immutable aliases, bounded concurrency, and reviewed alias rollback.
 
 - Status / kind / scope: `PROVEN` / `TEST` / `Local deterministic`
 - Commit anchor: `36fd17df981dfa593d4e63f6a143410317410763`
@@ -202,17 +204,14 @@ The Day 15 candidate uses a hash-locked runtime and template-enforced retained s
   - `tests/unit/test_day15_artifact.py::test_repository_provenance_binds_clean_head_index_worktree_and_source_tree`
   - `tests/unit/test_day15_artifact.py::test_runtime_lock_is_complete_exact_and_hash_locked`
   - `tests/unit/test_day15_artifact.py::test_runtime_rebuild_uses_two_distinct_clean_installs`
-  - `tests/unit/test_day15_deployment_gate.py::test_g07_requires_semantic_alias_only_rollback_and_executable_proofs`
-  - `tests/unit/test_day15_deployment_gate.py::test_g08_rejects_every_forbidden_cost_service`
-  - `tests/unit/test_day15_gate.py::test_alias_rollback_requires_reviewed_hash_then_reconciles_both_aliases`
   - `tests/unit/test_day15_render_template.py::test_renderer_is_byte_deterministic_and_verifies_source_tools_and_commit`
   - `tests/unit/test_day15_render_template.py::test_template_validator_requires_exact_sam_lint_and_translator_versions`
   - `tests/unit/test_infrastructure_contract.py::test_function_url_targets_live_alias_and_has_exact_two_conditioned_permissions`
   - `tests/unit/test_infrastructure_contract.py::test_immutable_versions_and_live_aliases_are_retained_for_rollback`
   - `tests/unit/test_infrastructure_contract.py::test_region_is_explicit_and_public_ingress_preserves_all_mutation_vetoes`
   - `tests/unit/test_infrastructure_contract.py::test_state_table_is_retained_recoverable_encrypted_and_deletion_protected`
-- Limitations: Proves repository artifact, template, and rollback contracts; it does not prove a built release was installed in an account.
-- Claim SHA-256: `78fa975fd49f487132ec8a07a403a8a576db694fb0d5d9cb93ee923df41381b8`
+- Limitations: Historical M2 repository evidence only; it proves the reviewed artifact and template contracts at that immutable anchor, not current G10 authority, a built release installed in an account, or any deployment.
+- Claim SHA-256: `9562e57fca041c7f72cc65b370a4fb3995c33cf744b854ff97741b29f0f5ee63`
 
 ### DAY15-RUNTIME-GUARDS-01
 

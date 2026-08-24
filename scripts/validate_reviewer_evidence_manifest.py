@@ -36,12 +36,15 @@ from aioa_cloudops_agent.config import (  # noqa: E402
 )
 from scripts.build_reviewer_evidence_manifest import (  # noqa: E402
     DAY15_CANDIDATE_STATUS,
+    DAY15_FINAL_BLOCKER_COMMIT,
+    DAY15_G10_COMMIT,
     DAY15_M1_COMMIT,
     DAY15_M2_COMMIT,
     DAY15_ORIGINAL_M1_COMMIT,
     DAY15_ORIGINAL_M2_COMMIT,
     DAY15_ORIGINAL_M3_COMMIT,
     DAY15_RECOVERY_LINEAGE,
+    DAY15_SECRET_FIX_COMMIT,
     DAY15_START_COMMIT,
     EVIDENCE_SNAPSHOT_COMMIT,
     EXPECTED_BEDROCK_REGION,
@@ -263,6 +266,9 @@ _FROZEN_DAY15_ORIGINAL_M2_COMMIT = "8e4583ac9341cb7b66de47cf0e7b2a442ac67b32"
 _FROZEN_DAY15_ORIGINAL_M3_COMMIT = "30c2a30cda0ac6d6e2003166daf6c29bf2c764f0"
 _FROZEN_DAY15_M1_COMMIT = "f2ee79c09ba174ba72cb527b70c095f412151758"
 _FROZEN_DAY15_M2_COMMIT = "36fd17df981dfa593d4e63f6a143410317410763"
+_FROZEN_DAY15_FINAL_BLOCKER_COMMIT = "ce35a67f6491ea92aeef534d0dc4f5dc4a8da7ff"
+_FROZEN_DAY15_SECRET_FIX_COMMIT = "5a6127f43a9251a72203c0eb6c7a903d817599f7"
+_FROZEN_DAY15_G10_COMMIT = "3464bc869e7a11acb5aab61ae279cf196a1ebd0f"
 _FROZEN_DAY15_RECOVERY_LINEAGE = (
     _FROZEN_DAY15_START_COMMIT,
     _FROZEN_DAY15_ORIGINAL_M1_COMMIT,
@@ -270,6 +276,9 @@ _FROZEN_DAY15_RECOVERY_LINEAGE = (
     _FROZEN_DAY15_ORIGINAL_M3_COMMIT,
     _FROZEN_DAY15_M1_COMMIT,
     _FROZEN_DAY15_M2_COMMIT,
+    _FROZEN_DAY15_FINAL_BLOCKER_COMMIT,
+    _FROZEN_DAY15_SECRET_FIX_COMMIT,
+    _FROZEN_DAY15_G10_COMMIT,
 )
 _FROZEN_DAY15_CANDIDATE_STATUS = "LOCAL_IMPLEMENTATION_CANDIDATE"
 _FROZEN_DAY15_GATE_IDS = tuple(f"D15-G{index:02d}" for index in range(1, 11))
@@ -304,8 +313,10 @@ _DAY15_RECOVERED_M1_CLAIM_IDS = {
     "DAY15-TELEMETRY-01",
 }
 _DAY15_M2_CLAIM_IDS = {
-    "DAY15-DEPLOYMENT-GATE-01",
     "DAY15-RELEASE-SAFETY-01",
+}
+_DAY15_G10_CLAIM_IDS = {
+    "DAY15-DEPLOYMENT-GATE-01",
 }
 _FROZEN_P0_PROOF_CASES = 136
 _FROZEN_P1_PROOF_CASES = 93
@@ -483,11 +494,11 @@ def _day15_gate_ids_from_source(source: str) -> tuple[str, ...]:
 
 
 def collect_frozen_day15_gate_ids(root: Path = ROOT) -> tuple[str, ...]:
-    """Read Day 15 gate IDs from the immutable M2 Git object."""
+    """Read Day 15 gate IDs from the immutable candidate-bound G10 Git object."""
 
     source = _git_blob(
         root,
-        _FROZEN_DAY15_M2_COMMIT,
+        _FROZEN_DAY15_G10_COMMIT,
         "scripts/day15/run_day15_gate.py",
     )
     if source is None:
@@ -994,7 +1005,7 @@ def _expected_day15_candidate_snapshot(facts: RuntimeFacts) -> dict[str, Any]:
         "status": DAY15_CANDIDATE_STATUS,
         "start_commit": DAY15_START_COMMIT,
         "m1_commit": DAY15_M1_COMMIT,
-        "commit": DAY15_M2_COMMIT,
+        "commit": DAY15_G10_COMMIT,
         "primary_agent_count": facts.primary_agent_count,
         "registered_tool_count": facts.registered_tool_count,
         "canonical_tools": list(facts.canonical_tools),
@@ -1178,6 +1189,9 @@ def _validate_day15_candidate_snapshot(
         or DAY15_ORIGINAL_M3_COMMIT != _FROZEN_DAY15_ORIGINAL_M3_COMMIT
         or DAY15_M1_COMMIT != _FROZEN_DAY15_M1_COMMIT
         or DAY15_M2_COMMIT != _FROZEN_DAY15_M2_COMMIT
+        or DAY15_FINAL_BLOCKER_COMMIT != _FROZEN_DAY15_FINAL_BLOCKER_COMMIT
+        or DAY15_SECRET_FIX_COMMIT != _FROZEN_DAY15_SECRET_FIX_COMMIT
+        or DAY15_G10_COMMIT != _FROZEN_DAY15_G10_COMMIT
         or DAY15_RECOVERY_LINEAGE != _FROZEN_DAY15_RECOVERY_LINEAGE
         or DAY15_CANDIDATE_STATUS != _FROZEN_DAY15_CANDIDATE_STATUS
     ):
@@ -1207,6 +1221,8 @@ def _expected_claim_anchor(claim_id: str) -> str | None:
         return _FROZEN_DAY15_M1_COMMIT
     if claim_id in _DAY15_M2_CLAIM_IDS:
         return _FROZEN_DAY15_M2_COMMIT
+    if claim_id in _DAY15_G10_CLAIM_IDS:
+        return _FROZEN_DAY15_G10_COMMIT
     return None
 
 
@@ -1233,6 +1249,7 @@ def _validate_claims(
         _DAY15_ORIGINAL_M1_CLAIM_IDS,
         _DAY15_RECOVERED_M1_CLAIM_IDS,
         _DAY15_M2_CLAIM_IDS,
+        _DAY15_G10_CLAIM_IDS,
     )
     anchored_ids = set().union(*anchor_groups)
     if (
@@ -1573,11 +1590,11 @@ def _validate_git_anchors(
         _FROZEN_L1_COMMIT,
         _FROZEN_DAY15_START_COMMIT,
     )
-    m2_to_head = _git(
+    g10_to_head = _git(
         root,
         "merge-base",
         "--is-ancestor",
-        _FROZEN_DAY15_M2_COMMIT,
+        _FROZEN_DAY15_G10_COMMIT,
         "HEAD",
     )
     parent_results = tuple(
@@ -1589,7 +1606,7 @@ def _validate_git_anchors(
     )
     if (
         baseline_to_start.returncode != 0
-        or m2_to_head.returncode != 0
+        or g10_to_head.returncode != 0
         or any(
             result.returncode != 0 or result.stdout.split() != expected
             for result, expected in parent_results
@@ -1643,7 +1660,7 @@ def _validate_git_anchors(
                 "merge-base",
                 "--is-ancestor",
                 commit,
-                _FROZEN_DAY15_M2_COMMIT,
+                _FROZEN_DAY15_G10_COMMIT,
             )
             if (
                 commit
@@ -1652,6 +1669,7 @@ def _validate_git_anchors(
                     _FROZEN_DAY15_ORIGINAL_M1_COMMIT,
                     _FROZEN_DAY15_M1_COMMIT,
                     _FROZEN_DAY15_M2_COMMIT,
+                    _FROZEN_DAY15_G10_COMMIT,
                 }
                 or exists.returncode != 0
                 or history.returncode != 0
