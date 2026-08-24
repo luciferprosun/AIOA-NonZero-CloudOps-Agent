@@ -3,10 +3,10 @@
 This judge-facing view is generated from the canonical JSON. It is reviewer proof, not runtime authority.
 
 - Frozen Phase 1 / Day 14 snapshot: `fbb536400594306f2bb3abd31c7064a66735c82d`
-- Day 15 local candidate snapshot: `8e4583ac9341cb7b66de47cf0e7b2a442ac67b32` (`LOCAL_IMPLEMENTATION_CANDIDATE`)
-- Day 15 lineage: `aa941a989a8b8cd0e40367bb130472e9f3c082a7` -> `17d5f4637dbd69a33eff1cbb46282c36b19ce6ad` -> `8e4583ac9341cb7b66de47cf0e7b2a442ac67b32`
+- Day 15 local candidate snapshot: `36fd17df981dfa593d4e63f6a143410317410763` (`LOCAL_IMPLEMENTATION_CANDIDATE`)
+- Day 15 additive recovery lineage: `aa941a989a8b8cd0e40367bb130472e9f3c082a7` -> `17d5f4637dbd69a33eff1cbb46282c36b19ce6ad` -> `8e4583ac9341cb7b66de47cf0e7b2a442ac67b32` -> `30c2a30cda0ac6d6e2003166daf6c29bf2c764f0` -> `f2ee79c09ba174ba72cb527b70c095f412151758` -> `36fd17df981dfa593d4e63f6a143410317410763`
 - Day 15 gates: `D15-G01, D15-G02, D15-G03, D15-G04, D15-G05, D15-G06, D15-G07, D15-G08, D15-G09, D15-G10`
-- Manifest SHA-256: `4b8dc722e2241edfc25b4c2c524fc7672ac2691db872e745e2b740b4a5d54295`
+- Manifest SHA-256: `5480099e8aedf80dbafbaed5d9e2a6dc994f559ce9ab97df53820cdcdc8b373e`
 - Primary agents: `1`
 - Canonical tools: `inspect_instance, read_utilization_metrics, build_remediation_evidence, stop_sandbox_instance, verify_instance_state`
 - Bedrock model: `eu.amazon.nova-2-lite-v1:0` in `eu-central-1`
@@ -66,7 +66,7 @@ The runtime factory creates one primary Strands Agent.
 Human approval is explicit and bound to the proposal, request, actor session, and decision nonce.
 
 - Status / kind / scope: `PROVEN` / `TEST` / `mocked AWS`
-- Commit anchor: `17d5f4637dbd69a33eff1cbb46282c36b19ce6ad`
+- Commit anchor: `f2ee79c09ba174ba72cb527b70c095f412151758`
 - Authority source:
   - `src/aioa_cloudops_agent/agent/approval_flow.py::DurableApprovalFlow.resume`
   - `src/aioa_cloudops_agent/nz/contracts.py::Approval.validate_action_binding`
@@ -76,7 +76,7 @@ Human approval is explicit and bound to the proposal, request, actor session, an
   - `tests/integration/test_durable_hitl_approval_flow.py::test_changed_decision_nonce_replay_is_rejected_without_second_tool_call`
   - `tests/unit/test_durable_memory_repository.py::test_approval_from_another_run_or_proposal_cannot_authorize_execution`
 - Limitations: Does not attest to a real operator approval or a deployed identity provider.
-- Claim SHA-256: `dc567a9a1714ea412377c09517fb7934566e53e4a5507939053d5bde6d6adc64`
+- Claim SHA-256: `4c9eadb152ff1842da68d8b618953c3cd1c06b4932914424a230fee0cc5a9b05`
 
 ### BOUNDED-FAILURES-01
 
@@ -117,7 +117,7 @@ Critical AWS clients own explicit one-attempt transport configuration, and the b
 A fresh Agent runtime can restore a durable native interrupt using trusted principal identity and a server-issued one-time challenge, while no approval or resume route is public.
 
 - Status / kind / scope: `PROVEN` / `TEST` / `mocked AWS`
-- Commit anchor: `17d5f4637dbd69a33eff1cbb46282c36b19ce6ad`
+- Commit anchor: `f2ee79c09ba174ba72cb527b70c095f412151758`
 - Authority source:
   - `src/aioa_cloudops_agent/agent/factory.py::create_primary_agent`
   - `src/aioa_cloudops_agent/deployment/resume.py::AuthenticatedApprovalResumeService`
@@ -125,15 +125,17 @@ A fresh Agent runtime can restore a durable native interrupt using trusted princ
   - `tests/integration/test_durable_hitl_approval_flow.py::test_fresh_process_restores_native_interrupt_with_trusted_one_time_freshness`
   - `tests/unit/test_day15_judge_http.py::test_unknown_approval_mutation_and_wrong_method_routes_fail_before_services`
 - Limitations: Proves deterministic restoration and duplicate rejection with local durable fakes; the capability remains absent from the public route table.
-- Claim SHA-256: `febff2aa00d75faedeee9c3008c4b3d0e23521a4261020dd82583bf26ee46ef5`
+- Claim SHA-256: `dd6c0eadf66bb3add46056f8b303e877bbb0b52b58e33d6bec31bf7c705cbb26`
 
 ### DAY15-DEPLOYMENT-GATE-01
 
 The local Day 15 controller defines exactly ten stable gates, never authorizes deployment in validate-only mode, and blocks when artifact or external prerequisites are absent.
 
 - Status / kind / scope: `PROVEN` / `TEST` / `Local deterministic`
-- Commit anchor: `8e4583ac9341cb7b66de47cf0e7b2a442ac67b32`
+- Commit anchor: `36fd17df981dfa593d4e63f6a143410317410763`
 - Authority source:
+  - `scripts/day15/external_preflight_attestation.py::validate_receipt`
+  - `scripts/day15/render_template.py::verify_rendered_template`
   - `scripts/day15/run_day15_gate.py::GATES`
   - `scripts/day15/run_day15_gate.py::_payload`
   - `scripts/day15/run_day15_gate.py::run_gate`
@@ -148,10 +150,16 @@ The local Day 15 controller defines exactly ten stable gates, never authorizes d
   - `D15-G08`
   - `D15-G09`
   - `D15-G10`
+  - `tests/unit/test_day15_deployment_gate.py::test_deployment_decision_requires_all_ten_gates_to_pass`
+  - `tests/unit/test_day15_deployment_gate.py::test_g02_requires_authenticated_render_and_exact_closed_role_allowlists`
+  - `tests/unit/test_day15_deployment_gate.py::test_g04_reexecutes_clean_import_archive_dependency_and_container_proofs`
+  - `tests/unit/test_day15_deployment_gate.py::test_g10_deployment_contract_is_blocked_until_selected_hashes_are_reviewed`
+  - `tests/unit/test_day15_deployment_gate.py::test_local_gate_never_performs_aws_api_calls_and_only_probes_cli_version`
+  - `tests/unit/test_day15_external_preflight.py::test_external_contract_names_every_required_confirmation_and_identity`
   - `tests/unit/test_day15_gate.py::test_gate_matrix_has_exact_stable_ids_status_vocabulary_and_validate_only_output`
   - `tests/unit/test_day15_gate.py::test_missing_artifact_and_external_prerequisites_are_reported_as_blocked`
 - Limitations: Proves local fail-closed decision logic and gate definitions; external prerequisite satisfaction is outside repository-only proof.
-- Claim SHA-256: `7f3cad2d57a5c3cc969e6f2e988d0b1a2f8cb71d975c8b3c054d2878af237d12`
+- Claim SHA-256: `dfe98712084bc0697d606e32ee7fbc0b38a1172604e434dd5d5f6e9fc0242f5d`
 
 ### DAY15-JUDGE-SURFACE-01
 
@@ -176,32 +184,42 @@ The Day 15 application exposes health, readiness, same-origin UI, and token-prot
 The Day 15 candidate uses a hash-locked runtime and template-enforced retained state, explicit region, conditioned URL permissions, immutable aliases, bounded concurrency, and reviewed alias rollback.
 
 - Status / kind / scope: `PROVEN` / `TEST` / `Local deterministic`
-- Commit anchor: `8e4583ac9341cb7b66de47cf0e7b2a442ac67b32`
+- Commit anchor: `36fd17df981dfa593d4e63f6a143410317410763`
 - Authority source:
   - `infra/sam/template.yaml`
+  - `requirements/day15-toolchain.json`
   - `requirements/lambda-runtime.txt`
   - `scripts/day15/alias_rollback.py::build_plan`
   - `scripts/day15/build_lambda_artifact.py::build_artifact`
+  - `scripts/day15/build_lambda_artifact.py::revalidate_artifact`
   - `scripts/day15/preflight_region.py::validate_region`
+  - `scripts/day15/render_template.py::render_template`
+  - `scripts/day15/validate_template.py::validate_template_toolchain`
 - Proof nodes:
+  - `tests/unit/test_day15_artifact.py::test_container_validation_binds_engine_version_platform_and_manifest_digest`
   - `tests/unit/test_day15_artifact.py::test_dependency_scan_pass_requires_exact_complete_locked_inventory`
+  - `tests/unit/test_day15_artifact.py::test_dependency_scan_rejects_installed_scanner_version_drift`
   - `tests/unit/test_day15_artifact.py::test_repository_provenance_binds_clean_head_index_worktree_and_source_tree`
   - `tests/unit/test_day15_artifact.py::test_runtime_lock_is_complete_exact_and_hash_locked`
   - `tests/unit/test_day15_artifact.py::test_runtime_rebuild_uses_two_distinct_clean_installs`
+  - `tests/unit/test_day15_deployment_gate.py::test_g07_requires_semantic_alias_only_rollback_and_executable_proofs`
+  - `tests/unit/test_day15_deployment_gate.py::test_g08_rejects_every_forbidden_cost_service`
   - `tests/unit/test_day15_gate.py::test_alias_rollback_requires_reviewed_hash_then_reconciles_both_aliases`
+  - `tests/unit/test_day15_render_template.py::test_renderer_is_byte_deterministic_and_verifies_source_tools_and_commit`
+  - `tests/unit/test_day15_render_template.py::test_template_validator_requires_exact_sam_lint_and_translator_versions`
   - `tests/unit/test_infrastructure_contract.py::test_function_url_targets_live_alias_and_has_exact_two_conditioned_permissions`
   - `tests/unit/test_infrastructure_contract.py::test_immutable_versions_and_live_aliases_are_retained_for_rollback`
   - `tests/unit/test_infrastructure_contract.py::test_region_is_explicit_and_public_ingress_preserves_all_mutation_vetoes`
   - `tests/unit/test_infrastructure_contract.py::test_state_table_is_retained_recoverable_encrypted_and_deletion_protected`
 - Limitations: Proves repository artifact, template, and rollback contracts; it does not prove a built release was installed in an account.
-- Claim SHA-256: `4c10e2a5c2dcc8b2dd9c8f992e6715d39d795d8c74e66c5d210d7cd166e16130`
+- Claim SHA-256: `78fa975fd49f487132ec8a07a403a8a576db694fb0d5d9cb93ee923df41381b8`
 
 ### DAY15-RUNTIME-GUARDS-01
 
 Judge inputs cannot set authority or budgets; fresh investigations use exact server budgets, atomic daily quota reservations, and finite read-only status observations.
 
 - Status / kind / scope: `PROVEN` / `TEST` / `mocked AWS`
-- Commit anchor: `17d5f4637dbd69a33eff1cbb46282c36b19ce6ad`
+- Commit anchor: `f2ee79c09ba174ba72cb527b70c095f412151758`
 - Authority source:
   - `src/aioa_cloudops_agent/deployment/config.py::JudgeInvestigationRequest`
   - `src/aioa_cloudops_agent/deployment/config.py::new_judge_budget`
@@ -215,24 +233,25 @@ Judge inputs cannot set authority or budgets; fresh investigations use exact ser
   - `tests/unit/test_day15_runtime_contracts.py::test_server_owned_judge_budget_is_exact_and_fresh`
   - `tests/unit/test_day15_runtime_contracts.py::test_status_observation_cap_is_server_enforced_for_every_nonterminal_state`
 - Limitations: Proves server-owned bounds with deterministic repositories and clients, not production quota-service availability.
-- Claim SHA-256: `9569dc5e8c54bd35176a499f20650b03d6ccef0ef04a6b92c89830cf1f886dae`
+- Claim SHA-256: `47fe98e7fc38e2eb71b50821e28a927fea4472b24899e75913f89e4315a7c653`
 
 ### DAY15-TELEMETRY-01
 
 Judge telemetry exports only allowlisted identifiers and bounded classifications while structured logging discards prompts, secrets, and tool arguments.
 
 - Status / kind / scope: `PROVEN` / `TEST` / `Local deterministic`
-- Commit anchor: `17d5f4637dbd69a33eff1cbb46282c36b19ce6ad`
+- Commit anchor: `f2ee79c09ba174ba72cb527b70c095f412151758`
 - Authority source:
   - `src/aioa_cloudops_agent/judge/logging.py::StructuredJudgeLogger`
   - `src/aioa_cloudops_agent/judge/telemetry.py::SanitizedXRaySpanExporter`
   - `src/aioa_cloudops_agent/judge/telemetry.py::initialize_judge_telemetry`
 - Proof nodes:
   - `tests/unit/test_day15_judge_http.py::test_structured_logger_discards_secrets_prompts_and_tool_arguments`
+  - `tests/unit/test_day15_judge_runtime.py::test_runtime_emits_real_allowlisted_operation_span_without_sensitive_values`
   - `tests/unit/test_day15_judge_telemetry.py::test_process_telemetry_uses_exact_sampled_provider_and_empty_unredacted_opt_in`
   - `tests/unit/test_day15_judge_telemetry.py::test_xray_exporter_emits_only_allowlisted_ids_route_outcome_and_dependency`
 - Limitations: Proves filtering and exporter construction with local fakes; no provider trace delivery is attested.
-- Claim SHA-256: `4141fac3bf9de5416b74704290ed03b6be621740a30f87fde8919e72cf8219b7`
+- Claim SHA-256: `e7ec3721508a1d3ecfaeb14ef54d31a88678f5a0c4792851dda195c46347f39e`
 
 ### DEFAULT-DENY-01
 

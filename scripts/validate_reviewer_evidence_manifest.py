@@ -16,6 +16,7 @@ import sys
 import unicodedata
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from itertools import pairwise
 from pathlib import Path, PurePosixPath
 from typing import Any
 
@@ -37,6 +38,10 @@ from scripts.build_reviewer_evidence_manifest import (  # noqa: E402
     DAY15_CANDIDATE_STATUS,
     DAY15_M1_COMMIT,
     DAY15_M2_COMMIT,
+    DAY15_ORIGINAL_M1_COMMIT,
+    DAY15_ORIGINAL_M2_COMMIT,
+    DAY15_ORIGINAL_M3_COMMIT,
+    DAY15_RECOVERY_LINEAGE,
     DAY15_START_COMMIT,
     EVIDENCE_SNAPSHOT_COMMIT,
     EXPECTED_BEDROCK_REGION,
@@ -178,6 +183,7 @@ _REQUIRED_CLAIM_IDS = {
 _CLAIM_ID = re.compile(r"[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)+\Z")
 _SHA256 = re.compile(r"[0-9a-f]{64}\Z")
 _COMMIT = re.compile(r"[0-9a-f]{40}\Z")
+_DIGEST_IN_TEXT = re.compile(r"(?<![A-Za-z0-9])(?:[0-9a-f]{64}|[0-9a-f]{40})(?![A-Za-z0-9])")
 _ACCOUNT_ID = re.compile(r"(?<![A-Za-z0-9])[0-9]{12}(?![A-Za-z0-9])")
 _FORMATTED_ACCOUNT_ID = re.compile(
     r"(?<![A-Za-z0-9])[0-9]{4}[- ][0-9]{4}[- ][0-9]{4}(?![A-Za-z0-9])"
@@ -252,8 +258,19 @@ _REVIEWED_NEGATIVE_LIVE_STATEMENTS = {
 _RECEIPT_TIMESTAMP = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z\Z")
 _FROZEN_L1_COMMIT = "fbb536400594306f2bb3abd31c7064a66735c82d"
 _FROZEN_DAY15_START_COMMIT = "aa941a989a8b8cd0e40367bb130472e9f3c082a7"
-_FROZEN_DAY15_M1_COMMIT = "17d5f4637dbd69a33eff1cbb46282c36b19ce6ad"
-_FROZEN_DAY15_M2_COMMIT = "8e4583ac9341cb7b66de47cf0e7b2a442ac67b32"
+_FROZEN_DAY15_ORIGINAL_M1_COMMIT = "17d5f4637dbd69a33eff1cbb46282c36b19ce6ad"
+_FROZEN_DAY15_ORIGINAL_M2_COMMIT = "8e4583ac9341cb7b66de47cf0e7b2a442ac67b32"
+_FROZEN_DAY15_ORIGINAL_M3_COMMIT = "30c2a30cda0ac6d6e2003166daf6c29bf2c764f0"
+_FROZEN_DAY15_M1_COMMIT = "f2ee79c09ba174ba72cb527b70c095f412151758"
+_FROZEN_DAY15_M2_COMMIT = "36fd17df981dfa593d4e63f6a143410317410763"
+_FROZEN_DAY15_RECOVERY_LINEAGE = (
+    _FROZEN_DAY15_START_COMMIT,
+    _FROZEN_DAY15_ORIGINAL_M1_COMMIT,
+    _FROZEN_DAY15_ORIGINAL_M2_COMMIT,
+    _FROZEN_DAY15_ORIGINAL_M3_COMMIT,
+    _FROZEN_DAY15_M1_COMMIT,
+    _FROZEN_DAY15_M2_COMMIT,
+)
 _FROZEN_DAY15_CANDIDATE_STATUS = "LOCAL_IMPLEMENTATION_CANDIDATE"
 _FROZEN_DAY15_GATE_IDS = tuple(f"D15-G{index:02d}" for index in range(1, 11))
 _FROZEN_L1_CLAIM_IDS = {
@@ -266,15 +283,11 @@ _FROZEN_L1_CLAIM_IDS = {
     "SDK-PIN-01",
     "VERIFIED-SUCCESS-01",
 }
-_DAY15_M1_CLAIM_IDS = {
+_DAY15_ORIGINAL_M1_CLAIM_IDS = {
     "AGENT-TOPOLOGY-01",
-    "APPROVAL-BINDING-01",
     "BOUNDED-FAILURES-01",
     "DAY15-AWS-CLIENT-BOUNDS-01",
-    "DAY15-COLD-RESUME-01",
     "DAY15-JUDGE-SURFACE-01",
-    "DAY15-RUNTIME-GUARDS-01",
-    "DAY15-TELEMETRY-01",
     "EXECUTOR-GATES-01",
     "IAM-SEPARATION-01",
     "IDEMPOTENCY-01",
@@ -283,6 +296,12 @@ _DAY15_M1_CLAIM_IDS = {
     "P0-GATE-01",
     "P1-GATE-01",
     "TOOL-SURFACE-01",
+}
+_DAY15_RECOVERED_M1_CLAIM_IDS = {
+    "APPROVAL-BINDING-01",
+    "DAY15-COLD-RESUME-01",
+    "DAY15-RUNTIME-GUARDS-01",
+    "DAY15-TELEMETRY-01",
 }
 _DAY15_M2_CLAIM_IDS = {
     "DAY15-DEPLOYMENT-GATE-01",
@@ -881,6 +900,7 @@ def _scan_private_material(value: object, *, key: str = "") -> tuple[str, ...]:
             reasons.extend(_scan_private_material(child))
     elif isinstance(value, str):
         public_text = _normalized_public_text(value)
+        account_scan_text = _DIGEST_IN_TEXT.sub("", public_text)
         if any(unicodedata.category(character) == "Cf" for character in public_text):
             reasons.append("OBFUSCATING_UNICODE")
         if "<" in public_text or ">" in public_text:
@@ -902,9 +922,9 @@ def _scan_private_material(value: object, *, key: str = "") -> tuple[str, ...]:
             for match in _BARE_AWS_SECRET.finditer(public_text)
         )
         if not is_validated_digest_shape and (
-            _ACCOUNT_ID.search(public_text)
-            or _FORMATTED_ACCOUNT_ID.search(public_text)
-            or _LABELED_ACCOUNT_ID.search(public_text)
+            _ACCOUNT_ID.search(account_scan_text)
+            or _FORMATTED_ACCOUNT_ID.search(account_scan_text)
+            or _LABELED_ACCOUNT_ID.search(account_scan_text)
         ):
             reasons.append("ACCOUNT_ID_MATERIAL")
         if _AWS_ACCESS_ID.search(public_text) or any(
@@ -1153,8 +1173,12 @@ def _validate_day15_candidate_snapshot(
     reasons: list[str] = []
     if (
         DAY15_START_COMMIT != _FROZEN_DAY15_START_COMMIT
+        or DAY15_ORIGINAL_M1_COMMIT != _FROZEN_DAY15_ORIGINAL_M1_COMMIT
+        or DAY15_ORIGINAL_M2_COMMIT != _FROZEN_DAY15_ORIGINAL_M2_COMMIT
+        or DAY15_ORIGINAL_M3_COMMIT != _FROZEN_DAY15_ORIGINAL_M3_COMMIT
         or DAY15_M1_COMMIT != _FROZEN_DAY15_M1_COMMIT
         or DAY15_M2_COMMIT != _FROZEN_DAY15_M2_COMMIT
+        or DAY15_RECOVERY_LINEAGE != _FROZEN_DAY15_RECOVERY_LINEAGE
         or DAY15_CANDIDATE_STATUS != _FROZEN_DAY15_CANDIDATE_STATUS
     ):
         reasons.append("DAY15_ANCHOR_CONSTANT_DRIFT")
@@ -1177,7 +1201,9 @@ def _validate_day15_candidate_snapshot(
 def _expected_claim_anchor(claim_id: str) -> str | None:
     if claim_id in _FROZEN_L1_CLAIM_IDS:
         return _FROZEN_L1_COMMIT
-    if claim_id in _DAY15_M1_CLAIM_IDS:
+    if claim_id in _DAY15_ORIGINAL_M1_CLAIM_IDS:
+        return _FROZEN_DAY15_ORIGINAL_M1_COMMIT
+    if claim_id in _DAY15_RECOVERED_M1_CLAIM_IDS:
         return _FROZEN_DAY15_M1_COMMIT
     if claim_id in _DAY15_M2_CLAIM_IDS:
         return _FROZEN_DAY15_M2_COMMIT
@@ -1202,12 +1228,20 @@ def _validate_claims(
     observed_ids = {claim_id for claim_id in ids if isinstance(claim_id, str)}
     if observed_ids != _REQUIRED_CLAIM_IDS or len(ids) != len(_REQUIRED_CLAIM_IDS):
         reasons.append("REQUIRED_CLAIM_SET_DRIFT")
-    anchored_ids = _FROZEN_L1_CLAIM_IDS | _DAY15_M1_CLAIM_IDS | _DAY15_M2_CLAIM_IDS
+    anchor_groups = (
+        _FROZEN_L1_CLAIM_IDS,
+        _DAY15_ORIGINAL_M1_CLAIM_IDS,
+        _DAY15_RECOVERED_M1_CLAIM_IDS,
+        _DAY15_M2_CLAIM_IDS,
+    )
+    anchored_ids = set().union(*anchor_groups)
     if (
         anchored_ids != _REQUIRED_CLAIM_IDS
-        or _FROZEN_L1_CLAIM_IDS & _DAY15_M1_CLAIM_IDS
-        or _FROZEN_L1_CLAIM_IDS & _DAY15_M2_CLAIM_IDS
-        or _DAY15_M1_CLAIM_IDS & _DAY15_M2_CLAIM_IDS
+        or any(
+            left & right
+            for index, left in enumerate(anchor_groups)
+            for right in anchor_groups[index + 1 :]
+        )
     ):
         reasons.append("CLAIM_ANCHOR_BASELINE_INVALID")
     gate_ids = set(facts.p0_gate_ids + facts.p1_gate_ids + facts.day15_gate_ids)
@@ -1528,12 +1562,7 @@ def _validate_git_anchors(
     ancestor = _git(root, "merge-base", "--is-ancestor", EVIDENCE_SNAPSHOT_COMMIT, "HEAD")
     if ancestor.returncode != 0:
         reasons.append("EVIDENCE_SNAPSHOT_NOT_ANCESTOR")
-    day15_commits = (
-        _FROZEN_DAY15_START_COMMIT,
-        _FROZEN_DAY15_M1_COMMIT,
-        _FROZEN_DAY15_M2_COMMIT,
-    )
-    for commit in day15_commits:
+    for commit in _FROZEN_DAY15_RECOVERY_LINEAGE:
         exists = _git(root, "cat-file", "-e", f"{commit}^{{commit}}")
         if exists.returncode != 0:
             reasons.append("DAY15_COMMIT_MISSING")
@@ -1551,31 +1580,20 @@ def _validate_git_anchors(
         _FROZEN_DAY15_M2_COMMIT,
         "HEAD",
     )
-    m1_parents = _git(
-        root,
-        "rev-list",
-        "--parents",
-        "-n",
-        "1",
-        _FROZEN_DAY15_M1_COMMIT,
-    )
-    m2_parents = _git(
-        root,
-        "rev-list",
-        "--parents",
-        "-n",
-        "1",
-        _FROZEN_DAY15_M2_COMMIT,
+    parent_results = tuple(
+        (
+            _git(root, "rev-list", "--parents", "-n", "1", child),
+            [child, parent],
+        )
+        for parent, child in pairwise(_FROZEN_DAY15_RECOVERY_LINEAGE)
     )
     if (
         baseline_to_start.returncode != 0
         or m2_to_head.returncode != 0
-        or m1_parents.returncode != 0
-        or m1_parents.stdout.split()
-        != [_FROZEN_DAY15_M1_COMMIT, _FROZEN_DAY15_START_COMMIT]
-        or m2_parents.returncode != 0
-        or m2_parents.stdout.split()
-        != [_FROZEN_DAY15_M2_COMMIT, _FROZEN_DAY15_M1_COMMIT]
+        or any(
+            result.returncode != 0 or result.stdout.split() != expected
+            for result, expected in parent_results
+        )
     ):
         reasons.append("DAY15_ANCHOR_CHAIN_DRIFT")
     tag = _git(root, "rev-parse", f"refs/tags/{facts.phase1_tag_name}^{{}}")
@@ -1631,6 +1649,7 @@ def _validate_git_anchors(
                 commit
                 not in {
                     _FROZEN_L1_COMMIT,
+                    _FROZEN_DAY15_ORIGINAL_M1_COMMIT,
                     _FROZEN_DAY15_M1_COMMIT,
                     _FROZEN_DAY15_M2_COMMIT,
                 }

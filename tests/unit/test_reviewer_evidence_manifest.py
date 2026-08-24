@@ -5,6 +5,7 @@ import json
 import subprocess
 from copy import deepcopy
 from dataclasses import replace
+from itertools import pairwise
 from pathlib import Path
 
 import pytest
@@ -13,6 +14,10 @@ import scripts.validate_reviewer_evidence_manifest as validator
 from scripts.build_reviewer_evidence_manifest import (
     DAY15_M1_COMMIT,
     DAY15_M2_COMMIT,
+    DAY15_ORIGINAL_M1_COMMIT,
+    DAY15_ORIGINAL_M2_COMMIT,
+    DAY15_ORIGINAL_M3_COMMIT,
+    DAY15_RECOVERY_LINEAGE,
     DAY15_START_COMMIT,
     EVIDENCE_SNAPSHOT_COMMIT,
     EXPECTED_STRANDS_REQUIREMENT,
@@ -591,7 +596,15 @@ def test_changed_but_ancestral_claim_commit_anchor_is_rejected() -> None:
     assert "CLAIM_COMMIT_ANCHOR_DRIFT" in validate_manifest(manifest)
 
 
-def test_day15_candidate_and_claim_anchors_are_exact_pre_m3_objects() -> None:
+def test_commit_hash_numeric_run_is_not_misclassified_as_an_account_id() -> None:
+    reviewed_commit = f"Reviewed candidate `{DAY15_M2_COMMIT}`."
+    actual_account = reviewed_commit + " AWS account " + "123456789012"
+
+    assert "ACCOUNT_ID_MATERIAL" not in validator._scan_private_material(reviewed_commit)
+    assert "ACCOUNT_ID_MATERIAL" in validator._scan_private_material(actual_account)
+
+
+def test_day15_candidate_and_claim_anchors_are_exact_recovery_objects() -> None:
     manifest = build_manifest()
     candidate = manifest["day15_candidate_snapshot"]
     assert isinstance(candidate, dict)
@@ -623,15 +636,52 @@ def test_day15_candidate_and_claim_anchors_are_exact_pre_m3_objects() -> None:
     }
     assert anchors == {
         EVIDENCE_SNAPSHOT_COMMIT,
+        DAY15_ORIGINAL_M1_COMMIT,
         DAY15_M1_COMMIT,
         DAY15_M2_COMMIT,
     }
+    original_m1_claims = {
+        "AGENT-TOPOLOGY-01",
+        "BOUNDED-FAILURES-01",
+        "DAY15-AWS-CLIENT-BOUNDS-01",
+        "DAY15-JUDGE-SURFACE-01",
+        "EXECUTOR-GATES-01",
+        "IAM-SEPARATION-01",
+        "IDEMPOTENCY-01",
+        "MODEL-AUTHORITY-01",
+        "MODEL-PIN-01",
+        "P0-GATE-01",
+        "P1-GATE-01",
+        "TOOL-SURFACE-01",
+    }
+    recovered_m1_claims = {
+        "APPROVAL-BINDING-01",
+        "DAY15-COLD-RESUME-01",
+        "DAY15-RUNTIME-GUARDS-01",
+        "DAY15-TELEMETRY-01",
+    }
+    final_m2_claims = {
+        "DAY15-DEPLOYMENT-GATE-01",
+        "DAY15-RELEASE-SAFETY-01",
+    }
+    assert all(
+        _claim(manifest, claim_id)["commit_anchor"] == DAY15_ORIGINAL_M1_COMMIT
+        for claim_id in original_m1_claims
+    )
+    assert all(
+        _claim(manifest, claim_id)["commit_anchor"] == DAY15_M1_COMMIT
+        for claim_id in recovered_m1_claims
+    )
+    assert all(
+        _claim(manifest, claim_id)["commit_anchor"] == DAY15_M2_COMMIT
+        for claim_id in final_m2_claims
+    )
     assert _claim(manifest, "LIVE-EC2-01")["commit_anchor"] == EVIDENCE_SNAPSHOT_COMMIT
     assert manifest["evidence_snapshot"]["commit"] == EVIDENCE_SNAPSHOT_COMMIT
     assert _claim(manifest, "PRIOR-ART-HISTORY-01")["proof_nodes"] == ["P0-15"]
 
 
-def test_day15_anchor_chain_is_exact_single_parent_history() -> None:
+def test_day15_anchor_chain_preserves_every_recovery_commit_as_single_parent_history() -> None:
     def parents(commit: str) -> list[str]:
         result = subprocess.run(
             ["git", "rev-list", "--parents", "-n", "1", commit],
@@ -642,8 +692,16 @@ def test_day15_anchor_chain_is_exact_single_parent_history() -> None:
         )
         return result.stdout.split()
 
-    assert parents(DAY15_M1_COMMIT) == [DAY15_M1_COMMIT, DAY15_START_COMMIT]
-    assert parents(DAY15_M2_COMMIT) == [DAY15_M2_COMMIT, DAY15_M1_COMMIT]
+    assert DAY15_RECOVERY_LINEAGE == (
+        DAY15_START_COMMIT,
+        DAY15_ORIGINAL_M1_COMMIT,
+        DAY15_ORIGINAL_M2_COMMIT,
+        DAY15_ORIGINAL_M3_COMMIT,
+        DAY15_M1_COMMIT,
+        DAY15_M2_COMMIT,
+    )
+    for parent, child in pairwise(DAY15_RECOVERY_LINEAGE):
+        assert parents(child) == [child, parent]
     assert validator.collect_frozen_day15_gate_ids() == tuple(
         f"D15-G{index:02d}" for index in range(1, 11)
     )
@@ -653,7 +711,7 @@ def test_day15_candidate_anchor_or_gate_rewrite_is_rejected() -> None:
     anchor_drift = deepcopy(build_manifest())
     candidate = anchor_drift["day15_candidate_snapshot"]
     assert isinstance(candidate, dict)
-    candidate["commit"] = DAY15_M1_COMMIT
+    candidate["commit"] = DAY15_ORIGINAL_M2_COMMIT
     _seal(anchor_drift)
 
     gate_drift = deepcopy(build_manifest())
@@ -664,6 +722,15 @@ def test_day15_candidate_anchor_or_gate_rewrite_is_rejected() -> None:
 
     assert "DAY15_CANDIDATE_SNAPSHOT_DRIFT" in validate_manifest(anchor_drift)
     assert "DAY15_CANDIDATE_SNAPSHOT_DRIFT" in validate_manifest(gate_drift)
+
+
+def test_recovered_claim_cannot_be_reanchored_to_original_m1() -> None:
+    manifest = deepcopy(build_manifest())
+    claim = _claim(manifest, "DAY15-TELEMETRY-01")
+    claim["commit_anchor"] = DAY15_ORIGINAL_M1_COMMIT
+    _seal(manifest)
+
+    assert "CLAIM_COMMIT_ANCHOR_DRIFT" in validate_manifest(manifest)
 
 
 def test_synthetic_future_live_receipt_is_rejected(
