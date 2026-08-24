@@ -267,9 +267,15 @@ class DurableApprovalFlow:
         )
         try:
             existing = self._repository.get_approval(proposal.proposal_id)
-            if existing is not None and existing != approval:
-                raise StorageConflictError("conflicting durable decision already exists")
-            self._repository.create_approval(approval)
+            if existing is not None:
+                semantically_identical = approval.model_copy(
+                    update={"decided_at": existing.decided_at}
+                )
+                if existing != semantically_identical:
+                    raise StorageConflictError("conflicting durable decision already exists")
+                approval = existing
+            else:
+                self._repository.create_approval(approval)
             if run.state is target_state:
                 return ApprovalResumeResult.succeeded(
                     self._resolution(run, response.decision, expected_hash, reconciled=True)

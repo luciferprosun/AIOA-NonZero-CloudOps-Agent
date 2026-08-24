@@ -1,4 +1,5 @@
 import json
+from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import UUID
@@ -133,6 +134,14 @@ class EventIdFactory:
         return value
 
 
+class MutableClock:
+    def __init__(self, value: datetime) -> None:
+        self.value = value
+
+    def __call__(self) -> datetime:
+        return self.value
+
+
 class ApprovalFailingRepository(InMemoryTestDurableTruthRepository):
     def create_approval(self, approval: object) -> object:
         raise StorageDependencyError("simulated durable approval outage")
@@ -206,6 +215,7 @@ def _repository(
 def _flow(
     *,
     repository: InMemoryTestDurableTruthRepository | None = None,
+    decision_clock: Callable[[], datetime] | None = None,
 ) -> tuple[
     DurableApprovalFlow,
     InMemoryTestDurableTruthRepository,
@@ -258,7 +268,7 @@ def _flow(
         DurableApprovalFlow(
             runtime,
             actual_repository,
-            clock=lambda: NOW + timedelta(seconds=10),
+            clock=decision_clock or (lambda: NOW + timedelta(seconds=10)),
             event_id_factory=EventIdFactory(),
         ),
         actual_repository,
@@ -392,6 +402,27 @@ def test_duplicate_identical_resume_reconciles_without_second_tool_call() -> Non
     assert duplicate.value is not None and duplicate.value.reconciled is True
     assert repository.get_approval(PROPOSAL_ID) is not None
     assert stop_calls == [PROPOSAL_ID]
+
+
+def test_duplicate_resume_after_lost_response_keeps_original_decision_timestamp() -> None:
+    clock = MutableClock(NOW + timedelta(seconds=10))
+    flow, repository, model, stop_calls = _flow(decision_clock=clock)
+    interrupt = flow.request(PROPOSAL_ID).value
+    assert interrupt is not None
+    response = _resume(interrupt, ApprovalDecision.APPROVED)
+    first = flow.resume(response)
+    persisted = repository.get_approval(PROPOSAL_ID)
+    assert first.status is ResultStatus.SUCCESS
+    assert persisted is not None
+
+    clock.value = NOW + timedelta(hours=1)
+    duplicate = flow.resume(response)
+
+    assert duplicate.status is ResultStatus.SUCCESS
+    assert duplicate.value is not None and duplicate.value.reconciled is True
+    assert repository.get_approval(PROPOSAL_ID).decided_at == persisted.decided_at
+    assert stop_calls == [PROPOSAL_ID]
+    assert model.calls == 2
 
 
 def test_conflicting_second_decision_is_rejected() -> None:

@@ -27,6 +27,7 @@ from aioa_cloudops_agent.nz import (
     ProposalState,
     Run,
     VerificationEvidence,
+    VerificationProofOrigin,
     WorkflowState,
 )
 from aioa_cloudops_agent.nz.errors import StorageConflictError, StorageDependencyError
@@ -405,6 +406,60 @@ def test_verification_evidence_is_create_only_and_required_for_final_success() -
         item["entity_type"] == {"S": "VERIFICATION_EVIDENCE"}
         for item in client.items.values()
     ) == 1
+
+
+def test_lost_ack_recovery_proof_is_durable_without_fabricating_acknowledgement() -> None:
+    _, repository, proposal = _prepare_approved_repository()
+    record = repository.register_idempotency(
+        build_idempotency_record(proposal, registered_at=NOW + timedelta(seconds=7))
+    )
+    run = repository.get_run(RUN_ID)
+    assert run is not None
+    run = repository.transition_run(
+        RUN_ID,
+        WorkflowState.EXECUTING,
+        expected_state=WorkflowState.APPROVED,
+        expected_version=run.version,
+        updated_at=NOW + timedelta(seconds=8),
+    )
+    run = repository.transition_run(
+        RUN_ID,
+        WorkflowState.VERIFYING,
+        expected_state=WorkflowState.EXECUTING,
+        expected_version=run.version,
+        updated_at=NOW + timedelta(seconds=9),
+    )
+    evidence = VerificationEvidence.create_from_recovery(
+        evidence_id=EVIDENCE_ID,
+        proposal=proposal,
+        run=run,
+        verified_at=NOW + timedelta(seconds=10),
+        observation_hash="e" * 64,
+    )
+
+    repository.create_verification_evidence(evidence)
+    repository.complete_idempotency(
+        record.idempotency_key,
+        ActionResult(
+            outcome=ActionOutcome.SUCCEEDED,
+            observed_state=ObservedInstanceState.STOPPED,
+            evidence_hash=evidence.evidence_hash,
+        ),
+        completed_at=NOW + timedelta(seconds=11),
+    )
+    final = repository.transition_run(
+        RUN_ID,
+        WorkflowState.SUCCESS_WITH_EVIDENCE,
+        expected_state=WorkflowState.VERIFYING,
+        expected_version=run.version,
+        updated_at=NOW + timedelta(seconds=12),
+        verification_proposal_id=PROPOSAL_ID,
+    )
+
+    assert evidence.proof_origin is VerificationProofOrigin.RECOVERY_READ_BACK
+    assert evidence.execution_acknowledgement_hash is None
+    assert repository.get_verification_evidence(RUN_ID, PROPOSAL_ID) == evidence
+    assert final.state is WorkflowState.SUCCESS_WITH_EVIDENCE
 
 
 def test_idempotency_collision_with_inconsistent_payload_fails() -> None:

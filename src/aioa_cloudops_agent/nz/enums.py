@@ -38,7 +38,6 @@ TERMINAL_WORKFLOW_STATES: Final[frozenset[WorkflowState]] = frozenset(
         WorkflowState.BUDGET_EXHAUSTED,
         WorkflowState.EXECUTION_FAILED,
         WorkflowState.VERIFICATION_FAILED,
-        WorkflowState.RECOVERY_REQUIRED,
     }
 )
 
@@ -128,6 +127,13 @@ class VerificationDisposition(StrEnum):
     MISMATCH = "MISMATCH"
 
 
+class VerificationProofOrigin(StrEnum):
+    """How independent stopped-state proof is bound to durable execution truth."""
+
+    EXECUTION_ACKNOWLEDGEMENT = "EXECUTION_ACKNOWLEDGEMENT"
+    RECOVERY_READ_BACK = "RECOVERY_READ_BACK"
+
+
 class ObservedInstanceState(StrEnum):
     """Normalized EC2 states relevant to the bounded workflow."""
 
@@ -154,6 +160,10 @@ class AuditEventType(StrEnum):
     TOOL_OBSERVED = "TOOL_OBSERVED"
     MODEL_OBSERVED = "MODEL_OBSERVED"
     VERIFICATION_RECORDED = "VERIFICATION_RECORDED"
+    RECOVERY_CLASSIFIED = "RECOVERY_CLASSIFIED"
+    RECOVERY_OBSERVED = "RECOVERY_OBSERVED"
+    RECOVERY_COMPLETED = "RECOVERY_COMPLETED"
+    RECOVERY_DEFERRED = "RECOVERY_DEFERRED"
 
 
 class RecoveryDisposition(StrEnum):

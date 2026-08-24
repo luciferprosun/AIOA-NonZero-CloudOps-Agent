@@ -17,6 +17,7 @@ from aioa_cloudops_agent.nz import (
     ProposalState,
     Run,
     VerificationEvidence,
+    VerificationProofOrigin,
     WorkflowState,
     transition_run,
 )
@@ -272,6 +273,24 @@ class InMemoryTestDurableTruthRepository:
             if proposal is not None
             else None
         )
+        approval = self._approvals.get(evidence.proposal_id)
+        acknowledgement_matches = (
+            evidence.proof_origin is VerificationProofOrigin.EXECUTION_ACKNOWLEDGEMENT
+            and idempotency is not None
+            and idempotency.execution_acknowledgement is not None
+            and idempotency.execution_acknowledgement.acknowledgement_hash
+            == evidence.execution_acknowledgement_hash
+        )
+        recovery_matches = (
+            evidence.proof_origin is VerificationProofOrigin.RECOVERY_READ_BACK
+            and idempotency is not None
+            and idempotency.status is IdempotencyStatus.REGISTERED
+            and idempotency.execution_acknowledgement is None
+            and approval is not None
+            and approval.decision is ApprovalDecision.APPROVED
+            and approval.run_id == evidence.run_id
+            and approval.target == evidence.target
+        )
         if (
             proposal is None
             or run is None
@@ -281,9 +300,7 @@ class InMemoryTestDurableTruthRepository:
             or run.trace_id != evidence.trace_id
             or run.correlation_id != evidence.correlation_id
             or idempotency is None
-            or idempotency.execution_acknowledgement is None
-            or idempotency.execution_acknowledgement.acknowledgement_hash
-            != evidence.execution_acknowledgement_hash
+            or not (acknowledgement_matches or recovery_matches)
         ):
             raise StorageConflictError("verification evidence does not match the proposal")
         self._verification_evidence[key] = evidence

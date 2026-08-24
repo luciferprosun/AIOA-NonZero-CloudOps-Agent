@@ -20,6 +20,7 @@ from .enums import (
     ObservedInstanceState,
     ProposalState,
     VerificationDisposition,
+    VerificationProofOrigin,
     WorkflowState,
 )
 from .errors import FailureDetail
@@ -272,7 +273,9 @@ class VerificationEvidence(NonZeroContract):
     target: ActionTarget
     observed_state: Literal[ObservedInstanceState.STOPPED] = ObservedInstanceState.STOPPED
     verified_at: datetime
-    execution_acknowledgement_hash: Sha256Digest
+    proof_origin: VerificationProofOrigin = VerificationProofOrigin.EXECUTION_ACKNOWLEDGEMENT
+    execution_acknowledgement_hash: Sha256Digest | None = None
+    recovery_observation_hash: Sha256Digest | None = None
     observation_hash: Sha256Digest
     request_reference: NonEmptyText | None = None
     evidence_hash: Sha256Digest
@@ -284,6 +287,16 @@ class VerificationEvidence(NonZeroContract):
 
     @model_validator(mode="after")
     def validate_evidence_hash(self) -> Self:
+        if self.proof_origin is VerificationProofOrigin.EXECUTION_ACKNOWLEDGEMENT:
+            if self.execution_acknowledgement_hash is None:
+                raise ValueError("acknowledgement proof requires its durable hash")
+            if self.recovery_observation_hash is not None:
+                raise ValueError("acknowledgement proof cannot contain recovery proof")
+        elif (
+            self.recovery_observation_hash is None
+            or self.execution_acknowledgement_hash is not None
+        ):
+            raise ValueError("recovery proof requires only its read-back hash")
         canonical = json.dumps(
             self.evidence_payload(),
             allow_nan=False,
@@ -298,11 +311,10 @@ class VerificationEvidence(NonZeroContract):
     def evidence_payload(self) -> dict[str, object]:
         """Return canonical decision-relevant proof without provider response leakage."""
 
-        return {
+        payload: dict[str, object] = {
             "action": self.action.value,
             "correlation_id": str(self.correlation_id),
             "disposition": self.disposition.value,
-            "execution_acknowledgement_hash": self.execution_acknowledgement_hash,
             "observation_hash": self.observation_hash,
             "observed_state": self.observed_state.value,
             "proposal_id": str(self.proposal_id),
@@ -312,6 +324,13 @@ class VerificationEvidence(NonZeroContract):
             "trace_id": str(self.trace_id),
             "verified_at": self.verified_at.isoformat(),
         }
+        if self.proof_origin is VerificationProofOrigin.EXECUTION_ACKNOWLEDGEMENT:
+            # Keep the pre-Day-11 canonical shape so already persisted hashes remain valid.
+            payload["execution_acknowledgement_hash"] = self.execution_acknowledgement_hash
+        else:
+            payload["proof_origin"] = self.proof_origin.value
+            payload["recovery_observation_hash"] = self.recovery_observation_hash
+        return payload
 
     @classmethod
     def create(
@@ -344,6 +363,42 @@ class VerificationEvidence(NonZeroContract):
             "execution_acknowledgement_hash": acknowledgement.acknowledgement_hash,
             "observation_hash": observation_hash,
             "request_reference": acknowledgement.request_reference,
+        }
+        provisional = cls.model_construct(**values, evidence_hash="0" * 64)
+        canonical = json.dumps(
+            provisional.evidence_payload(),
+            allow_nan=False,
+            ensure_ascii=True,
+            separators=(",", ":"),
+            sort_keys=True,
+        ).encode("utf-8")
+        return cls(**values, evidence_hash=hashlib.sha256(canonical).hexdigest())
+
+    @classmethod
+    def create_from_recovery(
+        cls,
+        *,
+        evidence_id: Uuid7Identifier,
+        proposal: ActionProposal,
+        run: Run,
+        verified_at: datetime,
+        observation_hash: Sha256Digest,
+    ) -> "VerificationEvidence":
+        """Create proof from approved lost-ACK work plus independent stopped read-back."""
+
+        if proposal.run_id != run.run_id:
+            raise ValueError("recovery evidence prerequisites do not share one run")
+        values: dict[str, object] = {
+            "evidence_id": evidence_id,
+            "proposal_id": proposal.proposal_id,
+            "run_id": run.run_id,
+            "trace_id": run.trace_id,
+            "correlation_id": run.correlation_id,
+            "target": proposal.target,
+            "verified_at": verified_at,
+            "proof_origin": VerificationProofOrigin.RECOVERY_READ_BACK,
+            "recovery_observation_hash": observation_hash,
+            "observation_hash": observation_hash,
         }
         provisional = cls.model_construct(**values, evidence_hash="0" * 64)
         canonical = json.dumps(

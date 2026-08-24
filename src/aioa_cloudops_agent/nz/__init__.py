@@ -32,6 +32,7 @@ from .enums import (
     RecoveryDisposition,
     ResultStatus,
     VerificationDisposition,
+    VerificationProofOrigin,
     WorkflowState,
 )
 from .errors import (
@@ -99,6 +100,7 @@ __all__ = [
     "Uuid7Identifier",
     "VerificationDisposition",
     "VerificationEvidence",
+    "VerificationProofOrigin",
     "WorkflowState",
     "WorkflowTransitionError",
     "authority_for_capability",

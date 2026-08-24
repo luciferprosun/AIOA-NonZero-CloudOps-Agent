@@ -80,6 +80,14 @@ ALLOWED_WORKFLOW_TRANSITIONS: Final[dict[WorkflowState, frozenset[WorkflowState]
             WorkflowState.RECOVERY_REQUIRED,
         }
     ),
+    WorkflowState.RECOVERY_REQUIRED: frozenset(
+        {
+            WorkflowState.VERIFYING,
+            WorkflowState.DENIED_BY_POLICY,
+            WorkflowState.DEPENDENCY_UNAVAILABLE,
+            WorkflowState.VERIFICATION_FAILED,
+        }
+    ),
     **{state: frozenset() for state in TERMINAL_WORKFLOW_STATES},
 }
 

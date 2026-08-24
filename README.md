@@ -3,7 +3,7 @@
 Newly authored work for the **AWS Agents for Humans Hackathon 2026**.
 
 - Track: Professional Agents
-- Status: complete local human-approved remediation flow; live AWS mutation not run without explicit gates
+- Status: complete local human-approved remediation and restart-safe recovery flow; live AWS mutation not run without explicit gates
 - Orchestration: one Strands Agent
 - Model platform: Amazon Bedrock
 - Current capability: five bounded tools covering investigation, proposal-bound stop, and independent verification
