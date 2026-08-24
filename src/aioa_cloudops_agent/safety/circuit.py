@@ -20,6 +20,7 @@ class CircuitState(StrEnum):
 class CircuitDependency(StrEnum):
     """Read dependencies currently protected by the application circuit."""
 
+    BEDROCK_MODEL = "BEDROCK_MODEL"
     EC2_READ = "EC2_READ"
     CLOUDWATCH_READ = "CLOUDWATCH_READ"
     VERIFICATION_READ = "VERIFICATION_READ"

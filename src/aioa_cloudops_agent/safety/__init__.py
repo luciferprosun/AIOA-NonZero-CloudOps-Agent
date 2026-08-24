@@ -15,6 +15,7 @@ from .failures import (
     redacted_unknown_failure,
     workflow_state_for_failure,
 )
+from .model_circuit import CircuitBoundedModel
 from .policy import DefaultDenyToolPolicy, PolicyDecision, PolicyDisposition
 from .retry import (
     AUTOMATIC_RETRY_ALLOWED,
@@ -31,6 +32,7 @@ __all__ = [
     "BoundaryRisk",
     "BoundedReadRetry",
     "BoundedSchemaCorrection",
+    "CircuitBoundedModel",
     "CircuitBreakerSettings",
     "CircuitDependency",
     "CircuitOpenError",

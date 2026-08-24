@@ -135,6 +135,11 @@ def test_bedrock_provider_uses_explicit_region_model_and_bounds() -> None:
     assert config["streaming"] is True
     assert session.client_calls[0]["service_name"] == "bedrock-runtime"
     assert session.client_calls[0]["region_name"] == "eu-central-1"
+    client_config = session.client_calls[0]["config"]
+    assert client_config.retries == {"mode": "standard", "total_max_attempts": 1}
+    assert client_config.connect_timeout == 3
+    assert client_config.read_timeout == 45
+    assert client_config.ignore_configured_endpoint_urls is True
 
 
 def test_factory_creates_exactly_one_primary_agent_and_five_canonical_tools() -> None:

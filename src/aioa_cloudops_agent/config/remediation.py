@@ -40,6 +40,7 @@ class SandboxRemediationSettings:
 
         SandboxTarget(
             instance_id=self.instance_id,
+            region=self.region,
             required_tag_key=self.required_tag_key,
             required_tag_value=self.required_tag_value,
         )
@@ -64,6 +65,7 @@ class SandboxRemediationSettings:
 
         return SandboxTarget(
             instance_id=self.instance_id,
+            region=self.region,
             required_tag_key=self.required_tag_key,
             required_tag_value=self.required_tag_value,
         )
@@ -77,11 +79,9 @@ class SandboxRemediationSettings:
             raise ContractValidationError("SANDBOX_INSTANCE_ID is required")
         return cls(
             instance_id=instance_id,
-            required_tag_key=os.getenv(
-                "SANDBOX_REQUIRED_TAG_KEY", "AIOACloudOpsSandbox"
-            ),
-            required_tag_value=os.getenv("SANDBOX_REQUIRED_TAG_VALUE", "true"),
-            region=os.getenv("AWS_REGION", DEFAULT_AWS_REGION),
+            required_tag_key=os.getenv("SANDBOX_TAG_KEY", "AIOACloudOpsSandbox"),
+            required_tag_value=os.getenv("SANDBOX_TAG_VALUE", "true"),
+            region=os.getenv("SANDBOX_REGION", DEFAULT_AWS_REGION),
             aws_mutations_enabled=_strict_boolean("AWS_MUTATIONS_ENABLED"),
             allow_live_sandbox_stop=_strict_boolean("AIOA_ALLOW_LIVE_SANDBOX_STOP"),
         )

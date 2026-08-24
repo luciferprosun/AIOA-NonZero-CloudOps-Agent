@@ -127,13 +127,18 @@ def test_active_source_has_no_eip_query_surface() -> None:
 def test_infrastructure_isolates_the_only_stop_authority_from_read_only_policy() -> None:
     sam = yaml.safe_load(SAM_TEMPLATE.read_text(encoding="utf-8"))
     policy = json.loads(READ_ONLY_POLICY.read_text(encoding="utf-8"))
-    actions = _all_actions(sam) + _all_actions(policy)
+    template_actions = _all_actions(sam)
+    read_only_actions = _all_actions(policy)
+    actions = template_actions + read_only_actions
 
     assert "ec2:DescribeInstances" in actions
     assert "ec2:StopInstances" in actions
-    assert "ec2:StopInstances" not in _all_actions(policy)
+    assert "ec2:StopInstances" not in read_only_actions
     assert "ec2:TerminateInstances" not in actions
-    assert not any(action.startswith("bedrock:") for action in actions)
+    assert {
+        action for action in template_actions if action.startswith("bedrock:")
+    } == {"bedrock:InvokeModelWithResponseStream"}
+    assert not any(action.startswith("bedrock:") for action in read_only_actions)
     assert not any("*" in action for action in actions)
 
 

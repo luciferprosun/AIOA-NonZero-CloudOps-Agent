@@ -6,6 +6,7 @@ from types import SimpleNamespace
 from uuid import UUID
 
 import pytest
+from botocore.config import Config
 from pydantic import ValidationError
 
 from aioa_cloudops_agent.cloudops import InvestigationIdentity
@@ -814,10 +815,15 @@ def test_private_lambda_missing_emergency_state_returns_only_typed_denial(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     client = FakeEc2StopClient()
-    client_calls: list[tuple[str, str]] = []
+    client_calls: list[tuple[str, str, Config]] = []
 
-    def client_factory(service_name: str, *, region_name: str) -> FakeEc2StopClient:
-        client_calls.append((service_name, region_name))
+    def client_factory(
+        service_name: str,
+        *,
+        region_name: str,
+        config: Config,
+    ) -> FakeEc2StopClient:
+        client_calls.append((service_name, region_name, config))
         return client
 
     monkeypatch.setitem(sys.modules, "boto3", SimpleNamespace(client=client_factory))
@@ -829,7 +835,10 @@ def test_private_lambda_missing_emergency_state_returns_only_typed_denial(
     response = lambda_handler(_command().model_dump(mode="json"), object())
 
     assert response == emergency_denial_payload()
-    assert client_calls == [("ec2", "eu-central-1")]
+    assert len(client_calls) == 1
+    service_name, region_name, config = client_calls[0]
+    assert (service_name, region_name) == ("ec2", "eu-central-1")
+    assert config.retries["total_max_attempts"] == 1
     assert client.describe_calls == [[INSTANCE_ID]]
     assert client.stop_calls == []
 

@@ -575,6 +575,7 @@ def test_circuit_limits_are_finite_validated_and_dependency_specific(
         CircuitBreakerSettings(**settings)  # type: ignore[arg-type]
 
     assert tuple(CircuitDependency) == (
+        CircuitDependency.BEDROCK_MODEL,
         CircuitDependency.EC2_READ,
         CircuitDependency.CLOUDWATCH_READ,
         CircuitDependency.VERIFICATION_READ,

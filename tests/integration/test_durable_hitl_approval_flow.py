@@ -7,6 +7,8 @@ from uuid import UUID
 import pytest
 from pydantic import ValidationError
 from strands.models import Model
+from strands.session import SnapshotSessionManager
+from strands.storage import InMemoryStorage
 
 from aioa_cloudops_agent.agent import (
     ApprovalResumeRequest,
@@ -14,6 +16,10 @@ from aioa_cloudops_agent.agent import (
     create_primary_agent,
 )
 from aioa_cloudops_agent.cloudops import InvestigationIdentity, SandboxTarget
+from aioa_cloudops_agent.deployment import (
+    AuthenticatedApprovalResumeService,
+    AuthenticatedJudgePrincipal,
+)
 from aioa_cloudops_agent.domain import (
     AuthorityGate,
     ExecutionBudget,
@@ -55,9 +61,9 @@ DIGEST = "a" * 64
 class ScriptedApprovalModel(Model):
     """Request the canonical stop once, then finish after native resume."""
 
-    def __init__(self, proposal_id: UUID = PROPOSAL_ID) -> None:
+    def __init__(self, proposal_id: UUID = PROPOSAL_ID, *, initial_calls: int = 0) -> None:
         self.proposal_id = proposal_id
-        self.calls = 0
+        self.calls = initial_calls
         self.config: dict[str, object] = {}
 
     def update_config(self, **model_config: Any) -> None:
@@ -126,8 +132,8 @@ class NonCallingCloudWatchClient:
 
 
 class EventIdFactory:
-    def __init__(self) -> None:
-        self.index = 0
+    def __init__(self, start: int = 0) -> None:
+        self.index = start
 
     def __call__(self) -> UUID:
         value = EVENT_IDS[self.index]
@@ -217,14 +223,23 @@ def _flow(
     *,
     repository: InMemoryTestDurableTruthRepository | None = None,
     decision_clock: Callable[[], datetime] | None = None,
+    repository_prepared: bool = False,
+    model: ScriptedApprovalModel | None = None,
+    session_manager: SnapshotSessionManager | None = None,
+    event_id_start: int = 0,
 ) -> tuple[
     DurableApprovalFlow,
     InMemoryTestDurableTruthRepository,
     ScriptedApprovalModel,
     list[UUID],
 ]:
-    actual_repository = _repository(repository)
-    model = ScriptedApprovalModel()
+    actual_repository = (
+        repository
+        if repository_prepared and repository is not None
+        else _repository(repository)
+    )
+    assert actual_repository is not None
+    actual_model = model or ScriptedApprovalModel()
     stop_calls: list[UUID] = []
 
     def approval_only_boundary(proposal_id: UUID) -> dict[str, object]:
@@ -261,8 +276,9 @@ def _flow(
         cloudwatch_client=NonCallingCloudWatchClient(),
         proposal_id=PROPOSAL_ID,
         clock=lambda: NOW,
-        model=model,
+        model=actual_model,
         durable_repository=actual_repository,
+        session_manager=session_manager,
         stop_request_handler=approval_only_boundary,
     )
     return (
@@ -270,10 +286,10 @@ def _flow(
             runtime,
             actual_repository,
             clock=decision_clock or (lambda: NOW + timedelta(seconds=10)),
-            event_id_factory=EventIdFactory(),
+            event_id_factory=EventIdFactory(event_id_start),
         ),
         actual_repository,
-        model,
+        actual_model,
         stop_calls,
     )
 
@@ -338,6 +354,74 @@ def test_positive_native_resume_persists_approval_before_safe_tool_boundary() ->
     assert approval.request_hash == interrupt.request_hash
     assert stop_calls == [PROPOSAL_ID]
     assert model.calls == 2
+
+
+def test_fresh_process_restores_native_interrupt_with_trusted_one_time_freshness() -> None:
+    repository = _repository()
+    storage = InMemoryStorage()
+    first_manager = SnapshotSessionManager(
+        str(RUN_ID),
+        storage=storage,
+        save_latest_on="invocation",
+    )
+    first_flow, _, first_model, _ = _flow(
+        repository=repository,
+        repository_prepared=True,
+        session_manager=first_manager,
+    )
+    interrupt = first_flow.request(PROPOSAL_ID).value
+    assert interrupt is not None
+    principal = AuthenticatedJudgePrincipal()
+    first_authority = AuthenticatedApprovalResumeService(
+        first_flow,
+        repository,
+        clock=lambda: NOW + timedelta(seconds=10),
+        challenge_factory=lambda: "server-issued-freshness-placeholder-0001",
+    )
+    issued = first_authority.issue(interrupt, principal)
+    challenge = issued.value.get_secret_value()
+    assert first_model.calls == 1
+
+    del first_flow, first_manager, first_model, first_authority
+    second_manager = SnapshotSessionManager(
+        str(RUN_ID),
+        storage=storage,
+        save_latest_on="invocation",
+    )
+    second_flow, _, second_model, stop_calls = _flow(
+        repository=repository,
+        repository_prepared=True,
+        model=ScriptedApprovalModel(initial_calls=1),
+        session_manager=second_manager,
+        event_id_start=1,
+    )
+    second_authority = AuthenticatedApprovalResumeService(
+        second_flow,
+        repository,
+        clock=lambda: NOW + timedelta(seconds=11),
+        challenge_factory=lambda: "unused-server-placeholder-0000000000",
+    )
+
+    result = second_authority.resume(
+        interrupt=interrupt,
+        decision=ApprovalDecision.APPROVED,
+        principal=principal,
+        challenge=challenge,
+    )
+
+    assert result.status is ResultStatus.SUCCESS
+    assert result.value is not None and result.value.native_resume_completed is True
+    assert repository.get_run(RUN_ID).state is WorkflowState.APPROVED
+    assert stop_calls == [PROPOSAL_ID]
+    assert second_model.calls == 2
+    with pytest.raises(Exception, match="challenge was rejected"):
+        second_authority.resume(
+            interrupt=interrupt,
+            decision=ApprovalDecision.APPROVED,
+            principal=principal,
+            challenge=challenge,
+        )
+    assert stop_calls == [PROPOSAL_ID]
 
 
 def test_negative_native_resume_is_terminal_and_never_calls_stop_boundary() -> None:

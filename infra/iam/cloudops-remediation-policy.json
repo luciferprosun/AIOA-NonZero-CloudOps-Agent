@@ -2,6 +2,19 @@
   "Version": "2012-10-17",
   "Statement": [
     {
+      "Sid": "FreshConfiguredSandboxScopeRead",
+      "Effect": "Allow",
+      "Action": [
+        "ec2:DescribeInstances"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestedRegion": "eu-central-1"
+        }
+      }
+    },
+    {
       "Sid": "StopConfiguredTaggedSandboxOnly",
       "Effect": "Allow",
       "Action": [
@@ -14,6 +27,15 @@
           "aws:ResourceTag/AIOACloudOpsSandbox": "true"
         }
       }
+    },
+    {
+      "Sid": "BoundedXRayDelivery",
+      "Effect": "Allow",
+      "Action": [
+        "xray:PutTraceSegments",
+        "xray:PutTelemetryRecords"
+      ],
+      "Resource": "*"
     }
   ]
 }

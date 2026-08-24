@@ -8,7 +8,11 @@ REMEDIATION_POLICY_PATH = IAM_DIRECTORY / "cloudops-remediation-policy.json"
 ORCHESTRATOR_POLICY_PATH = IAM_DIRECTORY / "cloudops-orchestrator-policy.json"
 
 
-def _policy_actions(policy: dict[str, object]) -> list[str]:
+def _policy(path: Path) -> dict[str, object]:
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _actions(policy: dict[str, object]) -> list[str]:
     actions: list[str] = []
     for statement in policy["Statement"]:
         value = statement["Action"]
@@ -17,29 +21,38 @@ def _policy_actions(policy: dict[str, object]) -> list[str]:
 
 
 def test_active_cloudops_policy_allows_only_targeted_read_apis() -> None:
-    policy = json.loads(READ_ONLY_POLICY_PATH.read_text(encoding="utf-8"))
+    policy = _policy(READ_ONLY_POLICY_PATH)
 
-    assert _policy_actions(policy) == [
+    assert _actions(policy) == [
         "ec2:DescribeInstances",
         "cloudwatch:GetMetricStatistics",
     ]
-    statement = policy["Statement"][0]
-    assert statement["Effect"] == "Allow"
-    assert statement["Condition"] == {
+    assert policy["Statement"][0]["Condition"] == {
         "StringEquals": {"aws:RequestedRegion": "eu-central-1"}
     }
 
 
-def test_private_executor_policy_is_exact_instance_and_tag_scoped() -> None:
-    policy = json.loads(REMEDIATION_POLICY_PATH.read_text(encoding="utf-8"))
-    statement = policy["Statement"][0]
+def test_private_executor_policy_separates_fresh_read_from_scoped_stop() -> None:
+    policy = _policy(REMEDIATION_POLICY_PATH)
+    statements = {statement["Sid"]: statement for statement in policy["Statement"]}
+    describe = statements["FreshConfiguredSandboxScopeRead"]
+    stop = statements["StopConfiguredTaggedSandboxOnly"]
 
-    assert _policy_actions(policy) == ["ec2:StopInstances"]
-    assert statement["Resource"] == (
+    assert _actions(policy) == [
+        "ec2:DescribeInstances",
+        "ec2:StopInstances",
+        "xray:PutTraceSegments",
+        "xray:PutTelemetryRecords",
+    ]
+    assert describe["Resource"] == "*"
+    assert describe["Condition"] == {
+        "StringEquals": {"aws:RequestedRegion": "eu-central-1"}
+    }
+    assert stop["Resource"] == (
         "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:"
         "instance/${SandboxInstanceId}"
     )
-    assert statement["Condition"] == {
+    assert stop["Condition"] == {
         "StringEquals": {
             "aws:RequestedRegion": "eu-central-1",
             "aws:ResourceTag/AIOACloudOpsSandbox": "true",
@@ -47,48 +60,91 @@ def test_private_executor_policy_is_exact_instance_and_tag_scoped() -> None:
     }
 
 
-def test_orchestrator_can_invoke_only_private_executor_and_cannot_stop_ec2() -> None:
-    policy = json.loads(ORCHESTRATOR_POLICY_PATH.read_text(encoding="utf-8"))
+def test_orchestrator_policy_is_exact_read_model_state_secret_and_alias_authority() -> None:
+    policy = _policy(ORCHESTRATOR_POLICY_PATH)
+    actions = set(_actions(policy))
+    statements = {statement["Sid"]: statement for statement in policy["Statement"]}
 
-    assert _policy_actions(policy) == ["lambda:InvokeFunction"]
-    assert policy["Statement"][0]["Resource"] == "${RemediationExecutorFunctionArn}"
-    assert "ec2:StopInstances" not in _policy_actions(policy)
+    assert actions == {
+        "ec2:DescribeInstances",
+        "cloudwatch:GetMetricStatistics",
+        "bedrock:InvokeModelWithResponseStream",
+        "dynamodb:GetItem",
+        "dynamodb:PutItem",
+        "dynamodb:UpdateItem",
+        "lambda:InvokeFunction",
+        "secretsmanager:GetSecretValue",
+        "xray:PutTraceSegments",
+        "xray:PutTelemetryRecords",
+    }
+    assert statements["InvokePrivateRemediationExecutorAliasOnly"]["Resource"] == (
+        "${RemediationExecutorAliasArn}"
+    )
+    assert statements["DurableItemOnlyState"]["Resource"] == "${StateTableArn}"
+    assert statements["ReadDedicatedJudgeSecretOnly"]["Resource"] == (
+        "${JudgeTokenSecretArn}"
+    )
+    profile = statements["InvokeExactNovaTwoLiteEuInferenceProfile"]
+    bedrock_resources = statements["InvokeProfileDestinationModelsOnly"]["Resource"]
+    assert profile["Resource"] == "${NovaTwoLiteEuInferenceProfileArn}"
+    assert profile["Condition"] == {
+        "StringEquals": {"aws:RequestedRegion": "eu-central-1"}
+    }
+    assert len(bedrock_resources) == 6
+    assert all(
+        resource.endswith("foundation-model/amazon.nova-2-lite-v1:0")
+        for resource in bedrock_resources
+    )
+    assert statements["InvokeProfileDestinationModelsOnly"]["Condition"] == {
+        "StringEquals": {
+            "aws:RequestedRegion": "eu-central-1",
+            "bedrock:InferenceProfileArn": "${NovaTwoLiteEuInferenceProfileArn}",
+        }
+    }
 
 
-def test_iam_templates_have_no_wildcard_action_or_account_id() -> None:
+def test_wildcard_resources_are_only_for_non_resource_scope_reads_and_xray_delivery() -> None:
+    policies = [
+        _policy(READ_ONLY_POLICY_PATH),
+        _policy(REMEDIATION_POLICY_PATH),
+        _policy(ORCHESTRATOR_POLICY_PATH),
+    ]
+    wildcard_statements = {
+        statement["Sid"]
+        for policy in policies
+        for statement in policy["Statement"]
+        if statement["Resource"] == "*"
+    }
+
+    assert wildcard_statements == {
+        "InspectConfiguredSandboxInstance",
+        "FreshConfiguredSandboxScopeRead",
+        "ReadConfiguredSandboxEvidence",
+        "BoundedXRayDelivery",
+    }
+    assert all("*" not in action for policy in policies for action in _actions(policy))
+
+
+def test_no_generalized_write_permission_agentcore_or_account_literal_exists() -> None:
     combined = "\n".join(
         path.read_text(encoding="utf-8") for path in IAM_DIRECTORY.glob("*.json")
     )
-    policies = [
-        json.loads(path.read_text(encoding="utf-8"))
-        for path in IAM_DIRECTORY.glob("*.json")
-    ]
-
-    assert all("*" not in action for policy in policies for action in _policy_actions(policy))
-    assert re.search(r"(?<!\d)\d{12}(?!\d)", combined) is None
-    assert "AdministratorAccess" not in combined
-    assert "PowerUserAccess" not in combined
-
-
-def test_eip_experiment_permission_is_not_active() -> None:
-    policy = json.loads(READ_ONLY_POLICY_PATH.read_text(encoding="utf-8"))
-
-    assert "ec2:DescribeAddresses" not in _policy_actions(policy)
-
-
-def test_no_destructive_or_generalized_write_permission_exists() -> None:
     actions = [
         action
         for path in IAM_DIRECTORY.glob("*.json")
-        for action in _policy_actions(json.loads(path.read_text(encoding="utf-8")))
+        for action in _actions(_policy(path))
     ]
 
-    assert "ec2:StopInstances" in actions
     for forbidden in (
         "ec2:TerminateInstances",
         "ec2:StartInstances",
         "ec2:RebootInstances",
         "ec2:ModifyInstanceAttribute",
         "ssm:SendCommand",
+        "dynamodb:DeleteItem",
+        "dynamodb:Scan",
+        "secretsmanager:PutSecretValue",
     ):
         assert forbidden not in actions
+    assert re.search(r"(?<!\d)\d{12}(?!\d)", combined) is None
+    assert "agentcore" not in combined.casefold()

@@ -310,18 +310,18 @@ GATES = (
             ),
             source(
                 "infra/sam/template.yaml",
-                anchors=("OrchestratorInvokeRemediationPolicy", "RemediationExecutorRole"),
+                anchors=("OrchestratorRole", "RemediationExecutorRole"),
             ),
         ),
         (
             "tests/unit/test_iam_policies.py::"
-            "test_orchestrator_can_invoke_only_private_executor_and_cannot_stop_ec2",
+            "test_orchestrator_policy_is_exact_read_model_state_secret_and_alias_authority",
             "tests/unit/test_infrastructure_contract.py::"
-            "test_orchestrator_invoke_policy_has_no_direct_ec2_authority",
+            "test_orchestrator_iam_has_exact_bedrock_profile_models_and_no_ec2_write",
             "tests/unit/test_infrastructure_contract.py::"
-            "test_private_executor_role_owns_only_logs_and_scoped_stop",
+            "test_private_executor_has_fresh_read_plus_separate_exact_scoped_stop",
             "tests/unit/test_iam_policies.py::"
-            "test_no_destructive_or_generalized_write_permission_exists",
+            "test_no_generalized_write_permission_agentcore_or_account_literal_exists",
         ),
     ),
     GateEvidence(
@@ -434,7 +434,7 @@ GATES = (
             "tests/integration/test_read_only_investigation_flow.py::"
             "test_denied_injection_is_linked_and_redacted_before_dispatch",
             "tests/unit/test_iam_policies.py::"
-            "test_no_destructive_or_generalized_write_permission_exists",
+            "test_no_generalized_write_permission_agentcore_or_account_literal_exists",
         ),
         ("mutation_surface",),
     ),

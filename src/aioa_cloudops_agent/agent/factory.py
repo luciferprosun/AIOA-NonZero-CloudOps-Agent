@@ -9,9 +9,11 @@ from uuid import UUID
 from opentelemetry.trace import Tracer
 from strands import Agent
 from strands.models import BedrockModel, Model
+from strands.session import SessionManager
 from strands.tools.decorator import DecoratedFunctionTool
 from strands.vended_interventions.hitl import HumanInTheLoop
 
+from aioa_cloudops_agent.aws_clients import create_bedrock_runtime_config
 from aioa_cloudops_agent.cloudops import (
     BUILD_REMEDIATION_EVIDENCE_TOOL_NAME,
     INSPECT_INSTANCE_TOOL_NAME,
@@ -41,6 +43,7 @@ from aioa_cloudops_agent.remediation import (
 )
 from aioa_cloudops_agent.safety import (
     BoundedReadRetry,
+    CircuitBoundedModel,
     CircuitDependency,
     DependencyCircuitBreaker,
 )
@@ -114,8 +117,16 @@ def create_bedrock_model(
     if boto_session is not None:
         if getattr(boto_session, "region_name", None) != settings.region:
             raise ContractValidationError("boto_session region must match Bedrock settings")
-        return BedrockModel(boto_session=boto_session, **model_config)
-    return BedrockModel(region_name=settings.region, **model_config)
+        return BedrockModel(
+            boto_session=boto_session,
+            boto_client_config=create_bedrock_runtime_config(),
+            **model_config,
+        )
+    return BedrockModel(
+        region_name=settings.region,
+        boto_client_config=create_bedrock_runtime_config(),
+        **model_config,
+    )
 
 
 def create_human_in_the_loop(
@@ -163,6 +174,7 @@ def create_primary_agent(
     stop_request_handler: StopRequestHandler | None = None,
     verification_request_handler: VerificationRequestHandler | None = None,
     dependency_circuit: DependencyCircuitBreaker | None = None,
+    session_manager: SessionManager | None = None,
 ) -> PrimaryAgentRuntime:
     """Create one Strands Agent with the canonical bounded five-tool surface."""
 
@@ -259,11 +271,15 @@ def create_primary_agent(
         clock=clock,
         model_id=settings.model_id,
     )
+    bounded_model = CircuitBoundedModel(
+        model if model is not None else create_bedrock_model(settings),
+        active_circuit,
+    )
     primary_agent = Agent(
         agent_id=PRIMARY_AGENT_ID,
         name="AIOA Non-Zero CloudOps",
         description="Bounded read-only sandbox EC2 investigation agent",
-        model=model if model is not None else create_bedrock_model(settings),
+        model=bounded_model,
         tools=[
             inspection_tool,
             utilization_tool,
@@ -276,6 +292,8 @@ def create_primary_agent(
         callback_handler=None,
         load_tools_from_directory=False,
         record_direct_tool_call=True,
+        retry_strategy=None,
+        session_manager=session_manager,
         trace_attributes=build_agent_trace_attributes(identity),
     )
     if tuple(primary_agent.tool_names) != CURRENT_TOOL_NAMES:
