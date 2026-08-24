@@ -26,6 +26,7 @@ from aioa_cloudops_agent.nz import (
 )
 from aioa_cloudops_agent.nz.errors import StorageConflictError, StorageDependencyError
 from aioa_cloudops_agent.persistence import DurableTruthRepository, derive_idempotency_key
+from aioa_cloudops_agent.safety.failures import workflow_state_for_failure
 
 from .models import VerificationCompletion, VerificationObservation
 from .service import VerifyInstanceStateService
@@ -325,11 +326,7 @@ class BoundedVerificationCoordinator:
         idempotency_key: str,
         failure: FailureDetail,
     ) -> ControlResult[VerificationCompletion]:
-        target_state = (
-            WorkflowState.DEPENDENCY_UNAVAILABLE
-            if failure.kind is FailureKind.DEPENDENCY_UNAVAILABLE
-            else WorkflowState.VERIFICATION_FAILED
-        )
+        target_state = workflow_state_for_failure(failure)
         try:
             self._repository.complete_idempotency(
                 idempotency_key,

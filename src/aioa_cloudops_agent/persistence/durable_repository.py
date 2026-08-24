@@ -9,6 +9,7 @@ from aioa_cloudops_agent.nz import (
     ActionResult,
     Approval,
     AuditEvent,
+    BudgetCounters,
     Checkpoint,
     ExecutionAcknowledgement,
     IdempotencyRecord,
@@ -41,6 +42,16 @@ class DurableTruthRepository(Protocol):
         verification_proposal_id: UUID | None = None,
     ) -> Run:
         """Conditionally apply one legal application-owned state transition."""
+
+    def update_run_budget(
+        self,
+        run_id: UUID,
+        budget: BudgetCounters,
+        *,
+        expected_version: int,
+        updated_at: datetime,
+    ) -> Run:
+        """Conditionally persist monotonic turn, token, and elapsed-time counters."""
 
     def create_proposal(self, proposal: ActionProposal) -> ActionProposal:
         """Create one immutable mutation proposal without treating it as approval."""

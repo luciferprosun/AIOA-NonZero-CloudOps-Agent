@@ -9,6 +9,7 @@ from aioa_cloudops_agent.nz import (
     Approval,
     ApprovalDecision,
     AuditEvent,
+    BudgetCounters,
     Checkpoint,
     ExecutionAcknowledgement,
     IdempotencyRecord,
@@ -72,7 +73,9 @@ class InMemoryTestDurableTruthRepository:
             raise StorageConflictError("durable run state or version no longer matches")
         if next_state in {WorkflowState.APPROVED, WorkflowState.DENIED_BY_HUMAN}:
             if approval_proposal_id is None:
-                raise StorageConflictError("decision transition requires a durable proposal decision")
+                raise StorageConflictError(
+                    "decision transition requires a durable proposal decision"
+                )
             proposal = self._proposals.get(approval_proposal_id)
             approval = self._approvals.get(approval_proposal_id)
             expected_decision = (
@@ -87,7 +90,9 @@ class InMemoryTestDurableTruthRepository:
                 or approval is None
                 or approval.decision is not expected_decision
             ):
-                raise StorageConflictError("decision transition requires matching durable human decision")
+                raise StorageConflictError(
+                    "decision transition requires matching durable human decision"
+                )
         if next_state is WorkflowState.SUCCESS_WITH_EVIDENCE:
             if verification_proposal_id is None:
                 raise StorageConflictError("SUCCESS_WITH_EVIDENCE requires durable verification")
@@ -120,6 +125,49 @@ class InMemoryTestDurableTruthRepository:
             raise StorageConflictError("durable proposal already exists")
         self._proposals[proposal.proposal_id] = proposal
         return proposal
+
+    def update_run_budget(
+        self,
+        run_id: UUID,
+        budget: BudgetCounters,
+        *,
+        expected_version: int,
+        updated_at: datetime,
+    ) -> Run:
+        if not isinstance(budget, BudgetCounters):
+            raise TypeError("budget must be BudgetCounters")
+        if (
+            isinstance(expected_version, bool)
+            or not isinstance(expected_version, int)
+            or expected_version <= 0
+        ):
+            raise TypeError("expected_version must be a positive integer")
+        if not isinstance(updated_at, datetime):
+            raise TypeError("updated_at must be datetime")
+        current = self._runs.get(run_id)
+        if current is None or current.version != expected_version:
+            raise StorageConflictError("durable run budget version no longer matches")
+        if (
+            budget.max_turns != current.budget.max_turns
+            or budget.max_tokens != current.budget.max_tokens
+            or budget.max_elapsed_seconds != current.budget.max_elapsed_seconds
+            or budget.turns_used < current.budget.turns_used
+            or budget.tokens_used < current.budget.tokens_used
+            or budget.elapsed_milliseconds_used < current.budget.elapsed_milliseconds_used
+            or updated_at < current.updated_at
+        ):
+            raise StorageConflictError("durable run budget update is not monotonic")
+        values = current.model_dump()
+        values.update(
+            {
+                "budget": budget,
+                "updated_at": updated_at,
+                "version": current.version + 1,
+            }
+        )
+        updated = Run.model_validate(values)
+        self._runs[run_id] = updated
+        return updated
 
     def get_proposal(self, proposal_id: UUID) -> ActionProposal | None:
         return self._proposals.get(proposal_id)
@@ -222,9 +270,7 @@ class InMemoryTestDurableTruthRepository:
             raise StorageConflictError("conflicting execution acknowledgement exists")
         if acknowledgement.proposal_id != current.proposal_id:
             raise StorageConflictError("execution acknowledgement ownership is invalid")
-        updated = current.model_copy(
-            update={"execution_acknowledgement": acknowledgement}
-        )
+        updated = current.model_copy(update={"execution_acknowledgement": acknowledgement})
         self._idempotency[idempotency_key] = updated
         return updated
 

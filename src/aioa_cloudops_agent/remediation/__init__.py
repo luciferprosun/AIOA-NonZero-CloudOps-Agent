@@ -7,6 +7,7 @@ from .errors import (
     RemediationDependencyError,
     RemediationDisabledError,
     RemediationError,
+    RemediationExecutionError,
     RemediationScopeError,
 )
 from .executor import (
@@ -34,6 +35,7 @@ __all__ = [
     "RemediationDependencyError",
     "RemediationDisabledError",
     "RemediationError",
+    "RemediationExecutionError",
     "RemediationScopeError",
     "StopExecutionCommand",
     "StopRequestHandler",

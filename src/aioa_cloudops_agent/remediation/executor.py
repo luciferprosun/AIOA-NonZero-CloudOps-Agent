@@ -15,6 +15,7 @@ from .errors import (
     RemediationAmbiguousError,
     RemediationDependencyError,
     RemediationDisabledError,
+    RemediationExecutionError,
     RemediationScopeError,
 )
 from .models import StopExecutionCommand
@@ -149,7 +150,7 @@ class Ec2SandboxStopExecutor:
                 raise RemediationAmbiguousError(
                     "StopInstances acknowledgement is ambiguous and requires reconciliation"
                 ) from error
-            raise RemediationDependencyError(f"StopInstances failed with AWS code {code}") from error
+            raise RemediationExecutionError(f"StopInstances failed with AWS code {code}") from error
         if not isinstance(response, Mapping):
             raise RemediationAmbiguousError("StopInstances returned a malformed acknowledgement")
         transitions = response.get("StoppingInstances")

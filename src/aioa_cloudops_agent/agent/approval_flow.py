@@ -25,6 +25,7 @@ from aioa_cloudops_agent.nz import (
 )
 from aioa_cloudops_agent.nz.errors import StorageConflictError, StorageDependencyError
 from aioa_cloudops_agent.persistence import DurableTruthRepository
+from aioa_cloudops_agent.safety.failures import workflow_state_for_failure
 
 from .factory import PrimaryAgentRuntime
 from .hitl import (
@@ -142,13 +143,36 @@ class DurableApprovalFlow:
         except StorageDependencyError:
             return self._storage_failed("Durable approval transition is unavailable")
 
+        remaining_turns = run.budget.max_turns - run.budget.turns_used
+        remaining_tokens = run.budget.max_tokens - run.budget.tokens_used
+        remaining_milliseconds = (
+            run.budget.max_elapsed_seconds * 1_000
+            - run.budget.elapsed_milliseconds_used
+        )
+        if min(remaining_turns, remaining_tokens, remaining_milliseconds) <= 0:
+            failure = FailureDetail(
+                kind=FailureKind.BUDGET_EXHAUSTION,
+                code="APPROVAL_BUDGET_ALREADY_EXHAUSTED",
+                message="Durable budget was exhausted before approval interrupt generation",
+                retryable=False,
+            )
+            try:
+                self._append_event(
+                    run,
+                    AuditEventType.BUDGET_EXHAUSTED,
+                    proposal.evidence_hash,
+                    metadata={"failure_code": failure.code},
+                )
+            except (StorageConflictError, StorageDependencyError):
+                return self._storage_failed("Approval budget audit is unavailable")
+            return self._persist_request_failure(run, failure)
         limits: Limits = {
-            "turns": max(1, run.budget.max_turns - run.budget.turns_used),
+            "turns": remaining_turns,
             "output_tokens": min(
-                run.budget.max_tokens - run.budget.tokens_used,
+                remaining_tokens,
                 self._runtime.model_settings.max_output_tokens,
             ),
-            "total_tokens": max(1, run.budget.max_tokens - run.budget.tokens_used),
+            "total_tokens": remaining_tokens,
         }
         try:
             result = self._runtime.agent(
@@ -163,13 +187,48 @@ class DurableApprovalFlow:
                 "Strands could not create the approval interrupt",
                 retryable=True,
             )
-        interrupts = tuple(result.interrupts)
-        if result.stop_reason != "interrupt" or len(interrupts) != 1:
-            return self._failed(
-                FailureKind.VALIDATION_FAILURE,
-                "APPROVAL_INTERRUPT_MISSING",
-                "Strands did not produce exactly one native approval interrupt",
+        intervention_failure = getattr(
+            self._runtime.human_in_the_loop,
+            "last_failure",
+            None,
+        )
+        if isinstance(intervention_failure, FailureDetail):
+            return self._persist_request_failure(run, intervention_failure)
+        if str(result.stop_reason).startswith("limit_"):
+            failure = FailureDetail(
+                kind=FailureKind.BUDGET_EXHAUSTION,
+                code="APPROVAL_AGENT_BUDGET_EXHAUSTED",
+                message="Bounded approval interrupt generation exhausted its model budget",
+                retryable=False,
             )
+            try:
+                self._append_event(
+                    run,
+                    AuditEventType.BUDGET_EXHAUSTED,
+                    proposal.evidence_hash,
+                    metadata={"failure_code": failure.code},
+                )
+            except (StorageConflictError, StorageDependencyError):
+                return self._storage_failed("Approval budget audit is unavailable")
+            return self._persist_request_failure(run, failure)
+        interrupts = tuple(result.interrupts or ())
+        if result.stop_reason != "interrupt" or len(interrupts) != 1:
+            failure = FailureDetail(
+                kind=FailureKind.VALIDATION_FAILURE,
+                code="APPROVAL_INTERRUPT_MISSING",
+                message="Strands did not produce exactly one native approval interrupt",
+                retryable=False,
+            )
+            try:
+                self._append_event(
+                    run,
+                    AuditEventType.MODEL_OUTPUT_REJECTED,
+                    proposal.evidence_hash,
+                    metadata={"failure_code": failure.code},
+                )
+            except (StorageConflictError, StorageDependencyError):
+                return self._storage_failed("Approval model-output audit is unavailable")
+            return self._persist_request_failure(run, failure)
         interrupt = interrupts[0]
         payload = build_approval_payload(proposal)
         request_hash = approval_request_hash(payload)
@@ -242,6 +301,18 @@ class DurableApprovalFlow:
             != response.interrupt_id
             or checkpoint.resume_metadata.get("approval_request_hash") != expected_hash
         ):
+            try:
+                self._append_event(
+                    run,
+                    AuditEventType.POLICY_DENIED,
+                    expected_hash,
+                    metadata={
+                        "policy_code": "APPROVAL_BINDING_MISMATCH",
+                        "proposal_id": str(proposal.proposal_id),
+                    },
+                )
+            except (StorageConflictError, StorageDependencyError):
+                return self._storage_failed("Approval denial audit is unavailable")
             return self._failed(
                 FailureKind.POLICY_DENIAL,
                 "APPROVAL_BINDING_MISMATCH",
@@ -410,6 +481,23 @@ class DurableApprovalFlow:
                 },
             )
         )
+
+    def _persist_request_failure(
+        self,
+        run: Run,
+        failure: FailureDetail,
+    ) -> ControlResult:
+        try:
+            self._repository.transition_run(
+                run.run_id,
+                workflow_state_for_failure(failure),
+                expected_state=run.state,
+                expected_version=run.version,
+                updated_at=self._clock(),
+            )
+        except (StorageConflictError, StorageDependencyError):
+            return self._storage_failed("Approval failure state could not be persisted")
+        return ControlResult.failed(failure)
 
     def _resolution(
         self,

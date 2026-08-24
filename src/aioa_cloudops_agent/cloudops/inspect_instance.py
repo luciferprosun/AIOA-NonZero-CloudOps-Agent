@@ -17,6 +17,7 @@ from aioa_cloudops_agent.persistence.models import (
     ProvenanceEventType,
     ProvenanceRecord,
 )
+from aioa_cloudops_agent.safety.retry import BoundedReadRetry
 
 from .ec2_readonly import Ec2DescribeInstancesClient
 from .models import (
@@ -118,6 +119,7 @@ class InspectInstanceService:
         target: SandboxTarget,
         *,
         region: str = DEFAULT_AWS_REGION,
+        retry: BoundedReadRetry | None = None,
     ) -> None:
         if not isinstance(target, SandboxTarget):
             raise ContractValidationError("target must be a SandboxTarget")
@@ -126,6 +128,7 @@ class InspectInstanceService:
         self._client = client
         self._target = target
         self._region = region
+        self._retry = retry or BoundedReadRetry()
 
     def inspect(
         self,
@@ -142,11 +145,16 @@ class InspectInstanceService:
             raise SandboxTargetMismatchError("Requested instance is not the configured sandbox")
 
         assessment = assess_aws_operation(AwsOperation.INSPECT_INSTANCE, AuthorityGate.AUTO)
-        if assessment.operation_class is not AwsOperationClass.READ_ONLY or not assessment.may_execute:
+        if (
+            assessment.operation_class is not AwsOperationClass.READ_ONLY
+            or not assessment.may_execute
+        ):
             raise InstanceInspectionError("inspect_instance did not satisfy the read-only boundary")
 
         try:
-            response = self._client.describe_instances(InstanceIds=[requested_id])
+            response = self._retry.run(
+                lambda: self._client.describe_instances(InstanceIds=[requested_id])
+            )
         except Exception as error:
             raise InstanceInspectionDependencyError(
                 "DescribeInstances dependency is unavailable"
@@ -155,7 +163,9 @@ class InspectInstanceService:
         instance = _single_returned_instance(response_mapping)
         returned_id = _required_string(instance.get("InstanceId"), "InstanceId")
         if returned_id != requested_id:
-            raise SandboxTargetMismatchError("Returned instance does not match the requested sandbox")
+            raise SandboxTargetMismatchError(
+                "Returned instance does not match the requested sandbox"
+            )
 
         tag_key, tag_value = _sandbox_tag(instance, self._target)
         state = _required_mapping(instance.get("State"), "State")

@@ -8,6 +8,7 @@ from typing import Final
 from aioa_cloudops_agent.config import IdlePolicySettings
 from aioa_cloudops_agent.domain import AuthorityGate, AwsOperationClass, ContractValidationError
 from aioa_cloudops_agent.nz import ControlResult, FailureDetail, FailureKind
+from aioa_cloudops_agent.safety.retry import BoundedReadRetry
 
 from .cloudwatch_readonly import CloudWatchGetMetricStatisticsClient
 from .metrics_models import (
@@ -48,6 +49,8 @@ class ReadUtilizationMetricsService:
         client: CloudWatchGetMetricStatisticsClient,
         target: SandboxTarget,
         policy: IdlePolicySettings,
+        *,
+        retry: BoundedReadRetry | None = None,
     ) -> None:
         if not isinstance(target, SandboxTarget):
             raise ContractValidationError("target must be a SandboxTarget")
@@ -56,6 +59,7 @@ class ReadUtilizationMetricsService:
         self._client = client
         self._target = target
         self._policy = policy
+        self._retry = retry or BoundedReadRetry()
 
     def read(
         self,
@@ -86,15 +90,17 @@ class ReadUtilizationMetricsService:
         end_time = _utc("collected_at", collected_at)
         start_time = end_time - timedelta(minutes=self._policy.observation_window_minutes)
         try:
-            response = self._client.get_metric_statistics(
-                Namespace="AWS/EC2",
-                MetricName="CPUUtilization",
-                Dimensions=[{"Name": "InstanceId", "Value": inspection.instance_id}],
-                StartTime=start_time,
-                EndTime=end_time,
-                Period=self._policy.period_seconds,
-                Statistics=["Average"],
-                Unit="Percent",
+            response = self._retry.run(
+                lambda: self._client.get_metric_statistics(
+                    Namespace="AWS/EC2",
+                    MetricName="CPUUtilization",
+                    Dimensions=[{"Name": "InstanceId", "Value": inspection.instance_id}],
+                    StartTime=start_time,
+                    EndTime=end_time,
+                    Period=self._policy.period_seconds,
+                    Statistics=["Average"],
+                    Unit="Percent",
+                )
             )
         except Exception as error:
             raise UtilizationDependencyError(
@@ -185,7 +191,9 @@ class ReadUtilizationMetricsService:
             if timestamp.utcoffset() != timedelta(0):
                 raise UtilizationEvidenceError("CloudWatch datapoint timestamp must use UTC")
             if not window_start <= timestamp <= window_end:
-                raise UtilizationEvidenceError("CloudWatch datapoint is outside the requested window")
+                raise UtilizationEvidenceError(
+                    "CloudWatch datapoint is outside the requested window"
+                )
             if unit != "Percent":
                 raise UtilizationEvidenceError("CloudWatch datapoint unit is not Percent")
             if (
@@ -195,9 +203,7 @@ class ReadUtilizationMetricsService:
             ):
                 raise UtilizationEvidenceError("CloudWatch CPU value is malformed")
             try:
-                normalized.append(
-                    MetricDatapoint(timestamp=timestamp, value_percent=float(value))
-                )
+                normalized.append(MetricDatapoint(timestamp=timestamp, value_percent=float(value)))
             except ValueError as error:
                 raise UtilizationEvidenceError("CloudWatch CPU value is outside bounds") from error
         normalized.sort(key=lambda point: point.timestamp)

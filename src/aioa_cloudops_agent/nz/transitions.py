@@ -49,7 +49,9 @@ ALLOWED_WORKFLOW_TRANSITIONS: Final[dict[WorkflowState, frozenset[WorkflowState]
             WorkflowState.APPROVED,
             WorkflowState.DENIED_BY_HUMAN,
             WorkflowState.DENIED_BY_POLICY,
+            WorkflowState.MODEL_OUTPUT_INVALID,
             WorkflowState.DEPENDENCY_UNAVAILABLE,
+            WorkflowState.BUDGET_EXHAUSTED,
             WorkflowState.RECOVERY_REQUIRED,
         }
     ),
@@ -63,6 +65,7 @@ ALLOWED_WORKFLOW_TRANSITIONS: Final[dict[WorkflowState, frozenset[WorkflowState]
     WorkflowState.EXECUTING: frozenset(
         {
             WorkflowState.VERIFYING,
+            WorkflowState.DENIED_BY_POLICY,
             WorkflowState.EXECUTION_FAILED,
             WorkflowState.AMBIGUOUS_RESULT,
             WorkflowState.DEPENDENCY_UNAVAILABLE,
@@ -73,6 +76,8 @@ ALLOWED_WORKFLOW_TRANSITIONS: Final[dict[WorkflowState, frozenset[WorkflowState]
     WorkflowState.VERIFYING: frozenset(
         {
             WorkflowState.SUCCESS_WITH_EVIDENCE,
+            WorkflowState.DENIED_BY_POLICY,
+            WorkflowState.MODEL_OUTPUT_INVALID,
             WorkflowState.VERIFICATION_FAILED,
             WorkflowState.AMBIGUOUS_RESULT,
             WorkflowState.DEPENDENCY_UNAVAILABLE,

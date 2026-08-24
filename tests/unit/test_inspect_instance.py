@@ -49,11 +49,7 @@ def _instance(*, instance_id: str = INSTANCE_ID, tags: object = None) -> dict[st
         "LaunchTime": LAUNCH_TIME,
         "Monitoring": {"State": "disabled"},
         "Placement": {"AvailabilityZone": "eu-central-1a"},
-        "Tags": (
-            [{"Key": "AIOACloudOpsSandbox", "Value": "true"}]
-            if tags is None
-            else tags
-        ),
+        "Tags": ([{"Key": "AIOACloudOpsSandbox", "Value": "true"}] if tags is None else tags),
         "OwnerId": "owner-marker",
         "CredentialMaterial": "must-not-leak",
     }
@@ -73,6 +69,29 @@ class RecordingEc2Client:
         if isinstance(self.response, Exception):
             raise self.response
         return self.response
+
+
+class ProviderReadError(RuntimeError):
+    def __init__(self, code: str, status: int) -> None:
+        self.response = {
+            "Error": {"Code": code},
+            "ResponseMetadata": {"HTTPStatusCode": status},
+        }
+        super().__init__("provider-secret-detail")
+
+
+class SequencedEc2Client:
+    def __init__(self, *outcomes: object) -> None:
+        self.outcomes = iter(outcomes)
+        self.calls = 0
+
+    def describe_instances(self, *, InstanceIds: list[str]) -> object:
+        assert InstanceIds == [INSTANCE_ID]
+        self.calls += 1
+        outcome = next(self.outcomes)
+        if isinstance(outcome, Exception):
+            raise outcome
+        return outcome
 
 
 def _service(response: object) -> tuple[InspectInstanceService, RecordingEc2Client]:
@@ -174,10 +193,38 @@ def test_ambiguous_or_malformed_provider_evidence_fails_explicitly(response: obj
 def test_provider_failure_is_translated_without_leaking_details() -> None:
     service, _ = _service(RuntimeError("provider-secret-detail"))
 
-    with pytest.raises(InstanceInspectionDependencyError, match="dependency is unavailable") as captured:
+    with pytest.raises(
+        InstanceInspectionDependencyError, match="dependency is unavailable"
+    ) as captured:
         service.inspect(instance_id=INSTANCE_ID, identity=_identity())
 
     assert "provider-secret-detail" not in str(captured.value)
+
+
+def test_known_transient_inspection_failure_retries_within_fixed_cap() -> None:
+    client = SequencedEc2Client(
+        ProviderReadError("ThrottlingException", 429),
+        _response(_instance()),
+    )
+    service = InspectInstanceService(client, SandboxTarget(instance_id=INSTANCE_ID))
+
+    result = service.inspect(instance_id=INSTANCE_ID, identity=_identity())
+
+    assert result.instance_id == INSTANCE_ID
+    assert client.calls == 2
+
+
+def test_access_denied_inspection_is_not_retried() -> None:
+    client = SequencedEc2Client(
+        ProviderReadError("AccessDenied", 403),
+        _response(_instance()),
+    )
+    service = InspectInstanceService(client, SandboxTarget(instance_id=INSTANCE_ID))
+
+    with pytest.raises(InstanceInspectionDependencyError):
+        service.inspect(instance_id=INSTANCE_ID, identity=_identity())
+
+    assert client.calls == 1
 
 
 @pytest.mark.parametrize("instance_id", [None, "", "i-anything", "I-0123456789abcdef0"])
@@ -186,7 +233,9 @@ def test_malformed_instance_identifier_fails_explicitly(instance_id: object) -> 
         SandboxTarget(instance_id=instance_id)
 
 
-def test_missing_production_sandbox_configuration_fails_closed(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_missing_production_sandbox_configuration_fails_closed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.delenv("SANDBOX_INSTANCE_ID", raising=False)
 
     with pytest.raises(ContractValidationError, match="SANDBOX_INSTANCE_ID is required"):

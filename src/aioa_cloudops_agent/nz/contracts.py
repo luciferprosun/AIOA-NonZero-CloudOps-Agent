@@ -52,8 +52,10 @@ class BudgetCounters(NonZeroContract):
 
     max_turns: int = Field(gt=0, le=1_000)
     max_tokens: int = Field(gt=0, le=10_000_000)
+    max_elapsed_seconds: int = Field(default=60, gt=0, le=3_600)
     turns_used: int = Field(default=0, ge=0)
     tokens_used: int = Field(default=0, ge=0)
+    elapsed_milliseconds_used: int = Field(default=0, ge=0, le=3_600_000)
 
     @model_validator(mode="after")
     def validate_consumption(self) -> Self:
@@ -61,6 +63,8 @@ class BudgetCounters(NonZeroContract):
             raise ValueError("turns_used must not exceed max_turns")
         if self.tokens_used > self.max_tokens:
             raise ValueError("tokens_used must not exceed max_tokens")
+        if self.elapsed_milliseconds_used > self.max_elapsed_seconds * 1_000:
+            raise ValueError("elapsed_milliseconds_used must not exceed the time budget")
         return self
 
 
@@ -231,7 +235,11 @@ class ActionResult(NonZeroContract):
     @model_validator(mode="after")
     def validate_outcome(self) -> Self:
         if self.outcome is ActionOutcome.SUCCEEDED:
-            if self.observed_state is None or self.evidence_hash is None or self.failure is not None:
+            if (
+                self.observed_state is None
+                or self.evidence_hash is None
+                or self.failure is not None
+            ):
                 raise ValueError("successful action result requires evidence and forbids failure")
         elif self.failure is None:
             raise ValueError("non-success action result requires explicit failure detail")
@@ -488,9 +496,6 @@ class AuditEvent(NonZeroContract):
     @model_validator(mode="after")
     def prohibit_sensitive_metadata(self) -> Self:
         sensitive_terms = ("credential", "password", "secret", "token")
-        if any(
-            any(term in key.casefold() for term in sensitive_terms)
-            for key in self.metadata
-        ):
+        if any(any(term in key.casefold() for term in sensitive_terms) for key in self.metadata):
             raise ValueError("sensitive audit metadata keys are prohibited")
         return self

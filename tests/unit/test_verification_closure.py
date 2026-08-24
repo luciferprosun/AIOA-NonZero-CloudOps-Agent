@@ -367,7 +367,7 @@ def test_empty_provider_response_is_explicit_failure_not_stopped() -> None:
     assert result.status is ResultStatus.FAILURE
     assert result.failure is not None
     assert result.failure.kind is FailureKind.AMBIGUOUS_RESULT
-    assert repository.get_run(RUN_ID).state is WorkflowState.VERIFICATION_FAILED
+    assert repository.get_run(RUN_ID).state is WorkflowState.AMBIGUOUS_RESULT
     assert repository.get_verification_evidence(RUN_ID, PROPOSAL_ID) is None
 
 

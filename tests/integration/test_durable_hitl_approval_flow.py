@@ -24,6 +24,7 @@ from aioa_cloudops_agent.nz import (
     ActionProposal,
     ActionTarget,
     ApprovalDecision,
+    AuditEventType,
     BudgetCounters,
     Capability,
     Checkpoint,
@@ -386,6 +387,10 @@ def test_tampered_resume_fails_closed_without_decision_or_tool_call(
     assert repository.get_approval(PROPOSAL_ID) is None
     assert repository.get_run(RUN_ID).state is WorkflowState.AWAITING_APPROVAL
     assert stop_calls == []
+    denial = repository.get_audit_event(RUN_ID, EVENT_IDS[1])
+    assert denial is not None
+    assert denial.type is AuditEventType.POLICY_DENIED
+    assert denial.metadata["policy_code"] == "APPROVAL_BINDING_MISMATCH"
 
 
 def test_duplicate_identical_resume_reconciles_without_second_tool_call() -> None:

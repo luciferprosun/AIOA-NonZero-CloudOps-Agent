@@ -2,6 +2,8 @@
 
 from collections.abc import Callable
 from datetime import datetime
+from math import ceil, isfinite
+from time import monotonic as monotonic_clock
 from typing import Literal, Self
 from uuid import UUID
 
@@ -18,6 +20,7 @@ from aioa_cloudops_agent.nz import (
     ActionProposal,
     AuditEvent,
     AuditEventType,
+    BudgetCounters,
     Capability,
     Checkpoint,
     ControlResult,
@@ -30,6 +33,7 @@ from aioa_cloudops_agent.nz import (
 from aioa_cloudops_agent.nz.errors import StorageConflictError, StorageDependencyError
 from aioa_cloudops_agent.nz.identifiers import Uuid7Identifier
 from aioa_cloudops_agent.persistence import DurableTruthRepository, compute_evidence_digest
+from aioa_cloudops_agent.safety import workflow_state_for_failure
 
 from .factory import INVESTIGATION_TOOL_NAMES, PrimaryAgentRuntime
 from .runtime import build_investigation_request
@@ -70,18 +74,6 @@ class InvestigationCompletion(BaseModel):
 InvestigationFlowResult = ControlResult[InvestigationCompletion]
 
 
-_FAILURE_STATE = {
-    FailureKind.VALIDATION_FAILURE: WorkflowState.MODEL_OUTPUT_INVALID,
-    FailureKind.POLICY_DENIAL: WorkflowState.DENIED_BY_POLICY,
-    FailureKind.AMBIGUOUS_RESULT: WorkflowState.AMBIGUOUS_RESULT,
-    FailureKind.DEPENDENCY_UNAVAILABLE: WorkflowState.DEPENDENCY_UNAVAILABLE,
-    FailureKind.BUDGET_EXHAUSTION: WorkflowState.BUDGET_EXHAUSTED,
-    FailureKind.EXECUTION_FAILURE: WorkflowState.EXECUTION_FAILED,
-    FailureKind.VERIFICATION_FAILURE: WorkflowState.VERIFICATION_FAILED,
-    FailureKind.RECOVERY_REQUIREMENT: WorkflowState.RECOVERY_REQUIRED,
-}
-
-
 class BoundedInvestigationFlow:
     """Let Strands orchestrate reads while NZ owns durable state and proposal validity."""
 
@@ -92,15 +84,17 @@ class BoundedInvestigationFlow:
         *,
         clock: Callable[[], datetime],
         event_id_factory: Callable[[], UUID],
+        monotonic: Callable[[], float] = monotonic_clock,
     ) -> None:
         if not isinstance(runtime, PrimaryAgentRuntime):
             raise TypeError("runtime must be PrimaryAgentRuntime")
-        if not callable(clock) or not callable(event_id_factory):
-            raise TypeError("clock and event_id_factory must be callable")
+        if not callable(clock) or not callable(event_id_factory) or not callable(monotonic):
+            raise TypeError("clock, event_id_factory and monotonic must be callable")
         self._runtime = runtime
         self._repository = repository
         self._clock = clock
         self._event_id_factory = event_id_factory
+        self._monotonic = monotonic
 
     def execute(self, run: Run) -> InvestigationFlowResult:
         """Run one bounded investigation or reconcile its exact durable completion."""
@@ -167,20 +161,47 @@ class BoundedInvestigationFlow:
         except (StorageConflictError, StorageDependencyError):
             return self._storage_failure("Durable INVESTIGATING transition failed")
 
+        remaining_turns = current.budget.max_turns - current.budget.turns_used
+        remaining_tokens = current.budget.max_tokens - current.budget.tokens_used
+        remaining_milliseconds = (
+            current.budget.max_elapsed_seconds * 1_000 - current.budget.elapsed_milliseconds_used
+        )
+        if min(remaining_turns, remaining_tokens, remaining_milliseconds) <= 0:
+            return self._budget_exhausted(current, "Run budget was exhausted before invocation")
         limits: Limits = {
-            "turns": run.budget.max_turns,
+            "turns": remaining_turns,
             "output_tokens": min(
-                run.budget.max_tokens,
+                remaining_tokens,
                 self._runtime.model_settings.max_output_tokens,
             ),
-            "total_tokens": run.budget.max_tokens,
+            "total_tokens": remaining_tokens,
         }
+        try:
+            started_at = self._monotonic()
+        except Exception:
+            return self._budget_exhausted(current, "Elapsed-time budget guard is unavailable")
         try:
             agent_result = self._runtime.agent(
                 build_investigation_request(self._runtime.target),
                 limits=limits,
             )
         except Exception:
+            try:
+                elapsed = self._elapsed_since(started_at)
+            except Exception:
+                return self._budget_exhausted(
+                    current,
+                    "Elapsed-time budget guard returned an invalid interval",
+                )
+            try:
+                current, _ = self._record_budget(current, None, elapsed)
+            except ValueError:
+                return self._budget_exhausted(
+                    current,
+                    "Agent usage accounting returned invalid data",
+                )
+            except (StorageConflictError, StorageDependencyError):
+                return self._storage_failure("Durable budget accounting failed")
             return self._fail_durable_run(
                 current,
                 FailureDetail(
@@ -191,23 +212,43 @@ class BoundedInvestigationFlow:
                 ),
             )
 
-        if str(agent_result.stop_reason).startswith("limit_"):
-            return self._fail_durable_run(
+        try:
+            elapsed = self._elapsed_since(started_at)
+        except Exception:
+            return self._budget_exhausted(
                 current,
-                FailureDetail(
-                    kind=FailureKind.BUDGET_EXHAUSTION,
-                    code="AGENT_BUDGET_EXHAUSTED",
-                    message="Bounded Strands investigation exhausted its budget",
-                    retryable=False,
-                ),
+                "Elapsed-time budget guard returned an invalid interval",
+            )
+        try:
+            current, time_exhausted = self._record_budget(current, agent_result, elapsed)
+        except ValueError:
+            return self._budget_exhausted(
+                current,
+                "Agent usage accounting returned invalid data",
+            )
+        except (StorageConflictError, StorageDependencyError):
+            return self._storage_failure("Durable budget accounting failed")
+
+        intervention_failure = getattr(
+            self._runtime.human_in_the_loop,
+            "last_failure",
+            None,
+        )
+        if isinstance(intervention_failure, FailureDetail):
+            return self._fail_durable_run(current, intervention_failure)
+
+        if str(agent_result.stop_reason).startswith("limit_") or time_exhausted:
+            return self._budget_exhausted(
+                current,
+                "Bounded Strands investigation exhausted its turn, token, or time budget",
             )
 
         context = self._runtime.tool_context
         failure = context.first_failure()
         if failure is not None:
-            return self._fail_durable_run(current, failure)
+            return self._fail_durable_run_with_audit(current, failure)
         if tuple(context.tool_calls) != INVESTIGATION_TOOL_NAMES:
-            return self._fail_durable_run(
+            return self._fail_durable_run_with_audit(
                 current,
                 FailureDetail(
                     kind=FailureKind.VALIDATION_FAILURE,
@@ -220,7 +261,7 @@ class BoundedInvestigationFlow:
         inspection = context.inspection()
         utilization = context.utilization()
         if outcome is None or inspection is None or utilization is None:
-            return self._fail_durable_run(
+            return self._fail_durable_run_with_audit(
                 current,
                 FailureDetail(
                     kind=FailureKind.VALIDATION_FAILURE,
@@ -261,7 +302,7 @@ class BoundedInvestigationFlow:
             )
 
         if outcome.decision is EvidenceDecision.NOT_ELIGIBLE:
-            return self._fail_durable_run(
+            return self._fail_durable_run_with_audit(
                 current,
                 FailureDetail(
                     kind=FailureKind.POLICY_DENIAL,
@@ -483,12 +524,133 @@ class BoundedInvestigationFlow:
         run: Run,
         failure: FailureDetail,
     ) -> InvestigationFlowResult:
-        target_state = _FAILURE_STATE[failure.kind]
+        target_state = workflow_state_for_failure(failure)
         try:
             self._transition(run, target_state)
         except (StorageConflictError, StorageDependencyError):
             return self._storage_failure("Failed to persist the terminal investigation state")
         return ControlResult[InvestigationCompletion].failed(failure)
+
+    def _fail_durable_run_with_audit(
+        self,
+        run: Run,
+        failure: FailureDetail,
+    ) -> InvestigationFlowResult:
+        event_type = (
+            AuditEventType.POLICY_DENIED
+            if failure.kind is FailureKind.POLICY_DENIAL
+            else AuditEventType.MODEL_OUTPUT_REJECTED
+            if failure.kind is FailureKind.VALIDATION_FAILURE
+            else None
+        )
+        if event_type is not None:
+            try:
+                self._append_audit(
+                    run,
+                    event_type=event_type,
+                    payload_hash=compute_evidence_digest(
+                        {"code": failure.code, "kind": failure.kind.value}
+                    ),
+                    source="nz-control-policy",
+                    metadata={"failure_code": failure.code},
+                )
+            except (StorageConflictError, StorageDependencyError):
+                return self._storage_failure("Failure audit could not be persisted")
+        return self._fail_durable_run(run, failure)
+
+    def _elapsed_since(self, started_at: float) -> float:
+        finished_at = self._monotonic()
+        if (
+            isinstance(started_at, bool)
+            or isinstance(finished_at, bool)
+            or not isinstance(started_at, (int, float))
+            or not isinstance(finished_at, (int, float))
+            or not isfinite(float(started_at))
+            or not isfinite(float(finished_at))
+            or finished_at < started_at
+        ):
+            raise ValueError("monotonic clock returned an invalid interval")
+        return float(finished_at - started_at)
+
+    @staticmethod
+    def _agent_consumption(agent_result: object | None) -> tuple[int, int]:
+        if agent_result is None:
+            return 0, 0
+        metrics = getattr(agent_result, "metrics", None)
+        invocation = getattr(metrics, "latest_agent_invocation", None)
+        cycles = getattr(invocation, "cycles", None)
+        usage = getattr(invocation, "usage", None)
+        if not isinstance(cycles, (list, tuple)) or not isinstance(usage, dict):
+            raise ValueError("Strands usage telemetry is missing")
+        tokens = usage.get("totalTokens")
+        if isinstance(tokens, bool) or not isinstance(tokens, int) or tokens < 0:
+            raise ValueError("Strands token telemetry is invalid")
+        return len(cycles), tokens
+
+    def _record_budget(
+        self,
+        run: Run,
+        agent_result: object | None,
+        elapsed_seconds: float,
+    ) -> tuple[Run, bool]:
+        turns, tokens = self._agent_consumption(agent_result)
+        elapsed_milliseconds = max(0, ceil(elapsed_seconds * 1_000))
+        remaining_milliseconds = (
+            run.budget.max_elapsed_seconds * 1_000 - run.budget.elapsed_milliseconds_used
+        )
+        budget_exhausted = (
+            elapsed_milliseconds >= remaining_milliseconds
+            or turns > run.budget.max_turns - run.budget.turns_used
+            or tokens > run.budget.max_tokens - run.budget.tokens_used
+        )
+        budget = BudgetCounters(
+            max_turns=run.budget.max_turns,
+            max_tokens=run.budget.max_tokens,
+            max_elapsed_seconds=run.budget.max_elapsed_seconds,
+            turns_used=min(run.budget.max_turns, run.budget.turns_used + turns),
+            tokens_used=min(run.budget.max_tokens, run.budget.tokens_used + tokens),
+            elapsed_milliseconds_used=min(
+                run.budget.max_elapsed_seconds * 1_000,
+                run.budget.elapsed_milliseconds_used + elapsed_milliseconds,
+            ),
+        )
+        updated = self._repository.update_run_budget(
+            run.run_id,
+            budget,
+            expected_version=run.version,
+            updated_at=self._clock(),
+        )
+        self._append_audit(
+            updated,
+            event_type=AuditEventType.BUDGET_UPDATED,
+            payload_hash=compute_evidence_digest(budget.model_dump(mode="json")),
+            source="nz-budget-guard",
+            metadata={
+                "elapsed_milliseconds_used": str(budget.elapsed_milliseconds_used),
+                "model_units_used": str(budget.tokens_used),
+                "turns_used": str(budget.turns_used),
+            },
+        )
+        return updated, budget_exhausted
+
+    def _budget_exhausted(self, run: Run, message: str) -> InvestigationFlowResult:
+        failure = FailureDetail(
+            kind=FailureKind.BUDGET_EXHAUSTION,
+            code="AGENT_BUDGET_EXHAUSTED",
+            message=message,
+            retryable=False,
+        )
+        try:
+            self._append_audit(
+                run,
+                event_type=AuditEventType.BUDGET_EXHAUSTED,
+                payload_hash=compute_evidence_digest(run.budget.model_dump(mode="json")),
+                source="nz-budget-guard",
+                metadata={"failure_code": failure.code},
+            )
+        except (StorageConflictError, StorageDependencyError):
+            return self._storage_failure("Budget exhaustion audit could not be persisted")
+        return self._fail_durable_run(run, failure)
 
     @staticmethod
     def _failure(

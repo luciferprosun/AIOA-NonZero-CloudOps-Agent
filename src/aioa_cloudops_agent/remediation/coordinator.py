@@ -23,16 +23,19 @@ from aioa_cloudops_agent.nz.errors import (
 )
 from aioa_cloudops_agent.persistence import (
     DurableTruthRepository,
+    compute_evidence_digest,
     derive_idempotency_key,
     load_execution_prerequisites,
     register_approved_action,
 )
+from aioa_cloudops_agent.safety.failures import workflow_state_for_failure
 
 from .command import build_stop_execution_command
 from .errors import (
     RemediationAmbiguousError,
     RemediationDependencyError,
     RemediationDisabledError,
+    RemediationExecutionError,
     RemediationScopeError,
 )
 from .executor import PrivateRemediationExecutor
@@ -175,43 +178,52 @@ class StopSandboxInstanceCoordinator:
 
         try:
             acknowledgement = self._executor.execute(command)
-        except (RemediationDisabledError, RemediationScopeError) as error:
+        except (RemediationDisabledError, RemediationScopeError):
             return self._persist_execution_failure(
                 run,
                 idempotency.idempotency_key,
                 FailureDetail(
                     kind=FailureKind.POLICY_DENIAL,
                     code="SANDBOX_EXECUTION_DENIED",
-                    message=str(error),
+                    message="Private executor rejected configuration, scope, or precondition",
                     retryable=False,
                 ),
-                WorkflowState.EXECUTION_FAILED,
                 ActionOutcome.FAILED,
             )
-        except RemediationDependencyError as error:
+        except RemediationDependencyError:
             return self._persist_execution_failure(
                 run,
                 idempotency.idempotency_key,
                 FailureDetail(
                     kind=FailureKind.DEPENDENCY_UNAVAILABLE,
                     code="STOP_DEPENDENCY_UNAVAILABLE",
-                    message=str(error),
+                    message="Private executor dependency is unavailable before safe acknowledgement",
                     retryable=True,
                 ),
-                WorkflowState.DEPENDENCY_UNAVAILABLE,
                 ActionOutcome.FAILED,
             )
-        except RemediationAmbiguousError as error:
+        except RemediationExecutionError:
+            return self._persist_execution_failure(
+                run,
+                idempotency.idempotency_key,
+                FailureDetail(
+                    kind=FailureKind.EXECUTION_FAILURE,
+                    code="STOP_EXECUTION_FAILED",
+                    message="StopInstances returned an explicit unsuccessful outcome",
+                    retryable=False,
+                ),
+                ActionOutcome.FAILED,
+            )
+        except RemediationAmbiguousError:
             return self._persist_execution_failure(
                 run,
                 idempotency.idempotency_key,
                 FailureDetail(
                     kind=FailureKind.RECOVERY_REQUIREMENT,
                     code="STOP_ACKNOWLEDGEMENT_AMBIGUOUS",
-                    message=str(error),
+                    message="Mutation acknowledgement is unknown and requires reconciliation",
                     retryable=False,
                 ),
-                WorkflowState.RECOVERY_REQUIRED,
                 ActionOutcome.AMBIGUOUS,
             )
         except Exception:
@@ -224,7 +236,6 @@ class StopSandboxInstanceCoordinator:
                     message="Private executor failed without a safe acknowledgement",
                     retryable=False,
                 ),
-                WorkflowState.RECOVERY_REQUIRED,
                 ActionOutcome.AMBIGUOUS,
             )
 
@@ -264,10 +275,17 @@ class StopSandboxInstanceCoordinator:
         run: Run,
         idempotency_key: str,
         failure: FailureDetail,
-        target_state: WorkflowState,
         outcome: ActionOutcome,
     ) -> ControlResult:
+        target_state = workflow_state_for_failure(failure)
         try:
+            if failure.kind is FailureKind.POLICY_DENIAL:
+                self._append_event(
+                    run,
+                    AuditEventType.POLICY_DENIED,
+                    compute_evidence_digest({"code": failure.code, "kind": failure.kind.value}),
+                    metadata={"policy_code": failure.code},
+                )
             self._repository.complete_idempotency(
                 idempotency_key,
                 ActionResult(outcome=outcome, failure=failure),

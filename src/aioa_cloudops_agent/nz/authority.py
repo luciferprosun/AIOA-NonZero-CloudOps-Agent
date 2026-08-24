@@ -14,7 +14,16 @@ _CAPABILITY_AUTHORITY: Final[dict[Capability, AuthorityGate]] = {
     Capability.STOP_SANDBOX_INSTANCE: AuthorityGate.PLAN_AND_CONFIRM,
     Capability.VERIFY_INSTANCE_STATE: AuthorityGate.AUTO,
     Capability.TERMINATE_INSTANCES: AuthorityGate.NEVER_AUTONOMOUS,
+    Capability.START_INSTANCES: AuthorityGate.NEVER_AUTONOMOUS,
+    Capability.REBOOT_INSTANCES: AuthorityGate.NEVER_AUTONOMOUS,
+    Capability.MODIFY_INSTANCE_ATTRIBUTE: AuthorityGate.NEVER_AUTONOMOUS,
+    Capability.CREATE_TAGS: AuthorityGate.NEVER_AUTONOMOUS,
+    Capability.DELETE_TAGS: AuthorityGate.NEVER_AUTONOMOUS,
     Capability.IAM_MUTATION: AuthorityGate.NEVER_AUTONOMOUS,
+    Capability.SSM_COMMAND_EXECUTION: AuthorityGate.NEVER_AUTONOMOUS,
+    Capability.FILESYSTEM_ACCESS: AuthorityGate.NEVER_AUTONOMOUS,
+    Capability.CREDENTIAL_ACCESS: AuthorityGate.NEVER_AUTONOMOUS,
+    Capability.UNSAFE_STOP_OPTIONS: AuthorityGate.NEVER_AUTONOMOUS,
     Capability.STORAGE_DATABASE_DELETION: AuthorityGate.NEVER_AUTONOMOUS,
     Capability.SECURITY_GROUP_NETWORK_OPENING: AuthorityGate.NEVER_AUTONOMOUS,
     Capability.SHELL_EXECUTION: AuthorityGate.NEVER_AUTONOMOUS,
@@ -45,7 +54,5 @@ def require_capability_authority(
         raise CapabilityDeniedError("authority claim is untyped and denied")
     required = authority_for_capability(capability)
     if claimed_authority is not required:
-        raise CapabilityDeniedError(
-            f"{capability.value} requires authority {required.value}"
-        )
+        raise CapabilityDeniedError(f"{capability.value} requires authority {required.value}")
     return required

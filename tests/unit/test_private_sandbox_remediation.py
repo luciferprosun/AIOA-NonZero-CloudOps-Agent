@@ -36,6 +36,7 @@ from aioa_cloudops_agent.remediation import (
     RemediationAmbiguousError,
     RemediationDependencyError,
     RemediationDisabledError,
+    RemediationExecutionError,
     RemediationScopeError,
     StopExecutionCommand,
     StopSandboxInstanceCoordinator,
@@ -50,8 +51,7 @@ TRACE_ID = UUID("01890f6c-3311-7abc-8f4a-6e4f7f0b9b3b")
 CORRELATION_ID = UUID("01890f6c-3311-7abc-8f4a-6e4f7f0b9b3c")
 PROPOSAL_ID = UUID("01890f6c-3311-7abc-8f4a-6e4f7f0b9b3d")
 EVENT_IDS = tuple(
-    UUID(f"01890f6c-3311-7abc-8f4a-6e4f7f0b9b{value:02x}")
-    for value in range(100, 120)
+    UUID(f"01890f6c-3311-7abc-8f4a-6e4f7f0b9b{value:02x}") for value in range(100, 120)
 )
 NOW = datetime(2026, 8, 23, 19, 0, tzinfo=UTC)
 DIGEST = "a" * 64
@@ -365,11 +365,11 @@ def test_ambiguous_stop_acknowledgement_is_not_retried() -> None:
     assert len(client.stop_calls) == 2
 
 
-def test_aws_stop_error_is_explicit_dependency_failure() -> None:
+def test_aws_stop_error_is_explicit_execution_failure() -> None:
     client = FakeEc2StopClient(actual_error=FakeAwsError("UnauthorizedOperation"))
     executor = Ec2SandboxStopExecutor(client, _settings(), clock=lambda: NOW)
 
-    with pytest.raises(RemediationDependencyError):
+    with pytest.raises(RemediationExecutionError):
         executor.execute(_command())
 
     assert len(client.stop_calls) == 2
@@ -448,6 +448,16 @@ def test_missing_or_denied_approval_never_invokes_executor(
             WorkflowState.RECOVERY_REQUIRED,
             FailureKind.RECOVERY_REQUIREMENT,
         ),
+        (
+            RemediationExecutionError("known unsuccessful result"),
+            WorkflowState.EXECUTION_FAILED,
+            FailureKind.EXECUTION_FAILURE,
+        ),
+        (
+            RemediationDisabledError("execution disabled"),
+            WorkflowState.DENIED_BY_POLICY,
+            FailureKind.POLICY_DENIAL,
+        ),
     ],
 )
 def test_executor_failure_never_becomes_success(
@@ -462,6 +472,7 @@ def test_executor_failure_never_becomes_success(
 
     assert result.status is ResultStatus.FAILURE
     assert result.failure is not None and result.failure.kind is expected_kind
+    assert str(error) not in result.failure.message
     assert repository.get_run(RUN_ID).state is expected_state
     assert len(executor.commands) == 1
 

@@ -31,6 +31,7 @@ from aioa_cloudops_agent.cloudops import (
 from aioa_cloudops_agent.config import BedrockSettings, IdlePolicySettings
 from aioa_cloudops_agent.domain import AuthorityGate, ContractValidationError, ExecutionContext
 from aioa_cloudops_agent.domain.identifiers import validate_correlation_id
+from aioa_cloudops_agent.nz import generate_event_id
 from aioa_cloudops_agent.persistence import DurableTruthRepository
 from aioa_cloudops_agent.remediation import (
     STOP_SANDBOX_INSTANCE_TOOL_NAME,
@@ -113,13 +114,23 @@ def create_bedrock_model(
 
 def create_human_in_the_loop(
     repository: DurableTruthRepository | None = None,
+    *,
+    identity: InvestigationIdentity | None = None,
+    target: SandboxTarget | None = None,
+    clock: Callable[[], datetime] | None = None,
+    model_id: str | None = None,
 ) -> HumanInTheLoop:
-    """Allow only read-only tools; enrich stop confirmation from durable truth."""
+    """Create the central default-deny hook when its exact context is available."""
 
-    if repository is not None:
+    if identity is not None and target is not None and clock is not None and model_id is not None:
         return DurableProposalHumanInTheLoop(
             repository,
             allowed_tools=list(READ_ONLY_TOOL_NAMES),
+            identity=identity,
+            target=target,
+            clock=clock,
+            event_id_factory=generate_event_id,
+            model_id=model_id,
         )
     return HumanInTheLoop(
         allowed_tools=list(READ_ONLY_TOOL_NAMES),
@@ -215,7 +226,13 @@ def create_primary_agent(
         verification_request_handler or unavailable_verification_request,
         tracer=tracer,
     )
-    intervention = create_human_in_the_loop(durable_repository)
+    intervention = create_human_in_the_loop(
+        durable_repository,
+        identity=identity,
+        target=target,
+        clock=clock,
+        model_id=settings.model_id,
+    )
     primary_agent = Agent(
         agent_id=PRIMARY_AGENT_ID,
         name="AIOA Non-Zero CloudOps",

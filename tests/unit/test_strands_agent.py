@@ -10,7 +10,7 @@ from uuid import UUID
 from strands import Agent, tool
 from strands.hooks.events import BeforeToolCallEvent
 from strands.interrupt import Interrupt, InterruptException
-from strands.interventions import Confirm, Proceed
+from strands.interventions import Deny, Proceed
 from strands.models import BedrockModel, Model
 from strands.vended_interventions.hitl import HumanInTheLoop
 
@@ -190,12 +190,8 @@ def test_bedrock_specific_tool_choice_formats_exact_registered_tool() -> None:
         tool_choice={"tool": {"name": "inspect_instance"}},
     )
 
-    assert request["toolConfig"]["toolChoice"] == {
-        "tool": {"name": "inspect_instance"}
-    }
-    assert request["toolConfig"]["tools"] == [
-        {"toolSpec": runtime.inspect_instance_tool.tool_spec}
-    ]
+    assert request["toolConfig"]["toolChoice"] == {"tool": {"name": "inspect_instance"}}
+    assert request["toolConfig"]["tools"] == [{"toolSpec": runtime.inspect_instance_tool.tool_spec}]
 
 
 def test_phase_1_tag_remains_at_frozen_commit() -> None:
@@ -210,7 +206,7 @@ def test_phase_1_tag_remains_at_frozen_commit() -> None:
     assert result.stdout.strip() == "ced6e2a180dd50a1f43d4037bb8db5f4dc792657"
 
 
-def test_native_hitl_allows_inspection_and_interrupts_unknown_mutation() -> None:
+def test_native_hitl_allows_inspection_and_denies_malformed_mutation() -> None:
     runtime = _runtime()
     inspection_event = BeforeToolCallEvent(
         agent=runtime.agent,
@@ -237,9 +233,8 @@ def test_native_hitl_allows_inspection_and_interrupts_unknown_mutation() -> None
     mutation_action = asyncio.run(runtime.human_in_the_loop.before_tool_call(mutation_event))
 
     assert isinstance(inspection_action, Proceed)
-    assert isinstance(mutation_action, Confirm)
-    assert mutation_action.response is None
-    assert "stop_sandbox_instance" in mutation_action.prompt
+    assert isinstance(mutation_action, Deny)
+    assert "schema rejected" in mutation_action.reason.casefold()
 
 
 def test_hitl_does_not_use_wildcard_or_session_trust() -> None:

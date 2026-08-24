@@ -11,10 +11,16 @@ READ_ONLY_POLICY = ROOT / "infra" / "iam" / "cloudops-read-only-policy.json"
 
 PROHIBITED_PROVIDER_METHODS = {
     "authorize_security_group_ingress",
+    "create_tags",
+    "delete_tags",
     "delete_security_group",
+    "modify_instance_attribute",
+    "reboot_instances",
     "release_address",
     "revoke_security_group_ingress",
     "run_instances",
+    "send_command",
+    "start_instances",
     "stop_instances",
     "terminate_instances",
 }
@@ -24,8 +30,7 @@ PROHIBITED_CODE_EXECUTION_CALLS = {"compile", "eval", "exec"}
 
 def _python_trees() -> list[tuple[Path, ast.AST]]:
     return [
-        (path, ast.parse(path.read_text(encoding="utf-8")))
-        for path in SOURCE_ROOT.rglob("*.py")
+        (path, ast.parse(path.read_text(encoding="utf-8"))) for path in SOURCE_ROOT.rglob("*.py")
     ]
 
 

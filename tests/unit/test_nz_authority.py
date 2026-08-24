@@ -24,8 +24,7 @@ def test_observation_and_evidence_capabilities_are_auto(capability: Capability) 
 
 def test_sandbox_stop_requires_plan_and_confirm() -> None:
     assert (
-        authority_for_capability(Capability.STOP_SANDBOX_INSTANCE)
-        is AuthorityGate.PLAN_AND_CONFIRM
+        authority_for_capability(Capability.STOP_SANDBOX_INSTANCE) is AuthorityGate.PLAN_AND_CONFIRM
     )
 
 
@@ -33,7 +32,16 @@ def test_sandbox_stop_requires_plan_and_confirm() -> None:
     "capability",
     [
         Capability.TERMINATE_INSTANCES,
+        Capability.START_INSTANCES,
+        Capability.REBOOT_INSTANCES,
+        Capability.MODIFY_INSTANCE_ATTRIBUTE,
+        Capability.CREATE_TAGS,
+        Capability.DELETE_TAGS,
         Capability.IAM_MUTATION,
+        Capability.SSM_COMMAND_EXECUTION,
+        Capability.FILESYSTEM_ACCESS,
+        Capability.CREDENTIAL_ACCESS,
+        Capability.UNSAFE_STOP_OPTIONS,
         Capability.STORAGE_DATABASE_DELETION,
         Capability.SECURITY_GROUP_NETWORK_OPENING,
         Capability.SHELL_EXECUTION,

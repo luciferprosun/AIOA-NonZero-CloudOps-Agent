@@ -1,4 +1,5 @@
 import json
+from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import UUID
@@ -17,6 +18,7 @@ from aioa_cloudops_agent.domain import (
 from aioa_cloudops_agent.nz import (
     ActionProposal,
     AuditEvent,
+    AuditEventType,
     BudgetCounters,
     Capability,
     FailureKind,
@@ -32,10 +34,7 @@ RUN_ID = UUID("01890f6c-3311-7abc-8f4a-6e4f7f0b9b3a")
 TRACE_ID = UUID("01890f6c-3311-7abc-8f4a-6e4f7f0b9b3b")
 CORRELATION_ID = UUID("01890f6c-3311-7abc-8f4a-6e4f7f0b9b3c")
 PROPOSAL_ID = UUID("01890f6c-3311-7abc-8f4a-6e4f7f0b9b3d")
-EVENT_IDS = tuple(
-    UUID(f"01890f6c-3311-7abc-8f4a-6e4f7f0b9b{value:02x}")
-    for value in range(64, 96)
-)
+EVENT_IDS = tuple(UUID(f"01890f6c-3311-7abc-8f4a-6e4f7f0b9b{value:02x}") for value in range(64, 96))
 NOW = datetime(2026, 8, 23, 10, 0, tzinfo=UTC)
 CANONICAL_PLAN = (
     ("inspect_instance", {"instance_id": INSTANCE_ID}),
@@ -226,14 +225,18 @@ class EventIdFactory:
         return value
 
 
-def _run(*, max_turns: int = 8) -> Run:
+def _run(*, max_turns: int = 8, max_elapsed_seconds: int = 60) -> Run:
     return Run.new(
         run_id=RUN_ID,
         trace_id=TRACE_ID,
         correlation_id=CORRELATION_ID,
         idempotency_key="request:idle-ec2:0001",
         created_at=NOW,
-        budget=BudgetCounters(max_turns=max_turns, max_tokens=8_192),
+        budget=BudgetCounters(
+            max_turns=max_turns,
+            max_tokens=8_192,
+            max_elapsed_seconds=max_elapsed_seconds,
+        ),
     )
 
 
@@ -243,6 +246,7 @@ def _flow(
     model: ScriptedInvestigationModel | None = None,
     ec2_client: FakeEc2Client | None = None,
     repository: RecordingRepository | None = None,
+    monotonic: Callable[[], float] | None = None,
 ) -> tuple[
     BoundedInvestigationFlow,
     object,
@@ -277,12 +281,13 @@ def _flow(
         model=actual_model,
         durable_repository=actual_repository,
     )
-    flow = BoundedInvestigationFlow(
-        runtime,
-        actual_repository,
-        clock=lambda: NOW,
-        event_id_factory=EventIdFactory(),
-    )
+    flow_kwargs: dict[str, object] = {
+        "clock": lambda: NOW,
+        "event_id_factory": EventIdFactory(),
+    }
+    if monotonic is not None:
+        flow_kwargs["monotonic"] = monotonic
+    flow = BoundedInvestigationFlow(runtime, actual_repository, **flow_kwargs)
     return flow, runtime, actual_model, actual_ec2, cloudwatch, actual_repository
 
 
@@ -300,9 +305,7 @@ def test_strands_happy_path_persists_evidence_backed_non_authorizing_proposal() 
     assert repository.get_run(RUN_ID).state is WorkflowState.REMEDIATION_PROPOSED
     assert repository.get_proposal(PROPOSAL_ID) == result.value.proposal
     assert repository.get_approval(PROPOSAL_ID) is None
-    assert repository.get_checkpoint(RUN_ID).last_safe_state is (
-        WorkflowState.REMEDIATION_PROPOSED
-    )
+    assert repository.get_checkpoint(RUN_ID).last_safe_state is (WorkflowState.REMEDIATION_PROPOSED)
     assert repository.proposal_creates == 1
     assert repository.operations.index("create_proposal") < repository.operations.index(
         "transition:REMEDIATION_PROPOSED"
@@ -312,9 +315,7 @@ def test_strands_happy_path_persists_evidence_backed_non_authorizing_proposal() 
     assert all(names == runtime.registered_tool_names for names in model.tool_specs_seen)
     assert ec2.calls == [[INSTANCE_ID]]
     assert len(cloudwatch.calls) == 1
-    assert cloudwatch.calls[0]["Dimensions"] == [
-        {"Name": "InstanceId", "Value": INSTANCE_ID}
-    ]
+    assert cloudwatch.calls[0]["Dimensions"] == [{"Name": "InstanceId", "Value": INSTANCE_ID}]
     assert "proposal_id=" in result.value.agent_summary
     assert "human approval is still absent" in result.value.agent_summary
     assert "proposal_id=" in runtime.agent.messages[-1]["content"][0]["text"]
@@ -375,26 +376,38 @@ def test_durable_proposal_failure_fails_closed_without_claiming_completion() -> 
 
 
 @pytest.mark.parametrize(
-    "plan",
+    ("plan", "expected_kind", "expected_state"),
     [
-        (("inspect_instance", {"instance_id": INSTANCE_ID, "region": "us-east-1"}),),
-        (("stop_sandbox_instance", {"instance_id": INSTANCE_ID}),),
-        (("terminate_instances", {"instance_id": INSTANCE_ID}),),
+        (
+            (("inspect_instance", {"instance_id": INSTANCE_ID, "region": "us-east-1"}),),
+            FailureKind.POLICY_DENIAL,
+            WorkflowState.DENIED_BY_POLICY,
+        ),
+        (
+            (("stop_sandbox_instance", {"instance_id": INSTANCE_ID}),),
+            FailureKind.VALIDATION_FAILURE,
+            WorkflowState.MODEL_OUTPUT_INVALID,
+        ),
+        (
+            (("terminate_instances", {"instance_id": INSTANCE_ID}),),
+            FailureKind.POLICY_DENIAL,
+            WorkflowState.DENIED_BY_POLICY,
+        ),
     ],
 )
 def test_malformed_or_mutating_model_requests_cannot_create_proposal(
     plan: tuple[tuple[str, dict[str, object]], ...],
+    expected_kind: FailureKind,
+    expected_state: WorkflowState,
 ) -> None:
-    flow, runtime, _, _, _, repository = _flow(
-        model=ScriptedInvestigationModel(plan=plan)
-    )
+    flow, runtime, _, _, _, repository = _flow(model=ScriptedInvestigationModel(plan=plan))
 
     result = flow.execute(_run())
 
     assert result.status is ResultStatus.FAILURE
     assert result.failure is not None
-    assert result.failure.kind is FailureKind.VALIDATION_FAILURE
-    assert repository.get_run(RUN_ID).state is WorkflowState.MODEL_OUTPUT_INVALID
+    assert result.failure.kind is expected_kind
+    assert repository.get_run(RUN_ID).state is expected_state
     assert repository.get_proposal(PROPOSAL_ID) is None
     assert "stop_sandbox_instance" in runtime.registered_tool_names
     assert "terminate_instances" not in runtime.registered_tool_names
@@ -430,8 +443,7 @@ def test_trace_identity_and_evidence_hash_propagate_through_audit_and_checkpoint
     assert all(event.run_id == RUN_ID for event in repository.events)
     assert all(event.metadata["trace_id"] == str(TRACE_ID) for event in repository.events)
     assert all(
-        event.metadata["correlation_id"] == str(CORRELATION_ID)
-        for event in repository.events
+        event.metadata["correlation_id"] == str(CORRELATION_ID) for event in repository.events
     )
     checkpoint = repository.get_checkpoint(RUN_ID)
     assert checkpoint.tool_result_hashes["build_remediation_evidence"] == (
@@ -471,6 +483,127 @@ def test_flow_exposes_canonical_tools_without_mutation_clients() -> None:
         assert not hasattr(client, "stop_instances")
         assert not hasattr(client, "terminate_instances")
         assert not hasattr(client, "put_metric_data")
+
+
+def test_denied_injection_is_linked_and_redacted_before_dispatch() -> None:
+    malicious_value = "sensitive-session-redaction-marker"
+    plan = (("terminate_instances", {"payload": malicious_value}),)
+    flow, runtime, _, ec2, cloudwatch, repository = _flow(
+        model=ScriptedInvestigationModel(plan=plan)
+    )
+
+    result = flow.execute(_run())
+
+    assert result.failure is not None
+    assert result.failure.kind is FailureKind.POLICY_DENIAL
+    assert repository.get_run(RUN_ID).state is WorkflowState.DENIED_BY_POLICY
+    assert repository.get_approval(PROPOSAL_ID) is None
+    assert runtime.human_in_the_loop.denial_count == 1
+    denial = next(
+        event for event in repository.events if event.type is AuditEventType.POLICY_DENIED
+    )
+    assert denial.run_id == RUN_ID
+    assert denial.metadata["trace_id"] == str(TRACE_ID)
+    assert denial.metadata["correlation_id"] == str(CORRELATION_ID)
+    assert denial.metadata["policy_code"] == "NEVER_AUTONOMOUS_DENIED"
+    assert denial.tool_name == Capability.TERMINATE_INSTANCES.value
+    assert malicious_value not in json.dumps(denial.model_dump(mode="json"))
+    assert ec2.calls == []
+    assert cloudwatch.calls == []
+
+
+def test_policy_denial_closes_the_invocation_before_later_safe_looking_tools() -> None:
+    plan = (
+        ("terminate_instances", {"instance_id": INSTANCE_ID}),
+        *CANONICAL_PLAN,
+    )
+    flow, runtime, _, ec2, cloudwatch, repository = _flow(
+        model=ScriptedInvestigationModel(plan=plan)
+    )
+
+    result = flow.execute(_run())
+
+    assert result.failure is not None
+    assert result.failure.kind is FailureKind.POLICY_DENIAL
+    assert repository.get_run(RUN_ID).state is WorkflowState.DENIED_BY_POLICY
+    assert repository.get_proposal(PROPOSAL_ID) is None
+    assert runtime.tool_context.tool_calls == []
+    assert runtime.human_in_the_loop.denial_count == 4
+    assert ec2.calls == []
+    assert cloudwatch.calls == []
+
+
+def test_repeated_malformed_tool_payload_exhausts_schema_correction_budget() -> None:
+    plan = (
+        ("stop_sandbox_instance", {"instance_id": INSTANCE_ID}),
+        ("stop_sandbox_instance", {"instance_id": INSTANCE_ID}),
+    )
+    flow, runtime, _, ec2, cloudwatch, repository = _flow(
+        model=ScriptedInvestigationModel(plan=plan)
+    )
+
+    result = flow.execute(_run())
+
+    assert result.failure is not None
+    assert result.failure.kind is FailureKind.VALIDATION_FAILURE
+    assert result.failure.code == "MODEL_OUTPUT_INVALID"
+    assert result.failure.retryable is False
+    assert repository.get_run(RUN_ID).state is WorkflowState.MODEL_OUTPUT_INVALID
+    assert runtime.human_in_the_loop.denial_count == 2
+    assert (
+        sum(event.type is AuditEventType.MODEL_OUTPUT_REJECTED for event in repository.events) == 2
+    )
+    assert ec2.calls == []
+    assert cloudwatch.calls == []
+
+
+def test_one_schema_correction_can_recover_only_to_the_exact_safe_tool_sequence() -> None:
+    plan = (
+        ("stop_sandbox_instance", {"instance_id": INSTANCE_ID}),
+        *CANONICAL_PLAN,
+    )
+    flow, runtime, _, ec2, cloudwatch, repository = _flow(
+        model=ScriptedInvestigationModel(plan=plan)
+    )
+
+    result = flow.execute(_run())
+
+    assert result.status is ResultStatus.SUCCESS
+    assert repository.get_run(RUN_ID).state is WorkflowState.REMEDIATION_PROPOSED
+    assert runtime.tool_context.tool_calls == list(CANONICAL_PLAN_NAMES)
+    assert runtime.human_in_the_loop.denial_count == 1
+    assert ec2.calls == [[INSTANCE_ID]]
+    assert len(cloudwatch.calls) == 1
+
+
+class MonotonicSequence:
+    def __init__(self, *values: float) -> None:
+        self._values = iter(values)
+
+    def __call__(self) -> float:
+        return next(self._values)
+
+
+def test_elapsed_time_budget_is_persisted_and_audited_before_any_proposal() -> None:
+    flow, runtime, _, _, _, repository = _flow(monotonic=MonotonicSequence(0.0, 2.0))
+
+    result = flow.execute(_run(max_elapsed_seconds=1))
+
+    assert result.failure is not None
+    assert result.failure.kind is FailureKind.BUDGET_EXHAUSTION
+    durable_run = repository.get_run(RUN_ID)
+    assert durable_run is not None
+    assert durable_run.state is WorkflowState.BUDGET_EXHAUSTED
+    assert durable_run.budget.elapsed_milliseconds_used == 1_000
+    assert repository.get_proposal(PROPOSAL_ID) is None
+    assert repository.get_approval(PROPOSAL_ID) is None
+    assert AuditEventType.BUDGET_UPDATED in {event.type for event in repository.events}
+    assert AuditEventType.BUDGET_EXHAUSTED in {event.type for event in repository.events}
+    assert runtime.registered_tool_names == (
+        *CANONICAL_PLAN_NAMES,
+        "stop_sandbox_instance",
+        "verify_instance_state",
+    )
 
 
 CANONICAL_PLAN_NAMES = tuple(name for name, _ in CANONICAL_PLAN)

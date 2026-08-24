@@ -17,5 +17,9 @@ class RemediationDependencyError(RemediationError):
     """AWS dependency rejected the request before ambiguous execution."""
 
 
+class RemediationExecutionError(RemediationError):
+    """Provider explicitly reported that the approved mutation was unsuccessful."""
+
+
 class RemediationAmbiguousError(RemediationError):
     """Acknowledgement may have been lost and must never be blindly replayed."""

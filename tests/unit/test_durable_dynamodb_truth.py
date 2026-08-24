@@ -261,6 +261,41 @@ def test_duplicate_run_and_stale_state_fail_closed() -> None:
         )
 
 
+def test_budget_counters_use_conditional_versioning_and_never_overwrite_race() -> None:
+    client, repository = _repository()
+    run = repository.create_run(_run())
+    budget = BudgetCounters(
+        max_turns=run.budget.max_turns,
+        max_tokens=run.budget.max_tokens,
+        max_elapsed_seconds=run.budget.max_elapsed_seconds,
+        turns_used=2,
+        tokens_used=120,
+        elapsed_milliseconds_used=250,
+    )
+
+    updated = repository.update_run_budget(
+        RUN_ID,
+        budget,
+        expected_version=run.version,
+        updated_at=NOW + timedelta(milliseconds=250),
+    )
+
+    assert updated.budget == budget
+    assert updated.version == 2
+    update = client.requests[-1]
+    assert update["ConditionExpression"] == (
+        "#state = :expected_state AND #version = :expected_version"
+    )
+    with pytest.raises(StorageConflictError, match="version"):
+        repository.update_run_budget(
+            RUN_ID,
+            budget,
+            expected_version=run.version,
+            updated_at=NOW + timedelta(seconds=1),
+        )
+    assert repository.get_run(RUN_ID) == updated
+
+
 def test_proposal_and_approval_use_separate_create_only_items() -> None:
     client, repository = _repository()
     proposal = repository.create_proposal(_proposal())
@@ -297,7 +332,9 @@ def test_idempotency_registration_reconciles_exact_duplicate() -> None:
         if operation == "PutItem" and request["Item"]["entity_type"] == {"S": "IDEMPOTENCY"}
     ]
     assert len(put_requests) == 1
-    assert all("attribute_not_exists(PK)" in request["ConditionExpression"] for request in put_requests)
+    assert all(
+        "attribute_not_exists(PK)" in request["ConditionExpression"] for request in put_requests
+    )
 
 
 def test_execution_acknowledgement_is_conditional_and_reconciles_duplicate() -> None:
@@ -321,10 +358,13 @@ def test_execution_acknowledgement_is_conditional_and_reconciles_duplicate() -> 
     )
 
     assert updated.execution_acknowledgement == acknowledgement
-    assert repository.record_execution_acknowledgement(
-        record.idempotency_key,
-        acknowledgement,
-    ) == updated
+    assert (
+        repository.record_execution_acknowledgement(
+            record.idempotency_key,
+            acknowledgement,
+        )
+        == updated
+    )
 
 
 def test_verification_evidence_is_create_only_and_required_for_final_success() -> None:
@@ -398,14 +438,13 @@ def test_verification_evidence_is_create_only_and_required_for_final_success() -
     ]
     assert len(evidence_puts) == 2
     assert all(
-        request["ConditionExpression"]
-        == "attribute_not_exists(PK) AND attribute_not_exists(SK)"
+        request["ConditionExpression"] == "attribute_not_exists(PK) AND attribute_not_exists(SK)"
         for request in evidence_puts
     )
-    assert sum(
-        item["entity_type"] == {"S": "VERIFICATION_EVIDENCE"}
-        for item in client.items.values()
-    ) == 1
+    assert (
+        sum(item["entity_type"] == {"S": "VERIFICATION_EVIDENCE"} for item in client.items.values())
+        == 1
+    )
 
 
 def test_lost_ack_recovery_proof_is_durable_without_fabricating_acknowledgement() -> None:
