@@ -2,6 +2,7 @@ import json
 from dataclasses import asdict
 from pathlib import Path
 
+import pytest
 from scripts.prove_clean_clone import (
     PUBLIC_REPOSITORY_URL,
     SAFE_SMOKE_CHECKS,
@@ -31,6 +32,27 @@ def test_readme_contract_fails_when_a_harness_setup_step_is_missing(
     )
 
     assert "README_STEP_MISSING:3" in validate_readme_contract(tmp_path)
+
+
+@pytest.mark.parametrize(
+    ("command", "step"),
+    (
+        (".venv/bin/python scripts/build_reviewer_evidence_manifest.py --check", 8),
+        (".venv/bin/python scripts/validate_reviewer_evidence_manifest.py", 9),
+    ),
+)
+def test_readme_contract_requires_every_manifest_smoke_step(
+    tmp_path: Path,
+    command: str,
+    step: int,
+) -> None:
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    (tmp_path / "README.md").write_text(
+        readme.replace(command, "removed manifest step", 1),
+        encoding="utf-8",
+    )
+
+    assert f"README_STEP_MISSING:{step}" in validate_readme_contract(tmp_path)
 
 
 def test_harness_plan_uses_full_no_local_clone_and_fresh_noneditable_install() -> None:
@@ -129,11 +151,18 @@ def test_harness_scrubs_aws_credentials_and_runs_only_public_safe_smoke() -> Non
         )
     )
     assert "AWS_PROFILE" not in environment
-    assert len(commands) == len(SAFE_SMOKE_CHECKS) == 4
+    assert len(commands) == len(SAFE_SMOKE_CHECKS) == 6
     joined = " ".join(part for command in commands for part in command)
     assert "run_p0_gate.py --validate-only --json" in joined
     assert "run_p1_gate.py --validate-only --json" in joined
+    assert commands[3][-2:] == (
+        "scripts/build_reviewer_evidence_manifest.py",
+        "--check",
+    )
+    assert commands[4][-1] == "scripts/validate_reviewer_evidence_manifest.py"
+    assert commands[3].index("--check") > 0
     assert "test_full_mocked_approved_e2e" in joined
+    assert commands.index(commands[4]) < commands.index(commands[5])
     assert "StopInstances" not in joined
 
 

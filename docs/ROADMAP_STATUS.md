@@ -43,10 +43,17 @@
 - EMERGENCY_EXECUTION_DEFAULT = WRITES_DISABLED_MISSING_MALFORMED_UNAVAILABLE_FAIL_CLOSED
 - EMERGENCY_EXECUTION_BOUNDARY_CHECKS = BEFORE_DRYRUN_AND_BEFORE_NON_DRYRUN_CALL
 - EMERGENCY_EXECUTION_DENIAL_AUDIT = COMPLETE_TYPED_EXECUTOR_EMERGENCY_DISABLED
+- DAY_14_P1_PROOF_GATE = COMPLETE_EXECUTABLE_6_OF_6_ZERO_SKIPS
+- DEPENDENCY_CIRCUIT_BREAKER = COMPLETE_CLOSED_OPEN_HALF_OPEN_PROCESS_LOCAL
+- AMBIGUOUS_CLOUDWATCH_PROOF = COMPLETE_NEVER_GUESSED_ZERO
+- TRACE_CONTINUITY_PROOF = COMPLETE_END_TO_END_MOCKED
+- CLEAN_CLONE_REPRODUCIBILITY = COMPLETE_FRESH_ENV_PUBLIC_SAFE
+- AU3_REVIEWER_EVIDENCE_MANIFEST = COMPLETE_DETERMINISTIC_19_CLAIMS
+- AU2_TAMPER_EVIDENT_AUDIT = EVALUATED_HIGH_RISK_DEFER_UNTIL_AFTER_SUBMISSION_NOT_IMPLEMENTED
 - LIVE_AWS_MUTATION_PROOF = NOT_RUN
-- AU2_TAMPER_EVIDENT_AUDIT = NOT_IMPLEMENTED_DEFERRED
-- AU3_REVIEWER_EVIDENCE_MANIFEST = NOT_IMPLEMENTED_DEFERRED
-- DAY_14 = NOT_STARTED
+- DAY_14 = COMPLETE_LOCAL_P1_AND_AU3
+- DAY_15_DEPLOYMENT = NOT_STARTED_READINESS_BLOCKERS_DOCUMENTED
+- AGENTCORE = NOT_STARTED_DAY16_OPTIONAL
 - DEMO = NOT_STARTED
 - SUBMISSION = NOT_STARTED
 
@@ -57,5 +64,15 @@
 - CockroachDB authentication is deferred and irrelevant to the new P0 project.
 - The prior NZ integrity-artifact regression remains outside this repository.
 - The historical recording frontend gap remains outside this repository.
+
+## Next-boundary blockers
+
+- No orchestrator Lambda, bounded public ingress/minimal UI, readiness path, or judge route exists yet.
+- Lambda dependency packaging and the orchestrator runtime composition are not implemented.
+- Orchestrator IAM is absent; the executor role must add its required read-only scope check without broadening mutation authority.
+- OTel export, budget notifications/alarms, and durable-table retention/teardown policy are not wired.
+- Read-side and executor-side sandbox environment names must be normalized and proven identical.
+
+See `docs/architecture/day-15-deployment-readiness.md`. These are Day 15 implementation prerequisites, not authorization to deploy now.
 
 This status file does not authorize deployment, remediation, cloud mutation, or submission.

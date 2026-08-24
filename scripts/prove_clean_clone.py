@@ -28,6 +28,8 @@ README_REQUIRED_COMMANDS = (
     ".venv/bin/python -m pytest -q",
     ".venv/bin/python scripts/run_p0_gate.py",
     ".venv/bin/python scripts/run_p1_gate.py",
+    ".venv/bin/python scripts/build_reviewer_evidence_manifest.py --check",
+    ".venv/bin/python scripts/validate_reviewer_evidence_manifest.py",
     ".venv/bin/python scripts/prove_clean_clone.py --mode auto",
     "python -m virtualenv",
 )
@@ -35,6 +37,8 @@ SAFE_SMOKE_CHECKS = (
     "package_import",
     "p0_validate_only",
     "p1_validate_only",
+    "evidence_manifest_build_check",
+    "evidence_manifest_validation",
     "mocked_approved_e2e",
 )
 _SHA_PATTERN = re.compile(r"[0-9a-f]{40}\Z")
@@ -230,6 +234,8 @@ def smoke_commands(venv_python: Path) -> tuple[tuple[str, ...], ...]:
         ),
         (python, "scripts/run_p0_gate.py", "--validate-only", "--json"),
         (python, "scripts/run_p1_gate.py", "--validate-only", "--json"),
+        (python, "scripts/build_reviewer_evidence_manifest.py", "--check"),
+        (python, "scripts/validate_reviewer_evidence_manifest.py"),
         (
             python,
             "-m",
