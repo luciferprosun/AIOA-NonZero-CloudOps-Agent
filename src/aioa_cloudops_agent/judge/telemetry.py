@@ -57,11 +57,15 @@ _ROUTES: Final = frozenset(
 )
 _OUTCOMES: Final = frozenset(
     {
+        "budget_exhausted",
         "closed_non_success",
         "dependency_unavailable",
+        "evidence_ambiguous",
         "error",
         "not_ready",
         "quota_exhausted",
+        "recovery_required",
+        "remediation_proposed",
         "success",
     }
 )

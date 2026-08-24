@@ -377,7 +377,8 @@ def build_request_services(resources: JudgeProcessResources) -> JudgeRequestServ
             verification_request_handler=(
                 private_controls.public_verification_request
             ),
-        )
+        ),
+        tracer=resources.telemetry.tracer,
     )
     authorizer = JudgeTokenAuthorizer(resources.token_provider)
     investigation_quota = DynamoDbJudgeQuotaRepository(

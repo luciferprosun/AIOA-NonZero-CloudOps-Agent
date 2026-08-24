@@ -1,3 +1,4 @@
+import json
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
 from threading import Event
@@ -6,6 +7,9 @@ from typing import Any
 from uuid import UUID
 
 import pytest
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor, SpanExportResult
+from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from strands.session import SnapshotSessionManager
 from strands.storage import InMemoryStorage
 
@@ -37,6 +41,7 @@ from aioa_cloudops_agent.judge.quota import (
     DynamoDbReadinessProbeQuotaRepository,
     DynamoDbStatusRequestQuotaRepository,
 )
+from aioa_cloudops_agent.judge.telemetry import SanitizedXRaySpanExporter
 from aioa_cloudops_agent.nz import (
     ControlResult,
     FailureDetail,
@@ -99,6 +104,87 @@ class Flow:
                 ),
             ),
         )
+
+
+def test_runtime_emits_real_allowlisted_operation_span_without_sensitive_values() -> None:
+    memory_exporter = InMemorySpanExporter()
+    provider = TracerProvider()
+    provider.add_span_processor(SimpleSpanProcessor(memory_exporter))
+    tracer = provider.get_tracer("day15-runtime-test")
+    xray_calls: list[dict[str, object]] = []
+
+    class XRayClient:
+        def put_trace_segments(self, **kwargs: object) -> dict[str, object]:
+            xray_calls.append(kwargs)
+            return {}
+
+    runtime = JudgeInvestigationRuntime(
+        JudgeRuntimeDependencies(
+            settings=_settings(),
+            repository=object(),
+            snapshot_storage=InMemoryStorage(),
+            ec2_client=object(),
+            cloudwatch_client=object(),
+            bedrock_session=object(),
+            dependency_circuit=DependencyCircuitBreaker(),
+            stop_request_handler=lambda _proposal_id: {},
+            verification_request_handler=lambda _proposal_id: {},
+        ),
+        clock=lambda: NOW,
+        run_id_factory=IdFactory(IDS[0:1]),
+        trace_id_factory=IdFactory(IDS[1:2]),
+        correlation_id_factory=IdFactory(IDS[2:3]),
+        proposal_id_factory=IdFactory(IDS[3:4]),
+        event_id_factory=IdFactory(IDS[8:]),
+        session_manager_factory=lambda _session_id, _storage: object(),
+        model_factory=lambda _settings, _session: object(),
+        agent_factory=lambda **_kwargs: SimpleNamespace(agent=object()),
+        flow_factory=lambda *_args, **_kwargs: Flow(IDS[3]),
+        tracer=tracer,
+    )
+
+    try:
+        outcome = runtime.investigate(
+            JudgeInvestigationRequest(intent="investigate_idle_sandbox")
+        )
+        spans = memory_exporter.get_finished_spans()
+
+        assert outcome.succeeded is True
+        assert len(spans) == 1
+        assert spans[0].attributes == {
+            "aioa.run_id": str(IDS[0]),
+            "aioa.trace_id": str(IDS[1]),
+            "aioa.correlation_id": str(IDS[2]),
+            "aioa.route": "/judge/investigate",
+            "aioa.outcome": "remediation_proposed",
+            "aioa.dependency": "BEDROCK_MODEL",
+        }
+        assert SanitizedXRaySpanExporter(XRayClient()).export(spans) is (
+            SpanExportResult.SUCCESS
+        )
+        documents = xray_calls[0]["TraceSegmentDocuments"]
+        assert isinstance(documents, list) and len(documents) == 1
+        rendered = documents[0]
+        assert isinstance(rendered, str)
+        assert json.loads(rendered)["annotations"] == {
+            "correlation_id": str(IDS[2]),
+            "dependency": "BEDROCK_MODEL",
+            "outcome": "remediation_proposed",
+            "route": "/judge/investigate",
+            "run_id": str(IDS[0]),
+            "trace_id": str(IDS[1]),
+        }
+        for sensitive in (
+            _settings().target.instance_id,
+            "authorization",
+            "nonce",
+            "prompt",
+            "provider",
+            "secret",
+        ):
+            assert sensitive not in rendered.casefold()
+    finally:
+        provider.shutdown()
 
 
 def test_each_investigation_builds_fresh_snapshot_session_agent_and_server_budget() -> None:
@@ -355,7 +441,10 @@ def test_default_composition_uses_only_durable_dynamodb_quota_and_status_limiter
         dependency_circuit=DependencyCircuitBreaker(),
         readiness_probe=readiness_probe,
         readiness_dependency_circuit=DependencyCircuitBreaker(),
-        telemetry=SimpleNamespace(force_flush=lambda *_args, **_kwargs: True),
+        telemetry=SimpleNamespace(
+            force_flush=lambda *_args, **_kwargs: True,
+            tracer=TracerProvider().get_tracer("day15-composition-test"),
+        ),
     )
 
     services = build_request_services(resources)
@@ -418,7 +507,10 @@ def test_lambda_handler_module_is_lazy_and_reuses_only_process_resources(
         dependency_circuit=DependencyCircuitBreaker(),
         readiness_probe=SimpleNamespace(check=lambda: True),
         readiness_dependency_circuit=DependencyCircuitBreaker(),
-        telemetry=SimpleNamespace(force_flush=lambda *_args, **_kwargs: True),
+        telemetry=SimpleNamespace(
+            force_flush=lambda *_args, **_kwargs: True,
+            tracer=TracerProvider().get_tracer("day15-handler-test"),
+        ),
     )
     calls = 0
 

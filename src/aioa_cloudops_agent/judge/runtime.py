@@ -8,6 +8,8 @@ from datetime import UTC, datetime
 from typing import Protocol
 from uuid import UUID
 
+from opentelemetry import trace
+from opentelemetry.trace import Span, Tracer
 from strands.models import Model
 from strands.session import SessionManager, SnapshotSessionManager
 
@@ -101,6 +103,7 @@ class JudgeInvestigationRuntime:
         model_factory: Callable[[object, object], Model] = _model,
         agent_factory: Callable[..., PrimaryAgentRuntime] = create_primary_agent,
         flow_factory: Callable[..., _Flow] = BoundedInvestigationFlow,
+        tracer: Tracer | None = None,
     ) -> None:
         if not isinstance(dependencies, JudgeRuntimeDependencies):
             raise TypeError("dependencies must be JudgeRuntimeDependencies")
@@ -118,6 +121,10 @@ class JudgeInvestigationRuntime:
         )
         if not all(callable(factory) for factory in factories):
             raise TypeError("runtime factories must be callable")
+        if tracer is not None and not callable(
+            getattr(tracer, "start_as_current_span", None)
+        ):
+            raise TypeError("tracer must expose start_as_current_span")
         self._dependencies = dependencies
         self._clock = clock
         self._run_id_factory = run_id_factory
@@ -129,6 +136,7 @@ class JudgeInvestigationRuntime:
         self._model_factory = model_factory
         self._agent_factory = agent_factory
         self._flow_factory = flow_factory
+        self._tracer = tracer or trace.get_tracer("aioa_cloudops_agent.judge")
 
     def investigate(self, request: JudgeInvestigationRequest) -> JudgeInvestigationOutcome:
         """Execute only the canonical server-owned investigation intent."""
@@ -145,6 +153,23 @@ class JudgeInvestigationRuntime:
                 created_at=self._clock(),
                 budget=new_judge_budget(),
             )
+        except Exception:
+            return self._failed(
+                run_id,
+                JudgeErrorCode.DEPENDENCY_UNAVAILABLE,
+                JudgeOutcomeClass.DEPENDENCY_UNAVAILABLE,
+                retryable=True,
+            )
+
+        with self._tracer.start_as_current_span("aioa.judge.operation") as span:
+            self._set_operation_span_identity(span, run)
+            return self._investigate_run(run, span)
+
+    def _investigate_run(self, run: Run, span: Span) -> JudgeInvestigationOutcome:
+        """Execute one already-identified run and close its redacted telemetry span."""
+
+        run_id = run.run_id
+        try:
             identity = InvestigationIdentity.from_run(run)
             context = ExecutionContext(
                 correlation_id=run.correlation_id,
@@ -179,6 +204,7 @@ class JudgeInvestigationRuntime:
                 durable_repository=dependencies.repository,
                 dependency_circuit=dependencies.dependency_circuit,
                 session_manager=session_manager,
+                tracer=self._tracer,
                 stop_request_handler=dependencies.stop_request_handler,
                 verification_request_handler=(
                     dependencies.verification_request_handler
@@ -192,11 +218,14 @@ class JudgeInvestigationRuntime:
             )
             result = flow.execute(run)
         except Exception:
-            return self._failed(
-                run_id,
-                JudgeErrorCode.DEPENDENCY_UNAVAILABLE,
-                JudgeOutcomeClass.DEPENDENCY_UNAVAILABLE,
-                retryable=True,
+            return self._record_outcome(
+                span,
+                self._failed(
+                    run_id,
+                    JudgeErrorCode.DEPENDENCY_UNAVAILABLE,
+                    JudgeOutcomeClass.DEPENDENCY_UNAVAILABLE,
+                    retryable=True,
+                ),
             )
 
         if getattr(result, "status", None) is ResultStatus.SUCCESS:
@@ -206,20 +235,26 @@ class JudgeInvestigationRuntime:
             evidence_hash = getattr(proposal, "evidence_hash", None)
             final_state = getattr(completion, "final_state", None)
             try:
-                return JudgeInvestigationOutcome(
-                    run_id=run_id,
-                    succeeded=True,
-                    state=final_state,
-                    outcome_class=JudgeOutcomeClass.REMEDIATION_PROPOSED,
-                    proposal_id=proposal_id,
-                    evidence_hash=evidence_hash,
+                return self._record_outcome(
+                    span,
+                    JudgeInvestigationOutcome(
+                        run_id=run_id,
+                        succeeded=True,
+                        state=final_state,
+                        outcome_class=JudgeOutcomeClass.REMEDIATION_PROPOSED,
+                        proposal_id=proposal_id,
+                        evidence_hash=evidence_hash,
+                    ),
                 )
             except Exception:
-                return self._failed(
-                    run_id,
-                    JudgeErrorCode.INTERNAL_ERROR,
-                    JudgeOutcomeClass.CLOSED_NON_SUCCESS,
-                    retryable=False,
+                return self._record_outcome(
+                    span,
+                    self._failed(
+                        run_id,
+                        JudgeErrorCode.INTERNAL_ERROR,
+                        JudgeOutcomeClass.CLOSED_NON_SUCCESS,
+                        retryable=False,
+                    ),
                 )
 
         failure = getattr(result, "failure", None)
@@ -228,7 +263,30 @@ class JudgeInvestigationRuntime:
             getattr(failure, "retryable", False)
         )
         code, outcome = self._public_failure(kind)
-        return self._failed(run_id, code, outcome, retryable=retryable)
+        return self._record_outcome(
+            span,
+            self._failed(run_id, code, outcome, retryable=retryable),
+        )
+
+    @staticmethod
+    def _set_operation_span_identity(span: Span, run: Run) -> None:
+        """Attach only canonical identifiers and the reviewed route/dependency."""
+
+        span.set_attribute("aioa.run_id", str(run.run_id))
+        span.set_attribute("aioa.trace_id", str(run.trace_id))
+        span.set_attribute("aioa.correlation_id", str(run.correlation_id))
+        span.set_attribute("aioa.route", "/judge/investigate")
+        span.set_attribute("aioa.dependency", "BEDROCK_MODEL")
+
+    @staticmethod
+    def _record_outcome(
+        span: Span,
+        outcome: JudgeInvestigationOutcome,
+    ) -> JudgeInvestigationOutcome:
+        """Record the closed public outcome class without provider or target detail."""
+
+        span.set_attribute("aioa.outcome", outcome.outcome_class.value)
+        return outcome
 
     @staticmethod
     def _public_failure(kind: object) -> tuple[JudgeErrorCode, JudgeOutcomeClass]:

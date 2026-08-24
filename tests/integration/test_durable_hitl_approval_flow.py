@@ -1,6 +1,10 @@
 import json
+import os
+import subprocess
+import sys
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from typing import Any
 from uuid import UUID
 
@@ -8,9 +12,10 @@ import pytest
 from pydantic import ValidationError
 from strands.models import Model
 from strands.session import SnapshotSessionManager
-from strands.storage import InMemoryStorage
+from strands.storage import LocalFileStorage
 
 from aioa_cloudops_agent.agent import (
+    ApprovalInterrupt,
     ApprovalResumeRequest,
     DurableApprovalFlow,
     create_primary_agent,
@@ -41,7 +46,7 @@ from aioa_cloudops_agent.nz import (
     Run,
     WorkflowState,
 )
-from aioa_cloudops_agent.nz.errors import StorageDependencyError
+from aioa_cloudops_agent.nz.errors import StorageConflictError, StorageDependencyError
 from aioa_cloudops_agent.persistence.memory import InMemoryTestDurableTruthRepository
 
 INSTANCE_ID = "i-0123456789abcdef0"
@@ -311,6 +316,96 @@ def _resume(request: object, decision: ApprovalDecision) -> ApprovalResumeReques
     )
 
 
+def _restore_cold_start_repository(
+    payload: dict[str, object],
+) -> InMemoryTestDurableTruthRepository:
+    """Restore typed durable fake records without retaining parent-process objects."""
+
+    run = Run.model_validate(payload["run"])
+    proposal = ActionProposal.model_validate(payload["proposal"])
+    checkpoint = Checkpoint.model_validate(payload["checkpoint"])
+    repository = InMemoryTestDurableTruthRepository()
+    repository._runs[run.run_id] = run
+    repository._proposals[proposal.proposal_id] = proposal
+    repository._checkpoints[checkpoint.run_id] = checkpoint
+    return repository
+
+
+def _cold_start_resume_worker(
+    state_path: Path,
+    result_path: Path,
+    storage_path: Path,
+) -> None:
+    """Resume in a fresh interpreter using only typed files and local fakes."""
+
+    payload = json.loads(state_path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise TypeError("cold-start state must be an object")
+    repository = _restore_cold_start_repository(payload)
+    interrupt = ApprovalInterrupt.model_validate(payload["interrupt"])
+    principal = AuthenticatedJudgePrincipal.model_validate(payload["principal"])
+    challenge = sys.stdin.read()
+    if len(challenge) < 32 or challenge != challenge.strip():
+        raise TypeError("cold-start challenge must be an exact bounded string")
+    manager = SnapshotSessionManager(
+        str(RUN_ID),
+        storage=LocalFileStorage(str(storage_path)),
+        save_latest_on="invocation",
+    )
+    flow, _, model, stop_calls = _flow(
+        repository=repository,
+        repository_prepared=True,
+        model=ScriptedApprovalModel(initial_calls=1),
+        session_manager=manager,
+        event_id_start=1,
+    )
+    authority = AuthenticatedApprovalResumeService(
+        flow,
+        repository,
+        clock=lambda: NOW + timedelta(seconds=11),
+        challenge_factory=lambda: "unused-server-placeholder-0000000000",
+    )
+
+    result = authority.resume(
+        interrupt=interrupt,
+        decision=ApprovalDecision.APPROVED,
+        principal=principal,
+        challenge=challenge,
+    )
+    replay_rejected = False
+    try:
+        authority.resume(
+            interrupt=interrupt,
+            decision=ApprovalDecision.APPROVED,
+            principal=principal,
+            challenge=challenge,
+        )
+    except StorageConflictError as error:
+        replay_rejected = "challenge was rejected" in str(error)
+    run = repository.get_run(RUN_ID)
+    approval = repository.get_approval(PROPOSAL_ID)
+    result_path.write_text(
+        json.dumps(
+            {
+                "approval_count": int(approval is not None),
+                "model_calls": model.calls,
+                "native_resume_completed": bool(
+                    result.value is not None and result.value.native_resume_completed
+                ),
+                "pid": os.getpid(),
+                "replay_rejected": replay_rejected,
+                "run_state": run.state.value if run is not None else None,
+                "status": result.status.value,
+                "stop_calls": [str(proposal_id) for proposal_id in stop_calls],
+            },
+            allow_nan=False,
+            separators=(",", ":"),
+            sort_keys=True,
+        ),
+        encoding="utf-8",
+    )
+
+
 def test_native_interrupt_is_durable_and_payload_comes_from_proposal() -> None:
     flow, repository, model, stop_calls = _flow()
 
@@ -356,9 +451,12 @@ def test_positive_native_resume_persists_approval_before_safe_tool_boundary() ->
     assert model.calls == 2
 
 
-def test_fresh_process_restores_native_interrupt_with_trusted_one_time_freshness() -> None:
+def test_fresh_process_restores_native_interrupt_with_trusted_one_time_freshness(
+    tmp_path: Path,
+) -> None:
     repository = _repository()
-    storage = InMemoryStorage()
+    storage_path = tmp_path / "strands"
+    storage = LocalFileStorage(str(storage_path))
     first_manager = SnapshotSessionManager(
         str(RUN_ID),
         storage=storage,
@@ -381,47 +479,60 @@ def test_fresh_process_restores_native_interrupt_with_trusted_one_time_freshness
     issued = first_authority.issue(interrupt, principal)
     challenge = issued.value.get_secret_value()
     assert first_model.calls == 1
-
-    del first_flow, first_manager, first_model, first_authority
-    second_manager = SnapshotSessionManager(
-        str(RUN_ID),
-        storage=storage,
-        save_latest_on="invocation",
-    )
-    second_flow, _, second_model, stop_calls = _flow(
-        repository=repository,
-        repository_prepared=True,
-        model=ScriptedApprovalModel(initial_calls=1),
-        session_manager=second_manager,
-        event_id_start=1,
-    )
-    second_authority = AuthenticatedApprovalResumeService(
-        second_flow,
-        repository,
-        clock=lambda: NOW + timedelta(seconds=11),
-        challenge_factory=lambda: "unused-server-placeholder-0000000000",
-    )
-
-    result = second_authority.resume(
-        interrupt=interrupt,
-        decision=ApprovalDecision.APPROVED,
-        principal=principal,
-        challenge=challenge,
+    run = repository.get_run(RUN_ID)
+    proposal = repository.get_proposal(PROPOSAL_ID)
+    checkpoint = repository.get_checkpoint(RUN_ID)
+    assert run is not None and proposal is not None and checkpoint is not None
+    state_path = tmp_path / "durable-state.json"
+    result_path = tmp_path / "cold-start-result.json"
+    state_path.write_text(
+        json.dumps(
+            {
+                "checkpoint": checkpoint.model_dump(mode="json"),
+                "interrupt": interrupt.model_dump(mode="json"),
+                "principal": principal.model_dump(mode="json"),
+                "proposal": proposal.model_dump(mode="json"),
+                "run": run.model_dump(mode="json"),
+            },
+            allow_nan=False,
+            separators=(",", ":"),
+            sort_keys=True,
+        ),
+        encoding="utf-8",
     )
 
-    assert result.status is ResultStatus.SUCCESS
-    assert result.value is not None and result.value.native_resume_completed is True
-    assert repository.get_run(RUN_ID).state is WorkflowState.APPROVED
-    assert stop_calls == [PROPOSAL_ID]
-    assert second_model.calls == 2
-    with pytest.raises(Exception, match="challenge was rejected"):
-        second_authority.resume(
-            interrupt=interrupt,
-            decision=ApprovalDecision.APPROVED,
-            principal=principal,
-            challenge=challenge,
-        )
-    assert stop_calls == [PROPOSAL_ID]
+    del first_flow, first_manager, first_model, first_authority, repository, storage
+    completed = subprocess.run(
+        [
+            sys.executable,
+            str(Path(__file__).resolve()),
+            "--cold-start-resume-worker",
+            str(state_path),
+            str(result_path),
+            str(storage_path),
+        ],
+        cwd=Path(__file__).parents[2],
+        check=False,
+        capture_output=True,
+        input=challenge,
+        text=True,
+        timeout=60,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+    child = json.loads(result_path.read_text(encoding="utf-8"))
+    assert child == {
+        "approval_count": 1,
+        "model_calls": 2,
+        "native_resume_completed": True,
+        "pid": child["pid"],
+        "replay_rejected": True,
+        "run_state": WorkflowState.APPROVED.value,
+        "status": ResultStatus.SUCCESS.value,
+        "stop_calls": [str(PROPOSAL_ID)],
+    }
+    assert isinstance(child["pid"], int)
+    assert child["pid"] != os.getpid()
 
 
 def test_negative_native_resume_is_terminal_and_never_calls_stop_boundary() -> None:
@@ -571,3 +682,13 @@ def test_malformed_or_model_like_approval_cannot_become_a_decision() -> None:
     assert result.status is ResultStatus.FAILURE
     assert repository.get_approval(PROPOSAL_ID) is None
     assert stop_calls == []
+
+
+if __name__ == "__main__":
+    if len(sys.argv) != 5 or sys.argv[1] != "--cold-start-resume-worker":
+        raise SystemExit("unsupported test helper invocation")
+    _cold_start_resume_worker(
+        Path(sys.argv[2]),
+        Path(sys.argv[3]),
+        Path(sys.argv[4]),
+    )
