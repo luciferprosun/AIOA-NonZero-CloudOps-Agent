@@ -11,6 +11,7 @@ from aioa_cloudops_agent.nz import (
 )
 from aioa_cloudops_agent.persistence import compute_evidence_digest
 
+from .emergency import EmergencyExecutionControl
 from .errors import (
     RemediationAmbiguousError,
     RemediationDependencyError,
@@ -80,14 +81,18 @@ class Ec2SandboxStopExecutor:
         client: Ec2StopInstancesClient,
         settings: SandboxRemediationSettings,
         *,
+        emergency_control: EmergencyExecutionControl,
         clock: Callable[[], datetime],
     ) -> None:
         if not isinstance(settings, SandboxRemediationSettings):
             raise TypeError("settings must be SandboxRemediationSettings")
         if not callable(clock):
             raise TypeError("clock must be callable")
+        if not isinstance(emergency_control, EmergencyExecutionControl):
+            raise TypeError("emergency_control must implement EmergencyExecutionControl")
         self._client = client
         self._settings = settings
+        self._emergency_control = emergency_control
         self._clock = clock
 
     def execute(self, command: StopExecutionCommand) -> ExecutionAcknowledgement:
@@ -134,6 +139,7 @@ class Ec2SandboxStopExecutor:
         if tag_map.get(target.required_tag_key) != target.required_tag_value:
             raise RemediationScopeError("fresh sandbox tag proof failed")
 
+        self._emergency_control.assert_writes_enabled()
         try:
             self._client.stop_instances(InstanceIds=[target.instance_id], DryRun=True)
         except Exception as error:
@@ -142,6 +148,7 @@ class Ec2SandboxStopExecutor:
         else:
             raise RemediationDependencyError("StopInstances DryRun returned unexpected success")
 
+        self._emergency_control.assert_writes_enabled()
         try:
             response = self._client.stop_instances(InstanceIds=[target.instance_id])
         except Exception as error:

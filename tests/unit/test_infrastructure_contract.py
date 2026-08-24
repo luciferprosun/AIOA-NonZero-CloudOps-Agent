@@ -205,6 +205,23 @@ def test_remediation_executor_defaults_live_flags_to_false() -> None:
     }
 
 
+def test_remediation_executor_emergency_disable_defaults_fail_closed() -> None:
+    template = _template()
+    parameters = template["Parameters"]
+    variables = _resources()["RemediationExecutorFunction"]["Properties"]["Environment"][
+        "Variables"
+    ]
+
+    assert parameters["EmergencyExecutionDisabled"] == {
+        "Type": "String",
+        "Default": "true",
+        "AllowedValues": ["false", "true"],
+    }
+    assert variables["AIOA_EMERGENCY_EXECUTION_DISABLED"] == {
+        "Ref": "EmergencyExecutionDisabled"
+    }
+
+
 def test_template_has_no_wildcard_actions_or_broad_managed_policies() -> None:
     template = _template()
     serialized = json.dumps(template, sort_keys=True)

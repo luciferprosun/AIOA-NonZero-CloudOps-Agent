@@ -6,7 +6,12 @@ from typing import Protocol
 
 from aioa_cloudops_agent.nz import ExecutionAcknowledgement
 
-from .errors import RemediationAmbiguousError, RemediationDependencyError
+from .emergency import is_emergency_denial_payload
+from .errors import (
+    RemediationAmbiguousError,
+    RemediationDependencyError,
+    RemediationEmergencyDisabledError,
+)
 from .models import StopExecutionCommand
 
 
@@ -58,6 +63,15 @@ class LambdaPrivateRemediationExecutor:
             if isinstance(raw, bytes):
                 raw = raw.decode("utf-8")
             decoded = json.loads(raw) if isinstance(raw, str) else raw
+        except Exception as error:
+            raise RemediationAmbiguousError(
+                "Private executor acknowledgement could not be validated"
+            ) from error
+        if is_emergency_denial_payload(decoded):
+            raise RemediationEmergencyDisabledError(
+                "emergency executor disable is active or unavailable"
+            )
+        try:
             return ExecutionAcknowledgement.model_validate(decoded)
         except Exception as error:
             raise RemediationAmbiguousError(

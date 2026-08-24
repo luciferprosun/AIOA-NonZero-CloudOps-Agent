@@ -1,5 +1,8 @@
 import io
+import json
+import sys
 from datetime import UTC, datetime, timedelta
+from types import SimpleNamespace
 from uuid import UUID
 
 import pytest
@@ -12,6 +15,8 @@ from aioa_cloudops_agent.nz import (
     ActionTarget,
     Approval,
     ApprovalDecision,
+    AuditEvent,
+    AuditEventType,
     BudgetCounters,
     Capability,
     Checkpoint,
@@ -25,24 +30,32 @@ from aioa_cloudops_agent.nz import (
     Run,
     WorkflowState,
 )
+from aioa_cloudops_agent.nz.errors import StorageDependencyError
 from aioa_cloudops_agent.persistence import (
     load_execution_prerequisites,
     register_approved_action,
 )
 from aioa_cloudops_agent.persistence.memory import InMemoryTestDurableTruthRepository
 from aioa_cloudops_agent.remediation import (
+    EMERGENCY_EXECUTION_DISABLED_ENV,
+    EXECUTOR_EMERGENCY_DISABLED,
     Ec2SandboxStopExecutor,
+    EnvironmentEmergencyExecutionControl,
     LambdaPrivateRemediationExecutor,
+    PrivateRemediationExecutor,
     RemediationAmbiguousError,
     RemediationDependencyError,
     RemediationDisabledError,
+    RemediationEmergencyDisabledError,
     RemediationExecutionError,
     RemediationScopeError,
     StopExecutionCommand,
     StopSandboxInstanceCoordinator,
     build_stop_execution_command,
     create_stop_sandbox_instance_tool,
+    emergency_denial_payload,
 )
+from aioa_cloudops_agent.remediation.lambda_handler import lambda_handler
 
 INSTANCE_ID = "i-0123456789abcdef0"
 OTHER_INSTANCE_ID = "i-0fedcba9876543210"
@@ -103,12 +116,14 @@ class FakeEc2StopClient:
         root_device_type: str = "ebs",
         tag_value: str = "true",
         actual_error: Exception | None = None,
+        stop_observer: object | None = None,
     ) -> None:
         self.instance_id = instance_id
         self.state = state
         self.root_device_type = root_device_type
         self.tag_value = tag_value
         self.actual_error = actual_error
+        self.stop_observer = stop_observer
         self.describe_calls: list[list[str]] = []
         self.stop_calls: list[dict[str, object]] = []
 
@@ -140,6 +155,8 @@ class FakeEc2StopClient:
         InstanceIds: list[str],
         DryRun: bool = False,
     ) -> dict[str, object]:
+        if callable(self.stop_observer):
+            self.stop_observer(DryRun)
         self.stop_calls.append({"InstanceIds": InstanceIds, "DryRun": DryRun})
         if DryRun:
             raise FakeAwsError("DryRunOperation")
@@ -165,6 +182,26 @@ class FakeLambdaClient:
     def invoke(self, **kwargs: object) -> dict[str, object]:
         self.calls.append(kwargs)
         return {"Payload": io.BytesIO(self.payload)}
+
+
+class SequenceReader:
+    def __init__(self, *values: object) -> None:
+        self._values = iter(values)
+        self.calls: list[str] = []
+
+    def __call__(self, name: str) -> object:
+        self.calls.append(name)
+        value = next(self._values)
+        if isinstance(value, Exception):
+            raise value
+        return value
+
+
+class PolicyAuditFailingRepository(InMemoryTestDurableTruthRepository):
+    def append_audit_event(self, event: AuditEvent) -> AuditEvent:
+        if event.type is AuditEventType.POLICY_DENIED:
+            raise StorageDependencyError("synthetic policy audit outage")
+        return super().append_audit_event(event)
 
 
 def _proposal() -> ActionProposal:
@@ -206,8 +243,9 @@ def _approval(proposal: ActionProposal, decision: ApprovalDecision) -> Approval:
 
 def _repository(
     decision: ApprovalDecision | None = ApprovalDecision.APPROVED,
+    repository: InMemoryTestDurableTruthRepository | None = None,
 ) -> tuple[InMemoryTestDurableTruthRepository, ActionProposal]:
-    repository = InMemoryTestDurableTruthRepository()
+    repository = repository or InMemoryTestDurableTruthRepository()
     run = repository.create_run(
         Run.new(
             run_id=RUN_ID,
@@ -291,9 +329,15 @@ def _settings(
     )
 
 
+def _emergency_control(
+    value: object = "false",
+) -> EnvironmentEmergencyExecutionControl:
+    return EnvironmentEmergencyExecutionControl(lambda _name: value)
+
+
 def _coordinator(
     repository: InMemoryTestDurableTruthRepository,
-    executor: RecordingPrivateExecutor,
+    executor: PrivateRemediationExecutor,
 ) -> StopSandboxInstanceCoordinator:
     return StopSandboxInstanceCoordinator(
         repository,
@@ -317,6 +361,7 @@ def test_private_executor_requires_both_live_flags_before_any_aws_call(
     executor = Ec2SandboxStopExecutor(
         client,
         settings,
+        emergency_control=_emergency_control(),
         clock=lambda: NOW,
     )
 
@@ -324,6 +369,200 @@ def test_private_executor_requires_both_live_flags_before_any_aws_call(
         executor.execute(_command())
 
     assert client.describe_calls == []
+    assert client.stop_calls == []
+
+
+def test_emergency_setting_missing_defaults_to_disabled_before_dryrun(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv(EMERGENCY_EXECUTION_DISABLED_ENV, raising=False)
+    client = FakeEc2StopClient()
+    executor = Ec2SandboxStopExecutor(
+        client,
+        _settings(),
+        emergency_control=EnvironmentEmergencyExecutionControl(),
+        clock=lambda: NOW,
+    )
+
+    with pytest.raises(RemediationEmergencyDisabledError):
+        executor.execute(_command())
+
+    assert client.describe_calls == [[INSTANCE_ID]]
+    assert client.stop_calls == []
+
+
+@pytest.mark.parametrize(
+    "value",
+    ["", "False", "FALSE", " false", "false ", "0", "off", False],
+)
+def test_malformed_emergency_setting_fails_closed_with_zero_stop_calls(
+    value: object,
+) -> None:
+    client = FakeEc2StopClient()
+    executor = Ec2SandboxStopExecutor(
+        client,
+        _settings(),
+        emergency_control=_emergency_control(value),
+        clock=lambda: NOW,
+    )
+
+    with pytest.raises(RemediationEmergencyDisabledError):
+        executor.execute(_command())
+
+    assert client.stop_calls == []
+
+
+def test_valid_human_approval_cannot_override_audited_emergency_disable() -> None:
+    repository, _ = _repository()
+    client = FakeEc2StopClient()
+    executor = Ec2SandboxStopExecutor(
+        client,
+        _settings(),
+        emergency_control=_emergency_control("true"),
+        clock=lambda: NOW,
+    )
+
+    result = _coordinator(repository, executor).execute(PROPOSAL_ID)
+
+    assert result.status is ResultStatus.FAILURE
+    assert result.failure is not None
+    assert result.failure.kind is FailureKind.POLICY_DENIAL
+    assert result.failure.code == EXECUTOR_EMERGENCY_DISABLED
+    assert repository.get_run(RUN_ID).state is WorkflowState.DENIED_BY_POLICY
+    denial = repository.get_audit_event(RUN_ID, EVENT_IDS[1])
+    assert denial is not None
+    assert denial.type is AuditEventType.POLICY_DENIED
+    assert denial.metadata["policy_code"] == EXECUTOR_EMERGENCY_DISABLED
+    assert client.stop_calls == []
+
+
+def test_emergency_control_is_checked_immediately_before_each_stop_boundary() -> None:
+    reader = SequenceReader("false", "false")
+    observations: list[tuple[bool, int]] = []
+    client = FakeEc2StopClient(
+        stop_observer=lambda dry_run: observations.append((dry_run, len(reader.calls)))
+    )
+    executor = Ec2SandboxStopExecutor(
+        client,
+        _settings(),
+        emergency_control=EnvironmentEmergencyExecutionControl(reader),
+        clock=lambda: NOW,
+    )
+
+    executor.execute(_command())
+
+    assert reader.calls == [
+        EMERGENCY_EXECUTION_DISABLED_ENV,
+        EMERGENCY_EXECUTION_DISABLED_ENV,
+    ]
+    assert observations == [(True, 1), (False, 2)]
+
+
+def test_emergency_flip_after_dryrun_blocks_live_stop_call() -> None:
+    reader = SequenceReader("false", "true")
+    client = FakeEc2StopClient()
+    executor = Ec2SandboxStopExecutor(
+        client,
+        _settings(),
+        emergency_control=EnvironmentEmergencyExecutionControl(reader),
+        clock=lambda: NOW,
+    )
+
+    with pytest.raises(RemediationEmergencyDisabledError):
+        executor.execute(_command())
+
+    assert len(reader.calls) == 2
+    assert client.stop_calls == [{"InstanceIds": [INSTANCE_ID], "DryRun": True}]
+
+
+def test_emergency_state_unavailable_at_final_check_blocks_live_stop_call() -> None:
+    reader = SequenceReader("false", RuntimeError("sensitive-reader-detail"))
+    client = FakeEc2StopClient()
+    executor = Ec2SandboxStopExecutor(
+        client,
+        _settings(),
+        emergency_control=EnvironmentEmergencyExecutionControl(reader),
+        clock=lambda: NOW,
+    )
+
+    with pytest.raises(RemediationEmergencyDisabledError) as captured:
+        executor.execute(_command())
+
+    assert "sensitive-reader-detail" not in str(captured.value)
+    assert captured.value.__cause__ is None
+    assert client.stop_calls == [{"InstanceIds": [INSTANCE_ID], "DryRun": True}]
+
+
+def test_emergency_false_without_durable_proposal_does_not_grant_authority() -> None:
+    repository, _ = _repository()
+    client = FakeEc2StopClient()
+    executor = Ec2SandboxStopExecutor(
+        client,
+        _settings(),
+        emergency_control=_emergency_control("false"),
+        clock=lambda: NOW,
+    )
+
+    result = _coordinator(repository, executor).execute(OTHER_PROPOSAL_ID)
+
+    assert result.status is ResultStatus.FAILURE
+    assert result.failure is not None and result.failure.code == "PROPOSAL_NOT_FOUND"
+    assert client.describe_calls == []
+    assert client.stop_calls == []
+
+
+def test_emergency_false_without_approval_does_not_grant_authority() -> None:
+    repository, _ = _repository(decision=None)
+    client = FakeEc2StopClient()
+    executor = Ec2SandboxStopExecutor(
+        client,
+        _settings(),
+        emergency_control=_emergency_control("false"),
+        clock=lambda: NOW,
+    )
+
+    result = _coordinator(repository, executor).execute(PROPOSAL_ID)
+
+    assert result.status is ResultStatus.FAILURE
+    assert client.describe_calls == []
+    assert client.stop_calls == []
+
+
+def test_emergency_false_cannot_bypass_in_progress_idempotency() -> None:
+    repository, _ = _repository()
+    register_approved_action(repository, PROPOSAL_ID, registered_at=NOW)
+    client = FakeEc2StopClient()
+    executor = Ec2SandboxStopExecutor(
+        client,
+        _settings(),
+        emergency_control=_emergency_control("false"),
+        clock=lambda: NOW,
+    )
+
+    result = _coordinator(repository, executor).execute(PROPOSAL_ID)
+
+    assert result.status is ResultStatus.FAILURE
+    assert result.failure is not None
+    assert result.failure.kind is FailureKind.RECOVERY_REQUIREMENT
+    assert client.describe_calls == []
+    assert client.stop_calls == []
+
+
+def test_emergency_denial_audit_outage_never_permits_stop() -> None:
+    repository, _ = _repository(repository=PolicyAuditFailingRepository())
+    client = FakeEc2StopClient()
+    executor = Ec2SandboxStopExecutor(
+        client,
+        _settings(),
+        emergency_control=_emergency_control("true"),
+        clock=lambda: NOW,
+    )
+
+    result = _coordinator(repository, executor).execute(PROPOSAL_ID)
+
+    assert result.status is ResultStatus.FAILURE
+    assert result.failure is not None
+    assert result.failure.code == "EXECUTION_FAILURE_DURABILITY_FAILED"
     assert client.stop_calls == []
 
 
@@ -353,7 +592,12 @@ def test_private_executor_fails_closed_for_non_sandbox_or_stale_target(
     client: FakeEc2StopClient,
     settings: SandboxRemediationSettings,
 ) -> None:
-    executor = Ec2SandboxStopExecutor(client, settings, clock=lambda: NOW)
+    executor = Ec2SandboxStopExecutor(
+        client,
+        settings,
+        emergency_control=_emergency_control(),
+        clock=lambda: NOW,
+    )
 
     with pytest.raises(RemediationScopeError):
         executor.execute(_command())
@@ -363,7 +607,12 @@ def test_private_executor_fails_closed_for_non_sandbox_or_stale_target(
 
 def test_private_executor_dry_runs_then_stops_exactly_one_target_gracefully() -> None:
     client = FakeEc2StopClient()
-    executor = Ec2SandboxStopExecutor(client, _settings(), clock=lambda: NOW)
+    executor = Ec2SandboxStopExecutor(
+        client,
+        _settings(),
+        emergency_control=_emergency_control(),
+        clock=lambda: NOW,
+    )
 
     acknowledgement = executor.execute(_command())
 
@@ -379,7 +628,12 @@ def test_private_executor_dry_runs_then_stops_exactly_one_target_gracefully() ->
 
 def test_ambiguous_stop_acknowledgement_is_not_retried() -> None:
     client = FakeEc2StopClient(actual_error=TimeoutError("lost acknowledgement"))
-    executor = Ec2SandboxStopExecutor(client, _settings(), clock=lambda: NOW)
+    executor = Ec2SandboxStopExecutor(
+        client,
+        _settings(),
+        emergency_control=_emergency_control(),
+        clock=lambda: NOW,
+    )
 
     with pytest.raises(RemediationAmbiguousError):
         executor.execute(_command())
@@ -389,7 +643,12 @@ def test_ambiguous_stop_acknowledgement_is_not_retried() -> None:
 
 def test_aws_stop_error_is_explicit_execution_failure() -> None:
     client = FakeEc2StopClient(actual_error=FakeAwsError("UnauthorizedOperation"))
-    executor = Ec2SandboxStopExecutor(client, _settings(), clock=lambda: NOW)
+    executor = Ec2SandboxStopExecutor(
+        client,
+        _settings(),
+        emergency_control=_emergency_control(),
+        clock=lambda: NOW,
+    )
 
     with pytest.raises(RemediationExecutionError):
         executor.execute(_command())
@@ -525,6 +784,56 @@ def test_model_like_payload_cannot_construct_privileged_execution_command() -> N
 
     with pytest.raises(ValidationError):
         StopExecutionCommand.model_validate(payload)
+
+
+def test_model_and_tool_payload_cannot_set_emergency_state() -> None:
+    stop_tool = create_stop_sandbox_instance_tool(
+        lambda _proposal_id: {"status": "FAILURE", "value": None, "failure": None}
+    )
+    schema = stop_tool.tool_spec["inputSchema"]["json"]
+    payload = _command().model_dump(mode="json")
+    payload["emergency_execution_disabled"] = False
+
+    assert set(schema["properties"]) == {"proposal_id"}
+    assert "emergency" not in json.dumps(schema).casefold()
+    with pytest.raises(ValidationError):
+        StopExecutionCommand.model_validate(payload)
+
+
+def test_private_lambda_missing_emergency_state_returns_only_typed_denial(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    client = FakeEc2StopClient()
+    client_calls: list[tuple[str, str]] = []
+
+    def client_factory(service_name: str, *, region_name: str) -> FakeEc2StopClient:
+        client_calls.append((service_name, region_name))
+        return client
+
+    monkeypatch.setitem(sys.modules, "boto3", SimpleNamespace(client=client_factory))
+    monkeypatch.setenv("AWS_MUTATIONS_ENABLED", "true")
+    monkeypatch.setenv("AIOA_ALLOW_LIVE_SANDBOX_STOP", "true")
+    monkeypatch.setenv("SANDBOX_INSTANCE_ID", INSTANCE_ID)
+    monkeypatch.delenv(EMERGENCY_EXECUTION_DISABLED_ENV, raising=False)
+
+    response = lambda_handler(_command().model_dump(mode="json"), object())
+
+    assert response == emergency_denial_payload()
+    assert client_calls == [("ec2", "eu-central-1")]
+    assert client.describe_calls == [[INSTANCE_ID]]
+    assert client.stop_calls == []
+
+
+def test_lambda_boundary_preserves_exact_emergency_policy_denial() -> None:
+    payload = json.dumps(emergency_denial_payload()).encode("utf-8")
+    client = FakeLambdaClient(payload)
+    boundary = LambdaPrivateRemediationExecutor(client, "private-remediation-executor")
+
+    with pytest.raises(RemediationEmergencyDisabledError) as captured:
+        boundary.execute(_command())
+
+    assert str(captured.value) == "emergency executor disable is active or unavailable"
+    assert len(client.calls) == 1
 
 
 def test_lambda_boundary_invokes_only_explicit_function_and_validates_ack() -> None:

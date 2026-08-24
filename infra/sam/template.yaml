@@ -19,6 +19,12 @@ Parameters:
     AllowedValues:
       - "false"
       - "true"
+  EmergencyExecutionDisabled:
+    Type: String
+    Default: "true"
+    AllowedValues:
+      - "false"
+      - "true"
 
 Resources:
   HealthHttpApi:
@@ -123,6 +129,8 @@ Resources:
             Ref: AwsMutationsEnabled
           AIOA_ALLOW_LIVE_SANDBOX_STOP:
             Ref: AllowLiveSandboxStop
+          AIOA_EMERGENCY_EXECUTION_DISABLED:
+            Ref: EmergencyExecutionDisabled
           SANDBOX_INSTANCE_ID:
             Ref: SandboxInstanceId
           SANDBOX_REQUIRED_TAG_KEY: AIOACloudOpsSandbox

@@ -132,6 +132,8 @@ GATES = (
             "test_cross_run_proposal_replay_is_denied_before_dispatch",
             "tests/unit/test_private_sandbox_remediation.py::"
             "test_model_like_payload_cannot_construct_privileged_execution_command",
+            "tests/unit/test_private_sandbox_remediation.py::"
+            "test_model_and_tool_payload_cannot_set_emergency_state",
             "tests/integration/test_durable_hitl_approval_flow.py::"
             "test_malformed_or_model_like_approval_cannot_become_a_decision",
             "tests/unit/test_strands_agent.py::"
@@ -252,6 +254,11 @@ GATES = (
                 "Ec2SandboxStopExecutor.execute",
             ),
             source(
+                "src/aioa_cloudops_agent/remediation/emergency.py",
+                "EmergencyExecutionControl.assert_writes_enabled",
+                "EnvironmentEmergencyExecutionControl.assert_writes_enabled",
+            ),
+            source(
                 "src/aioa_cloudops_agent/remediation/coordinator.py",
                 "StopSandboxInstanceCoordinator.execute",
             ),
@@ -269,6 +276,24 @@ GATES = (
             "test_private_executor_requires_both_live_flags_before_any_aws_call",
             "tests/unit/test_private_sandbox_remediation.py::"
             "test_private_executor_fails_closed_for_non_sandbox_or_stale_target",
+            "tests/unit/test_private_sandbox_remediation.py::"
+            "test_emergency_setting_missing_defaults_to_disabled_before_dryrun",
+            "tests/unit/test_private_sandbox_remediation.py::"
+            "test_malformed_emergency_setting_fails_closed_with_zero_stop_calls",
+            "tests/unit/test_private_sandbox_remediation.py::"
+            "test_valid_human_approval_cannot_override_audited_emergency_disable",
+            "tests/unit/test_private_sandbox_remediation.py::"
+            "test_emergency_control_is_checked_immediately_before_each_stop_boundary",
+            "tests/unit/test_private_sandbox_remediation.py::"
+            "test_emergency_flip_after_dryrun_blocks_live_stop_call",
+            "tests/unit/test_private_sandbox_remediation.py::"
+            "test_emergency_state_unavailable_at_final_check_blocks_live_stop_call",
+            "tests/unit/test_private_sandbox_remediation.py::"
+            "test_emergency_false_without_durable_proposal_does_not_grant_authority",
+            "tests/unit/test_private_sandbox_remediation.py::"
+            "test_emergency_false_without_approval_does_not_grant_authority",
+            "tests/unit/test_private_sandbox_remediation.py::"
+            "test_emergency_false_cannot_bypass_in_progress_idempotency",
         ),
     ),
     GateEvidence(
@@ -511,6 +536,10 @@ GATES = (
             "test_unknown_mutation_exception_requires_recovery_without_secret_leakage",
             "tests/unit/test_durable_memory_repository.py::"
             "test_audit_event_is_append_only_and_round_trips",
+            "tests/unit/test_private_sandbox_remediation.py::"
+            "test_valid_human_approval_cannot_override_audited_emergency_disable",
+            "tests/unit/test_private_sandbox_remediation.py::"
+            "test_emergency_denial_audit_outage_never_permits_stop",
         ),
         ("tracked_secret_scan",),
     ),

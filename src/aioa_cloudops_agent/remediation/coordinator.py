@@ -31,10 +31,12 @@ from aioa_cloudops_agent.persistence import (
 from aioa_cloudops_agent.safety.failures import workflow_state_for_failure
 
 from .command import build_stop_execution_command
+from .emergency import EXECUTOR_EMERGENCY_DISABLED
 from .errors import (
     RemediationAmbiguousError,
     RemediationDependencyError,
     RemediationDisabledError,
+    RemediationEmergencyDisabledError,
     RemediationExecutionError,
     RemediationScopeError,
 )
@@ -178,6 +180,18 @@ class StopSandboxInstanceCoordinator:
 
         try:
             acknowledgement = self._executor.execute(command)
+        except RemediationEmergencyDisabledError:
+            return self._persist_execution_failure(
+                run,
+                idempotency.idempotency_key,
+                FailureDetail(
+                    kind=FailureKind.POLICY_DENIAL,
+                    code=EXECUTOR_EMERGENCY_DISABLED,
+                    message="Independent executor emergency control denied the mutation",
+                    retryable=False,
+                ),
+                ActionOutcome.FAILED,
+            )
         except (RemediationDisabledError, RemediationScopeError):
             return self._persist_execution_failure(
                 run,

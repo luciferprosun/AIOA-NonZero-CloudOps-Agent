@@ -9,6 +9,10 @@ class RemediationDisabledError(RemediationError):
     """Live execution configuration is absent or disabled."""
 
 
+class RemediationEmergencyDisabledError(RemediationDisabledError):
+    """The independent executor-local emergency veto is active or unavailable."""
+
+
 class RemediationScopeError(RemediationError):
     """Target, tag, state, or precondition is outside the approved sandbox."""
 

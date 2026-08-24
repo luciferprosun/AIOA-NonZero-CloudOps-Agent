@@ -2,10 +2,18 @@
 
 from .command import build_stop_execution_command
 from .coordinator import StopSandboxInstanceCoordinator
+from .emergency import (
+    EMERGENCY_EXECUTION_DISABLED_ENV,
+    EXECUTOR_EMERGENCY_DISABLED,
+    EmergencyExecutionControl,
+    EnvironmentEmergencyExecutionControl,
+    emergency_denial_payload,
+)
 from .errors import (
     RemediationAmbiguousError,
     RemediationDependencyError,
     RemediationDisabledError,
+    RemediationEmergencyDisabledError,
     RemediationError,
     RemediationExecutionError,
     RemediationScopeError,
@@ -25,15 +33,20 @@ from .tool import (
 )
 
 __all__ = [
+    "EMERGENCY_EXECUTION_DISABLED_ENV",
+    "EXECUTOR_EMERGENCY_DISABLED",
     "STOP_SANDBOX_INSTANCE_TOOL_NAME",
     "Ec2SandboxStopExecutor",
     "Ec2StopInstancesClient",
+    "EmergencyExecutionControl",
+    "EnvironmentEmergencyExecutionControl",
     "LambdaInvokeClient",
     "LambdaPrivateRemediationExecutor",
     "PrivateRemediationExecutor",
     "RemediationAmbiguousError",
     "RemediationDependencyError",
     "RemediationDisabledError",
+    "RemediationEmergencyDisabledError",
     "RemediationError",
     "RemediationExecutionError",
     "RemediationScopeError",
@@ -42,5 +55,6 @@ __all__ = [
     "StopSandboxInstanceCoordinator",
     "build_stop_execution_command",
     "create_stop_sandbox_instance_tool",
+    "emergency_denial_payload",
     "unavailable_stop_request",
 ]
