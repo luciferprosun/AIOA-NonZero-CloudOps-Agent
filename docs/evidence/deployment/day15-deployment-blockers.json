@@ -1,0 +1,144 @@
+{
+  "aws_activity": {
+    "change_set_created": false,
+    "deployment_performed": false,
+    "live_ec2_stop_called": false,
+    "safe_identity_read_attempted": true,
+    "write_calls_performed": false
+  },
+  "candidate": {
+    "artifact_sha256": "9fa6fb7e7ac2ef043d4a323ec327d3dbc3b04b73f3fd56332bbe561355776f32",
+    "lambda_configuration_sha256": "67afd13d45f19b62993a78bd8a1ae61a6b67364370791533615ed53a2ebe830f",
+    "manifest_sha256": "8da0a19707a3716e354bd82972dae756df759a7f2978ceab0e93972dafa5d4e0",
+    "region": "eu-central-1",
+    "token_window_preflight": "PASS"
+  },
+  "decision": "DO_NOT_DEPLOY",
+  "external_prerequisites_pass": false,
+  "gate_summary": {
+    "blocked": 3,
+    "canonical_output_sha256": "7b33d63945503b4691a8c23c7410ecc7a91c265ee887295e06f3a20716e82ecc",
+    "evaluated_at_commit": "8e4583ac9341cb7b66de47cf0e7b2a442ac67b32",
+    "evidence_path": "docs/evidence/deployment/day15-local-gate-m2.json",
+    "evaluation_worktree": "CLEAN_DETACHED",
+    "fail": 0,
+    "gates": [
+      {
+        "gate_id": "D15-G01",
+        "reasons": [],
+        "status": "PASS"
+      },
+      {
+        "gate_id": "D15-G02",
+        "reasons": [
+          "RENDERED_IAM_TEMPLATE_REQUIRED"
+        ],
+        "status": "BLOCKED"
+      },
+      {
+        "gate_id": "D15-G03",
+        "reasons": [],
+        "status": "PASS"
+      },
+      {
+        "gate_id": "D15-G04",
+        "reasons": [
+          "DEPENDENCY_VULNERABILITY_SCAN_BLOCKED",
+          "LAMBDA_CONTAINER_VALIDATION_BLOCKED"
+        ],
+        "status": "BLOCKED"
+      },
+      {
+        "gate_id": "D15-G05",
+        "reasons": [],
+        "status": "PASS"
+      },
+      {
+        "gate_id": "D15-G06",
+        "reasons": [],
+        "status": "PASS"
+      },
+      {
+        "gate_id": "D15-G07",
+        "reasons": [],
+        "status": "PASS"
+      },
+      {
+        "gate_id": "D15-G08",
+        "reasons": [],
+        "status": "PASS"
+      },
+      {
+        "gate_id": "D15-G09",
+        "reasons": [],
+        "status": "PASS"
+      },
+      {
+        "gate_id": "D15-G10",
+        "reasons": [
+          "ATTESTATION_RENDERED_TEMPLATE_REQUIRED"
+        ],
+        "status": "BLOCKED"
+      }
+    ],
+    "pass": 7,
+    "ready_for_deployment": false,
+    "status": "BLOCKED"
+  },
+  "missing_or_unproven_prerequisites": [
+    {
+      "evidence": "SAM_CLI_UNAVAILABLE",
+      "prerequisite": "SAM_RENDERED_TEMPLATE_AND_LINT",
+      "scope": "LOCAL_TOOLCHAIN"
+    },
+    {
+      "evidence": "PIP_AUDIT_UNAVAILABLE",
+      "prerequisite": "DEPENDENCY_VULNERABILITY_SCAN",
+      "scope": "LOCAL_TOOLCHAIN"
+    },
+    {
+      "evidence": "CONTAINER_ENGINE_UNAVAILABLE",
+      "prerequisite": "PINNED_LAMBDA_COMPATIBLE_CONTAINER_IMPORT",
+      "scope": "LOCAL_TOOLCHAIN"
+    },
+    {
+      "evidence": "SAFE_IDENTITY_READ_DID_NOT_RETURN_AN_AUTHORIZED_IDENTITY",
+      "prerequisite": "AUTHORIZED_AWS_PROFILE_OR_ROLE",
+      "scope": "EXTERNAL"
+    },
+    {
+      "evidence": "AUTHENTICATED_OPERATOR_ATTESTATION_NOT_PROVIDED",
+      "prerequisite": "ENCRYPTED_PRIVATE_ARTIFACT_BUCKET_AND_LIFECYCLE",
+      "scope": "EXTERNAL"
+    },
+    {
+      "evidence": "AUTHENTICATED_OPERATOR_ATTESTATION_NOT_PROVIDED",
+      "prerequisite": "DEDICATED_JUDGE_SECRET_PLAN",
+      "scope": "EXTERNAL"
+    },
+    {
+      "evidence": "AUTHENTICATED_OPERATOR_ATTESTATION_NOT_PROVIDED",
+      "prerequisite": "EXACT_SANDBOX_TARGET_STATE_AND_TAG",
+      "scope": "EXTERNAL"
+    },
+    {
+      "evidence": "AUTHENTICATED_OPERATOR_ATTESTATION_NOT_PROVIDED",
+      "prerequisite": "NOVA_2_INFERENCE_PROFILE_ACCESS",
+      "scope": "EXTERNAL"
+    },
+    {
+      "evidence": "AUTHENTICATED_OPERATOR_ATTESTATION_NOT_PROVIDED",
+      "prerequisite": "OWNED_COST_NOTIFICATIONS_USD_10_25_40",
+      "scope": "EXTERNAL"
+    }
+  ],
+  "phase_package": "DAY15_STABLE_DEPLOYMENT_IMPLEMENTATION",
+  "ready_for_deployment": false,
+  "schema_version": 1,
+  "source_commits": {
+    "m1": "17d5f4637dbd69a33eff1cbb46282c36b19ce6ad",
+    "m2": "8e4583ac9341cb7b66de47cf0e7b2a442ac67b32",
+    "start": "aa941a989a8b8cd0e40367bb130472e9f3c082a7"
+  },
+  "status": "BLOCKED"
+}

@@ -31,6 +31,7 @@ from aioa_cloudops_agent.config import (  # noqa: E402
     DEFAULT_BEDROCK_MODEL_ID,
     DEFAULT_BEDROCK_REGION,
 )
+from scripts.day15.run_day15_gate import GATES as DAY15_GATES  # noqa: E402
 from scripts.run_p0_gate import (  # noqa: E402
     EXPECTED_PHASE1_TAG,
     PHASE1_TAG,
@@ -39,8 +40,12 @@ from scripts.run_p0_gate import (  # noqa: E402
 from scripts.run_p0_gate import GATES as P0_GATES  # noqa: E402
 from scripts.run_p1_gate import GATES as P1_GATES  # noqa: E402
 
-SCHEMA_VERSION = "1.0"
+SCHEMA_VERSION = "2.0"
 EVIDENCE_SNAPSHOT_COMMIT = "fbb536400594306f2bb3abd31c7064a66735c82d"
+DAY15_START_COMMIT = "aa941a989a8b8cd0e40367bb130472e9f3c082a7"
+DAY15_M1_COMMIT = "17d5f4637dbd69a33eff1cbb46282c36b19ce6ad"
+DAY15_M2_COMMIT = "8e4583ac9341cb7b66de47cf0e7b2a442ac67b32"
+DAY15_CANDIDATE_STATUS = "LOCAL_IMPLEMENTATION_CANDIDATE"
 EXPECTED_BEDROCK_REGION = "eu-central-1"
 EXPECTED_MODEL_ID = "eu.amazon.nova-2-lite-v1:0"
 EXPECTED_STRANDS_VERSION = "1.53.0"
@@ -144,6 +149,7 @@ def build_claims() -> list[dict[str, Any]]:
                 "tests/unit/test_strands_agent.py::"
                 "test_factory_creates_exactly_one_primary_agent_and_five_canonical_tools",
             ),
+            commit_anchor=DAY15_M1_COMMIT,
             limitations="Proves the repository runtime factory, not the topology of an undeployed AWS stack.",
         ),
         _claim(
@@ -162,6 +168,7 @@ def build_claims() -> list[dict[str, Any]]:
                 "tests/unit/test_durable_memory_repository.py::"
                 "test_approval_from_another_run_or_proposal_cannot_authorize_execution",
             ),
+            commit_anchor=DAY15_M1_COMMIT,
             scope="mocked AWS",
             limitations="Does not attest to a real operator approval or a deployed identity provider.",
         ),
@@ -181,6 +188,7 @@ def build_claims() -> list[dict[str, Any]]:
                 "tests/unit/test_dependency_circuit_breaker.py::"
                 "test_open_circuit_suppresses_provider_calls_during_cooldown",
             ),
+            commit_anchor=DAY15_M1_COMMIT,
             limitations="Process-local circuit state does not suppress failures across separate cold runtimes.",
         ),
         _claim(
@@ -215,6 +223,7 @@ def build_claims() -> list[dict[str, Any]]:
                 "tests/unit/test_private_sandbox_remediation.py::"
                 "test_emergency_flip_after_dryrun_blocks_live_stop_call",
             ),
+            commit_anchor=DAY15_M1_COMMIT,
             scope="mocked AWS",
             limitations="Proves fail-closed code paths with fakes; it does not prove a deployed role or a live stop.",
         ),
@@ -227,8 +236,9 @@ def build_claims() -> list[dict[str, Any]]:
                 "P0-07",
                 "P1-04",
                 "tests/unit/test_iam_policies.py::"
-                "test_orchestrator_can_invoke_only_private_executor_and_cannot_stop_ec2",
+                "test_orchestrator_policy_is_exact_read_model_state_secret_and_alias_authority",
             ),
+            commit_anchor=DAY15_M1_COMMIT,
             limitations="Validates repository policy documents, not the effective policy of an undeployed AWS role.",
         ),
         _claim(
@@ -244,6 +254,7 @@ def build_claims() -> list[dict[str, Any]]:
                 "tests/unit/test_private_sandbox_remediation.py::"
                 "test_duplicate_acknowledged_action_never_invokes_executor_twice",
             ),
+            commit_anchor=DAY15_M1_COMMIT,
             scope="mocked AWS",
             limitations="Does not prove production DynamoDB availability or a live concurrency event.",
         ),
@@ -274,6 +285,7 @@ def build_claims() -> list[dict[str, Any]]:
                 "tests/unit/test_private_sandbox_remediation.py::"
                 "test_model_like_payload_cannot_construct_privileged_execution_command",
             ),
+            commit_anchor=DAY15_M1_COMMIT,
             limitations="Does not claim the model is intrinsically safe; authority remains outside the model.",
         ),
         _claim(
@@ -289,22 +301,25 @@ def build_claims() -> list[dict[str, Any]]:
                 "tests/unit/test_strands_agent.py::"
                 "test_bedrock_provider_uses_explicit_region_model_and_bounds",
             ),
+            commit_anchor=DAY15_M1_COMMIT,
             limitations="Proves configuration and request construction, not a live Bedrock invocation.",
         ),
         _claim(
             "P0-GATE-01",
-            "The canonical P0 matrix passed all 15 gates with 136 proof cases at the evidence snapshot commit.",
+            "The canonical P0 matrix passed all 15 gates with 136 proof cases at its reviewed commit anchor.",
             "TEST",
             ("scripts/run_p0_gate.py::GATES",),
             tuple(gate.gate_id for gate in P0_GATES),
+            commit_anchor=DAY15_M1_COMMIT,
             limitations="Records deterministic repository proof; it is not a live AWS deployment test.",
         ),
         _claim(
             "P1-GATE-01",
-            "The canonical P1 matrix passed all 6 gates with 93 proof cases at the evidence snapshot commit.",
+            "The canonical P1 matrix passed all 6 gates with 93 proof cases at its reviewed commit anchor.",
             "TEST",
             ("scripts/run_p1_gate.py::GATES",),
             tuple(gate.gate_id for gate in P1_GATES),
+            commit_anchor=DAY15_M1_COMMIT,
             limitations="Records deterministic failure-engineering proof; clean-clone remote mode depends on public-origin reachability.",
         ),
         _claim(
@@ -323,13 +338,9 @@ def build_claims() -> list[dict[str, Any]]:
             "PRIOR-ART-HISTORY-01",
             "The frozen Phase 1 tag, pre-armor ancestry, and prior-art document blobs remain at their recorded immutable anchors.",
             "GIT",
-            (
-                "docs/audit/prior-art-june1-forensic-baseline.md",
-                "scripts/run_p0_gate.py::PRIOR_ART_BLOBS",
-            ),
+            ("docs/audit/prior-art-june1-forensic-baseline.md",),
             (
                 "P0-15",
-                "tests/unit/test_strands_agent.py::test_phase_1_tag_remains_at_frozen_commit",
             ),
             limitations="Proves this repository's anchors and frozen forensic documents; external history claims retain their documented evidence limits.",
         ),
@@ -383,7 +394,167 @@ def build_claims() -> list[dict[str, Any]]:
                 "tests/unit/test_strands_agent.py::"
                 "test_factory_creates_exactly_one_primary_agent_and_five_canonical_tools",
             ),
+            commit_anchor=DAY15_M1_COMMIT,
             limitations="Counts principal Strands tools in this repository, not infrastructure endpoints.",
+        ),
+        _claim(
+            "DAY15-AWS-CLIENT-BOUNDS-01",
+            "Critical AWS clients own explicit one-attempt transport configuration, and the bounded model wrapper suppresses repeated warm-runtime failures without a hidden retry.",
+            "TEST",
+            (
+                "src/aioa_cloudops_agent/aws_clients.py::_bounded_config",
+                "src/aioa_cloudops_agent/safety/model_circuit.py::CircuitBoundedModel",
+            ),
+            (
+                "tests/unit/test_day15_aws_clients.py::"
+                "test_configured_endpoint_environment_cannot_redirect_real_client",
+                "tests/unit/test_day15_aws_clients.py::"
+                "test_critical_client_factories_own_region_timeouts_and_retry_count",
+                "tests/unit/test_day15_model_circuit.py::"
+                "test_model_circuit_suppresses_third_warm_call_without_hidden_retry",
+            ),
+            commit_anchor=DAY15_M1_COMMIT,
+            limitations="Tests inspect client construction and deterministic fakes; they do not attest to provider latency or availability.",
+        ),
+        _claim(
+            "DAY15-COLD-RESUME-01",
+            "A fresh Agent runtime can restore a durable native interrupt using trusted principal identity and a server-issued one-time challenge, while no approval or resume route is public.",
+            "TEST",
+            (
+                "src/aioa_cloudops_agent/agent/factory.py::create_primary_agent",
+                "src/aioa_cloudops_agent/deployment/resume.py::AuthenticatedApprovalResumeService",
+            ),
+            (
+                "tests/integration/test_durable_hitl_approval_flow.py::"
+                "test_fresh_process_restores_native_interrupt_with_trusted_one_time_freshness",
+                "tests/unit/test_day15_judge_http.py::"
+                "test_unknown_approval_mutation_and_wrong_method_routes_fail_before_services",
+            ),
+            commit_anchor=DAY15_M1_COMMIT,
+            scope="mocked AWS",
+            limitations="Proves deterministic restoration and duplicate rejection with local durable fakes; the capability remains absent from the public route table.",
+        ),
+        _claim(
+            "DAY15-DEPLOYMENT-GATE-01",
+            "The local Day 15 controller defines exactly ten stable gates, never authorizes deployment in validate-only mode, and blocks when artifact or external prerequisites are absent.",
+            "TEST",
+            (
+                "scripts/day15/run_day15_gate.py::GATES",
+                "scripts/day15/run_day15_gate.py::_payload",
+                "scripts/day15/run_day15_gate.py::run_gate",
+            ),
+            (
+                *(gate.gate_id for gate in DAY15_GATES),
+                "tests/unit/test_day15_gate.py::"
+                "test_gate_matrix_has_exact_stable_ids_status_vocabulary_and_validate_only_output",
+                "tests/unit/test_day15_gate.py::"
+                "test_missing_artifact_and_external_prerequisites_are_reported_as_blocked",
+            ),
+            commit_anchor=DAY15_M2_COMMIT,
+            limitations="Proves local fail-closed decision logic and gate definitions; external prerequisite satisfaction is outside repository-only proof.",
+        ),
+        _claim(
+            "DAY15-JUDGE-SURFACE-01",
+            "The Day 15 application exposes health, readiness, same-origin UI, and token-protected read-only investigation and status routes; approval and mutation routes fail before services.",
+            "TEST",
+            (
+                "src/aioa_cloudops_agent/deployment/auth.py::JudgeTokenAuthorizer",
+                "src/aioa_cloudops_agent/judge/application.py::JudgeFunctionUrlApplication",
+                "src/aioa_cloudops_agent/judge/lambda_handler.py::lambda_handler",
+            ),
+            (
+                "tests/unit/test_day15_judge_http.py::"
+                "test_health_and_root_create_no_clients_and_expose_hardened_same_origin_ui",
+                "tests/unit/test_day15_judge_http.py::"
+                "test_status_requires_auth_and_global_quota_before_one_bounded_status_read",
+                "tests/unit/test_day15_judge_http.py::"
+                "test_unknown_approval_mutation_and_wrong_method_routes_fail_before_services",
+                "tests/unit/test_day15_judge_http.py::"
+                "test_wrong_token_denies_before_quota_agent_and_status",
+            ),
+            commit_anchor=DAY15_M1_COMMIT,
+            limitations="Proves the checked-in router and local service boundaries, not a deployed Function URL or operator identity system.",
+        ),
+        _claim(
+            "DAY15-RELEASE-SAFETY-01",
+            "The Day 15 candidate uses a hash-locked runtime and template-enforced retained state, explicit region, conditioned URL permissions, immutable aliases, bounded concurrency, and reviewed alias rollback.",
+            "TEST",
+            (
+                "infra/sam/template.yaml",
+                "requirements/lambda-runtime.txt",
+                "scripts/day15/alias_rollback.py::build_plan",
+                "scripts/day15/build_lambda_artifact.py::build_artifact",
+                "scripts/day15/preflight_region.py::validate_region",
+            ),
+            (
+                "tests/unit/test_day15_artifact.py::"
+                "test_repository_provenance_binds_clean_head_index_worktree_and_source_tree",
+                "tests/unit/test_day15_artifact.py::"
+                "test_dependency_scan_pass_requires_exact_complete_locked_inventory",
+                "tests/unit/test_day15_artifact.py::"
+                "test_runtime_rebuild_uses_two_distinct_clean_installs",
+                "tests/unit/test_day15_artifact.py::"
+                "test_runtime_lock_is_complete_exact_and_hash_locked",
+                "tests/unit/test_day15_gate.py::"
+                "test_alias_rollback_requires_reviewed_hash_then_reconciles_both_aliases",
+                "tests/unit/test_infrastructure_contract.py::"
+                "test_function_url_targets_live_alias_and_has_exact_two_conditioned_permissions",
+                "tests/unit/test_infrastructure_contract.py::"
+                "test_immutable_versions_and_live_aliases_are_retained_for_rollback",
+                "tests/unit/test_infrastructure_contract.py::"
+                "test_region_is_explicit_and_public_ingress_preserves_all_mutation_vetoes",
+                "tests/unit/test_infrastructure_contract.py::"
+                "test_state_table_is_retained_recoverable_encrypted_and_deletion_protected",
+            ),
+            commit_anchor=DAY15_M2_COMMIT,
+            limitations="Proves repository artifact, template, and rollback contracts; it does not prove a built release was installed in an account.",
+        ),
+        _claim(
+            "DAY15-RUNTIME-GUARDS-01",
+            "Judge inputs cannot set authority or budgets; fresh investigations use exact server budgets, atomic daily quota reservations, and finite read-only status observations.",
+            "TEST",
+            (
+                "src/aioa_cloudops_agent/deployment/config.py::JudgeInvestigationRequest",
+                "src/aioa_cloudops_agent/deployment/config.py::new_judge_budget",
+                "src/aioa_cloudops_agent/deployment/quota.py::DynamoDbJudgeQuotaRepository",
+                "src/aioa_cloudops_agent/deployment/status.py::ReadOnlyRunStatusService",
+                "src/aioa_cloudops_agent/judge/runtime.py::JudgeInvestigationRuntime",
+            ),
+            (
+                "tests/unit/test_day15_judge_runtime.py::"
+                "test_each_investigation_builds_fresh_snapshot_session_agent_and_server_budget",
+                "tests/unit/test_day15_runtime_contracts.py::"
+                "test_dynamodb_quota_uses_one_conditional_update_for_all_caps",
+                "tests/unit/test_day15_runtime_contracts.py::"
+                "test_judge_schema_rejects_caller_authority_and_budget_fields",
+                "tests/unit/test_day15_runtime_contracts.py::"
+                "test_server_owned_judge_budget_is_exact_and_fresh",
+                "tests/unit/test_day15_runtime_contracts.py::"
+                "test_status_observation_cap_is_server_enforced_for_every_nonterminal_state",
+            ),
+            commit_anchor=DAY15_M1_COMMIT,
+            scope="mocked AWS",
+            limitations="Proves server-owned bounds with deterministic repositories and clients, not production quota-service availability.",
+        ),
+        _claim(
+            "DAY15-TELEMETRY-01",
+            "Judge telemetry exports only allowlisted identifiers and bounded classifications while structured logging discards prompts, secrets, and tool arguments.",
+            "TEST",
+            (
+                "src/aioa_cloudops_agent/judge/logging.py::StructuredJudgeLogger",
+                "src/aioa_cloudops_agent/judge/telemetry.py::SanitizedXRaySpanExporter",
+                "src/aioa_cloudops_agent/judge/telemetry.py::initialize_judge_telemetry",
+            ),
+            (
+                "tests/unit/test_day15_judge_http.py::"
+                "test_structured_logger_discards_secrets_prompts_and_tool_arguments",
+                "tests/unit/test_day15_judge_telemetry.py::"
+                "test_process_telemetry_uses_exact_sampled_provider_and_empty_unredacted_opt_in",
+                "tests/unit/test_day15_judge_telemetry.py::"
+                "test_xray_exporter_emits_only_allowlisted_ids_route_outcome_and_dependency",
+            ),
+            commit_anchor=DAY15_M1_COMMIT,
+            limitations="Proves filtering and exporter construction with local fakes; no provider trace delivery is attested.",
         ),
         _claim(
             "VERIFIED-SUCCESS-01",
@@ -409,6 +580,7 @@ def build_manifest(root: Path = ROOT) -> dict[str, Any]:
     """Build solely from reviewed constants and current canonical runtime definitions."""
 
     strands_version = project_strands_version(root)
+    strands_requirement = project_strands_requirement(root)
     snapshot = {
         "commit": EVIDENCE_SNAPSHOT_COMMIT,
         "primary_agent_count": PRIMARY_AGENT_COUNT,
@@ -418,7 +590,7 @@ def build_manifest(root: Path = ROOT) -> dict[str, Any]:
         "bedrock_model_id": DEFAULT_BEDROCK_MODEL_ID,
         "bedrock_region": DEFAULT_BEDROCK_REGION,
         "strands_version": strands_version,
-        "strands_requirement": project_strands_requirement(root),
+        "strands_requirement": strands_requirement,
         "phase1_tag": {"name": PHASE1_TAG, "commit": EXPECTED_PHASE1_TAG},
         "prior_armor_commits": list(PRIOR_ARMOR_COMMITS),
         "prior_art_blobs": dict(sorted(PRIOR_ART_BLOBS.items())),
@@ -433,9 +605,25 @@ def build_manifest(root: Path = ROOT) -> dict[str, Any]:
             "proof_cases": P1_PROOF_CASES,
         },
     }
+    day15_candidate_snapshot = {
+        "status": DAY15_CANDIDATE_STATUS,
+        "start_commit": DAY15_START_COMMIT,
+        "m1_commit": DAY15_M1_COMMIT,
+        "commit": DAY15_M2_COMMIT,
+        "primary_agent_count": PRIMARY_AGENT_COUNT,
+        "registered_tool_count": CURRENT_REGISTERED_TOOL_COUNT,
+        "canonical_tools": list(CURRENT_TOOL_NAMES),
+        "final_tool_cap": FINAL_TOOL_CAP,
+        "bedrock_model_id": DEFAULT_BEDROCK_MODEL_ID,
+        "bedrock_region": DEFAULT_BEDROCK_REGION,
+        "strands_version": strands_version,
+        "strands_requirement": strands_requirement,
+        "day15_gate_ids": [gate.gate_id for gate in DAY15_GATES],
+    }
     manifest = {
         "schema_version": SCHEMA_VERSION,
         "evidence_snapshot": snapshot,
+        "day15_candidate_snapshot": day15_candidate_snapshot,
         "claims": build_claims(),
         "live_receipts": [],
     }
@@ -512,13 +700,17 @@ def render_markdown(document: dict[str, Any]) -> str:
 
     manifest = normalize_manifest(document)
     snapshot = manifest["evidence_snapshot"]
+    candidate = manifest["day15_candidate_snapshot"]
     claims = manifest["claims"]
     lines = [
         "# Reviewer Evidence Manifest",
         "",
         "This judge-facing view is generated from the canonical JSON. It is reviewer proof, not runtime authority.",
         "",
-        f"- Evidence snapshot: `{snapshot['commit']}`",
+        f"- Frozen Phase 1 / Day 14 snapshot: `{snapshot['commit']}`",
+        f"- Day 15 local candidate snapshot: `{candidate['commit']}` (`{candidate['status']}`)",
+        f"- Day 15 lineage: `{candidate['start_commit']}` -> `{candidate['m1_commit']}` -> `{candidate['commit']}`",
+        f"- Day 15 gates: `{', '.join(candidate['day15_gate_ids'])}`",
         f"- Manifest SHA-256: `{manifest['manifest_hash']}`",
         f"- Primary agents: `{snapshot['primary_agent_count']}`",
         f"- Canonical tools: `{', '.join(snapshot['canonical_tools'])}`",
@@ -592,15 +784,15 @@ From the repository root in the documented development environment:
 .venv/bin/python scripts/validate_reviewer_evidence_manifest.py
 ```
 
-The builder is anchored intentionally to L1 commit `{EVIDENCE_SNAPSHOT_COMMIT}`. It does not derive an anchor from the changing `HEAD`, so rebuilding after L2/L3 is byte-for-byte stable and avoids a self-referential commit hash.
+The immutable Phase 1 / Day 14 baseline remains anchored to `{EVIDENCE_SNAPSHOT_COMMIT}`. Day 15 claims use the exact reviewed M1 and M2 commits `{DAY15_M1_COMMIT}` and `{DAY15_M2_COMMIT}`, descended from `{DAY15_START_COMMIT}`. The candidate snapshot is deliberately `LOCAL_IMPLEMENTATION_CANDIDATE`; it is not deployment proof. The builder never derives an anchor from changing `HEAD`, and the M3 evidence-tooling commit is never an anchor, avoiding a self-referential commit hash.
 
 ## Canonical model
 
-Each claim contains the required `claim_id`, `claim`, `evidence_kind`, `authority_source`, `proof_nodes`, `commit_anchor`, `status`, `scope`, `limitations`, and `hash` fields. Python authority references use `path::symbol`; exact non-Python anchors use `path#text`; a path alone proves a tracked regular file. Pytest proof nodes use their exact `path::test_name`; P0/P1 nodes use exact gate IDs.
+Each claim contains the required `claim_id`, `claim`, `evidence_kind`, `authority_source`, `proof_nodes`, `commit_anchor`, `status`, `scope`, `limitations`, and `hash` fields. Python authority references use `path::symbol`; exact non-Python anchors use `path#text`; a path alone proves a tracked regular file. Pytest proof nodes use their exact `path::test_name`; P0/P1 and D15 nodes use exact gate IDs.
 
 Claim hashes are SHA-256 over compact, key-sorted UTF-8 JSON with the derived `hash` removed and set-like source/proof lists sorted. `manifest_hash` covers the normalized complete document except itself. Canonical JSON uses sorted keys, two-space indentation, sorted claims, and one final newline. The Markdown view is generated from the same normalized model.
 
-The validator resolves authority files and Python symbols at each claim's commit, resolves exact pytest nodes, and requires every referenced current source/test blob to remain byte-identical to the reviewed snapshot. It validates gate IDs and Git ancestry, checks the explicitly qualified frozen Phase 1 tag, and requires every prior-art path to remain a tracked regular file with its immutable blob. Runtime one-agent/five-tool facts must also match roots extracted directly from the immutable L1 Git object, so a synchronized five-for-five tool substitution or emptied provenance baseline cannot be regenerated into truth. Nova 2, its runtime region, and exact `strands-agents[otel]==1.53.0` pins are validated independently against frozen expectations.
+The validator resolves authority files and Python symbols at each claim's exact reviewed commit, resolves exact pytest nodes, and requires every referenced current source/test blob to remain byte-identical to that anchor. It admits only the frozen baseline, M1, and M2 anchors; verifies their exact single-parent chain; and extracts the Day 15 gate IDs independently from the immutable M2 Git object. It also checks the explicitly qualified frozen Phase 1 tag and requires every prior-art path to remain a tracked regular file with its immutable blob. Runtime one-agent/five-tool facts must match roots extracted directly from the immutable baseline object, so a synchronized five-for-five tool substitution or emptied provenance baseline cannot be regenerated into truth. Nova 2, its runtime region, and exact `strands-agents[otel]==1.53.0` pins are validated independently against frozen expectations.
 
 ## Live-proof boundary
 

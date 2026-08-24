@@ -34,6 +34,10 @@ from aioa_cloudops_agent.config import (  # noqa: E402
     DEFAULT_BEDROCK_REGION,
 )
 from scripts.build_reviewer_evidence_manifest import (  # noqa: E402
+    DAY15_CANDIDATE_STATUS,
+    DAY15_M1_COMMIT,
+    DAY15_M2_COMMIT,
+    DAY15_START_COMMIT,
     EVIDENCE_SNAPSHOT_COMMIT,
     EXPECTED_BEDROCK_REGION,
     EXPECTED_MODEL_ID,
@@ -56,6 +60,7 @@ from scripts.build_reviewer_evidence_manifest import (  # noqa: E402
     render_evidence_readme,
     render_markdown,
 )
+from scripts.day15.run_day15_gate import GATES as DAY15_GATES  # noqa: E402
 from scripts.run_p0_gate import (  # noqa: E402
     EXPECTED_PHASE1_TAG,
     EXPECTED_PRE_ARMOR_HEAD,
@@ -68,9 +73,25 @@ from scripts.run_p1_gate import GATES as P1_GATES  # noqa: E402
 _TOP_LEVEL_FIELDS = {
     "schema_version",
     "evidence_snapshot",
+    "day15_candidate_snapshot",
     "claims",
     "live_receipts",
     "manifest_hash",
+}
+_DAY15_CANDIDATE_FIELDS = {
+    "status",
+    "start_commit",
+    "m1_commit",
+    "commit",
+    "primary_agent_count",
+    "registered_tool_count",
+    "canonical_tools",
+    "final_tool_cap",
+    "bedrock_model_id",
+    "bedrock_region",
+    "strands_version",
+    "strands_requirement",
+    "day15_gate_ids",
 }
 _SNAPSHOT_FIELDS = {
     "commit",
@@ -131,6 +152,13 @@ _REQUIRED_CLAIM_IDS = {
     "APPROVAL-BINDING-01",
     "BOUNDED-FAILURES-01",
     "DEFAULT-DENY-01",
+    "DAY15-AWS-CLIENT-BOUNDS-01",
+    "DAY15-COLD-RESUME-01",
+    "DAY15-DEPLOYMENT-GATE-01",
+    "DAY15-JUDGE-SURFACE-01",
+    "DAY15-RELEASE-SAFETY-01",
+    "DAY15-RUNTIME-GUARDS-01",
+    "DAY15-TELEMETRY-01",
     "EXECUTOR-GATES-01",
     "IAM-SEPARATION-01",
     "IDEMPOTENCY-01",
@@ -223,6 +251,43 @@ _REVIEWED_NEGATIVE_LIVE_STATEMENTS = {
 }
 _RECEIPT_TIMESTAMP = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z\Z")
 _FROZEN_L1_COMMIT = "fbb536400594306f2bb3abd31c7064a66735c82d"
+_FROZEN_DAY15_START_COMMIT = "aa941a989a8b8cd0e40367bb130472e9f3c082a7"
+_FROZEN_DAY15_M1_COMMIT = "17d5f4637dbd69a33eff1cbb46282c36b19ce6ad"
+_FROZEN_DAY15_M2_COMMIT = "8e4583ac9341cb7b66de47cf0e7b2a442ac67b32"
+_FROZEN_DAY15_CANDIDATE_STATUS = "LOCAL_IMPLEMENTATION_CANDIDATE"
+_FROZEN_DAY15_GATE_IDS = tuple(f"D15-G{index:02d}" for index in range(1, 11))
+_FROZEN_L1_CLAIM_IDS = {
+    "DEFAULT-DENY-01",
+    "LIVE-EC2-01",
+    "PRIOR-ART-ATTESTATION-01",
+    "PRIOR-ART-HISTORY-01",
+    "PROPOSAL-DURABILITY-01",
+    "RECOVERY-NO-REPLAY-01",
+    "SDK-PIN-01",
+    "VERIFIED-SUCCESS-01",
+}
+_DAY15_M1_CLAIM_IDS = {
+    "AGENT-TOPOLOGY-01",
+    "APPROVAL-BINDING-01",
+    "BOUNDED-FAILURES-01",
+    "DAY15-AWS-CLIENT-BOUNDS-01",
+    "DAY15-COLD-RESUME-01",
+    "DAY15-JUDGE-SURFACE-01",
+    "DAY15-RUNTIME-GUARDS-01",
+    "DAY15-TELEMETRY-01",
+    "EXECUTOR-GATES-01",
+    "IAM-SEPARATION-01",
+    "IDEMPOTENCY-01",
+    "MODEL-AUTHORITY-01",
+    "MODEL-PIN-01",
+    "P0-GATE-01",
+    "P1-GATE-01",
+    "TOOL-SURFACE-01",
+}
+_DAY15_M2_CLAIM_IDS = {
+    "DAY15-DEPLOYMENT-GATE-01",
+    "DAY15-RELEASE-SAFETY-01",
+}
 _FROZEN_P0_PROOF_CASES = 136
 _FROZEN_P1_PROOF_CASES = 93
 _FROZEN_NEGATIVE_LIVE_FIELDS = {
@@ -243,11 +308,11 @@ _FROZEN_NEGATIVE_LIVE_FIELDS = {
 }
 _FROZEN_GATE_CLAIMS = {
     "P0-GATE-01": (
-        "The canonical P0 matrix passed all 15 gates with 136 proof cases at the evidence snapshot commit.",
+        "The canonical P0 matrix passed all 15 gates with 136 proof cases at its reviewed commit anchor.",
         tuple(f"P0-{index:02d}" for index in range(1, 16)),
     ),
     "P1-GATE-01": (
-        "The canonical P1 matrix passed all 6 gates with 93 proof cases at the evidence snapshot commit.",
+        "The canonical P1 matrix passed all 6 gates with 93 proof cases at its reviewed commit anchor.",
         tuple(f"P1-{index:02d}" for index in range(1, 7)),
     ),
 }
@@ -296,6 +361,7 @@ class RuntimeFacts:
     strands_requirement: str
     p0_gate_ids: tuple[str, ...]
     p1_gate_ids: tuple[str, ...]
+    day15_gate_ids: tuple[str, ...]
     phase1_tag_name: str
     phase1_tag_commit: str
     pre_armor_head: str
@@ -325,6 +391,7 @@ def collect_runtime_facts(root: Path = ROOT) -> RuntimeFacts:
         strands_requirement=project_strands_requirement(root),
         p0_gate_ids=tuple(gate.gate_id for gate in P0_GATES),
         p1_gate_ids=tuple(gate.gate_id for gate in P1_GATES),
+        day15_gate_ids=tuple(gate.gate_id for gate in DAY15_GATES),
         phase1_tag_name=PHASE1_TAG,
         phase1_tag_commit=EXPECTED_PHASE1_TAG,
         pre_armor_head=EXPECTED_PRE_ARMOR_HEAD,
@@ -355,6 +422,58 @@ def _literal_assignments(source: str) -> dict[str, Any]:
         except (ValueError, TypeError):
             continue
     return values
+
+
+def _day15_gate_ids_from_source(source: str) -> tuple[str, ...]:
+    """Extract only literal GateDefinition IDs from reviewed source."""
+
+    value: ast.expr | None = None
+    matches = 0
+    for node in ast.parse(source).body:
+        if (
+            isinstance(node, ast.Assign)
+            and any(
+                isinstance(target, ast.Name) and target.id == "GATES"
+                for target in node.targets
+            )
+        ) or (
+            isinstance(node, ast.AnnAssign)
+            and isinstance(node.target, ast.Name)
+            and node.target.id == "GATES"
+        ):
+            value = node.value
+            matches += 1
+    if matches != 1 or not isinstance(value, (ast.Tuple, ast.List)):
+        raise ValueError("Day 15 gate definition is not one literal sequence")
+    gate_ids: list[str] = []
+    for item in value.elts:
+        if (
+            not isinstance(item, ast.Call)
+            or not isinstance(item.func, ast.Name)
+            or item.func.id != "GateDefinition"
+            or len(item.args) != 2
+            or item.keywords
+            or not isinstance(item.args[0], ast.Constant)
+            or not isinstance(item.args[0].value, str)
+            or not isinstance(item.args[1], ast.Constant)
+            or not isinstance(item.args[1].value, str)
+        ):
+            raise ValueError("Day 15 gate definition contains nonliteral material")
+        gate_ids.append(item.args[0].value)
+    return tuple(gate_ids)
+
+
+def collect_frozen_day15_gate_ids(root: Path = ROOT) -> tuple[str, ...]:
+    """Read Day 15 gate IDs from the immutable M2 Git object."""
+
+    source = _git_blob(
+        root,
+        _FROZEN_DAY15_M2_COMMIT,
+        "scripts/day15/run_day15_gate.py",
+    )
+    if source is None:
+        raise ValueError("frozen Day 15 gate source unavailable")
+    return _day15_gate_ids_from_source(source)
 
 
 def collect_frozen_facts(root: Path = ROOT) -> FrozenFacts:
@@ -850,6 +969,24 @@ def _expected_snapshot(facts: RuntimeFacts) -> dict[str, Any]:
     }
 
 
+def _expected_day15_candidate_snapshot(facts: RuntimeFacts) -> dict[str, Any]:
+    return {
+        "status": DAY15_CANDIDATE_STATUS,
+        "start_commit": DAY15_START_COMMIT,
+        "m1_commit": DAY15_M1_COMMIT,
+        "commit": DAY15_M2_COMMIT,
+        "primary_agent_count": facts.primary_agent_count,
+        "registered_tool_count": facts.registered_tool_count,
+        "canonical_tools": list(facts.canonical_tools),
+        "final_tool_cap": facts.final_tool_cap,
+        "bedrock_model_id": facts.model_id,
+        "bedrock_region": facts.region,
+        "strands_version": facts.strands_version,
+        "strands_requirement": facts.strands_requirement,
+        "day15_gate_ids": list(facts.day15_gate_ids),
+    }
+
+
 def _validate_schema(document: dict[str, Any]) -> tuple[str, ...]:
     reasons: list[str] = []
     if set(document) != _TOP_LEVEL_FIELDS:
@@ -901,8 +1038,34 @@ def _validate_schema(document: dict[str, Any]) -> tuple[str, ...]:
         )
         if not snapshot_types_valid:
             reasons.append("SNAPSHOT_TYPE_DRIFT")
+    candidate = document.get("day15_candidate_snapshot")
+    if not isinstance(candidate, dict) or set(candidate) != _DAY15_CANDIDATE_FIELDS:
+        reasons.append("DAY15_CANDIDATE_SCHEMA_DRIFT")
+    else:
+        candidate_types_valid = (
+            isinstance(candidate.get("status"), str)
+            and isinstance(candidate.get("start_commit"), str)
+            and isinstance(candidate.get("m1_commit"), str)
+            and isinstance(candidate.get("commit"), str)
+            and type(candidate.get("primary_agent_count")) is int
+            and type(candidate.get("registered_tool_count")) is int
+            and isinstance(candidate.get("canonical_tools"), list)
+            and all(isinstance(tool, str) for tool in candidate["canonical_tools"])
+            and type(candidate.get("final_tool_cap")) is int
+            and isinstance(candidate.get("bedrock_model_id"), str)
+            and isinstance(candidate.get("bedrock_region"), str)
+            and isinstance(candidate.get("strands_version"), str)
+            and isinstance(candidate.get("strands_requirement"), str)
+            and isinstance(candidate.get("day15_gate_ids"), list)
+            and all(
+                isinstance(gate_id, str)
+                for gate_id in candidate["day15_gate_ids"]
+            )
+        )
+        if not candidate_types_valid:
+            reasons.append("DAY15_CANDIDATE_TYPE_DRIFT")
     claims = document.get("claims")
-    if not isinstance(claims, list) or len(claims) < 16:
+    if not isinstance(claims, list) or len(claims) != len(_REQUIRED_CLAIM_IDS):
         reasons.append("CLAIM_COUNT_INVALID")
         claims = []
     receipts = document.get("live_receipts")
@@ -980,6 +1143,47 @@ def _validate_snapshot(
     return tuple(reasons)
 
 
+def _validate_day15_candidate_snapshot(
+    snapshot: object,
+    facts: RuntimeFacts,
+    root: Path,
+) -> tuple[str, ...]:
+    if not isinstance(snapshot, dict):
+        return ("DAY15_CANDIDATE_UNAVAILABLE",)
+    reasons: list[str] = []
+    if (
+        DAY15_START_COMMIT != _FROZEN_DAY15_START_COMMIT
+        or DAY15_M1_COMMIT != _FROZEN_DAY15_M1_COMMIT
+        or DAY15_M2_COMMIT != _FROZEN_DAY15_M2_COMMIT
+        or DAY15_CANDIDATE_STATUS != _FROZEN_DAY15_CANDIDATE_STATUS
+    ):
+        reasons.append("DAY15_ANCHOR_CONSTANT_DRIFT")
+    if snapshot != _expected_day15_candidate_snapshot(facts):
+        reasons.append("DAY15_CANDIDATE_SNAPSHOT_DRIFT")
+    try:
+        frozen_gate_ids = collect_frozen_day15_gate_ids(root)
+    except (OSError, ValueError, SyntaxError):
+        reasons.append("DAY15_FROZEN_GATE_SOURCE_INVALID")
+    else:
+        if frozen_gate_ids != _FROZEN_DAY15_GATE_IDS:
+            reasons.append("DAY15_FROZEN_GATE_ID_DRIFT")
+        if facts.day15_gate_ids != frozen_gate_ids:
+            reasons.append("DAY15_GATE_ID_DRIFT")
+    if facts.day15_gate_ids != _FROZEN_DAY15_GATE_IDS:
+        reasons.append("DAY15_GATE_ID_DRIFT")
+    return tuple(reasons)
+
+
+def _expected_claim_anchor(claim_id: str) -> str | None:
+    if claim_id in _FROZEN_L1_CLAIM_IDS:
+        return _FROZEN_L1_COMMIT
+    if claim_id in _DAY15_M1_CLAIM_IDS:
+        return _FROZEN_DAY15_M1_COMMIT
+    if claim_id in _DAY15_M2_CLAIM_IDS:
+        return _FROZEN_DAY15_M2_COMMIT
+    return None
+
+
 def _validate_claims(
     document: dict[str, Any],
     root: Path,
@@ -995,9 +1199,18 @@ def _validate_claims(
         reasons.append("CLAIM_ORDER_DRIFT")
     if len(ids) != len(set(map(str, ids))):
         reasons.append("DUPLICATE_CLAIM_ID")
-    if not _REQUIRED_CLAIM_IDS.issubset(set(ids)):
-        reasons.append("REQUIRED_CLAIM_MISSING")
-    gate_ids = set(facts.p0_gate_ids + facts.p1_gate_ids)
+    observed_ids = {claim_id for claim_id in ids if isinstance(claim_id, str)}
+    if observed_ids != _REQUIRED_CLAIM_IDS or len(ids) != len(_REQUIRED_CLAIM_IDS):
+        reasons.append("REQUIRED_CLAIM_SET_DRIFT")
+    anchored_ids = _FROZEN_L1_CLAIM_IDS | _DAY15_M1_CLAIM_IDS | _DAY15_M2_CLAIM_IDS
+    if (
+        anchored_ids != _REQUIRED_CLAIM_IDS
+        or _FROZEN_L1_CLAIM_IDS & _DAY15_M1_CLAIM_IDS
+        or _FROZEN_L1_CLAIM_IDS & _DAY15_M2_CLAIM_IDS
+        or _DAY15_M1_CLAIM_IDS & _DAY15_M2_CLAIM_IDS
+    ):
+        reasons.append("CLAIM_ANCHOR_BASELINE_INVALID")
+    gate_ids = set(facts.p0_gate_ids + facts.p1_gate_ids + facts.day15_gate_ids)
     cache: dict[tuple[str, str], str | None] = {}
 
     for claim in claims:
@@ -1018,7 +1231,10 @@ def _validate_claims(
         if not isinstance(commit, str) or _COMMIT.fullmatch(commit) is None:
             reasons.append("COMMIT_ANCHOR_INVALID")
             commit = EVIDENCE_SNAPSHOT_COMMIT
-        elif commit != EVIDENCE_SNAPSHOT_COMMIT:
+        expected_anchor = (
+            _expected_claim_anchor(claim_id) if isinstance(claim_id, str) else None
+        )
+        if expected_anchor is None or commit != expected_anchor:
             reasons.append("CLAIM_COMMIT_ANCHOR_DRIFT")
         expected_hash = claim_hash(claim)
         if claim.get("hash") != expected_hash or _SHA256.fullmatch(str(claim.get("hash"))) is None:
@@ -1048,7 +1264,7 @@ def _validate_claims(
         ):
             reasons.append("PROVEN_CLAIM_WITHOUT_PROOF")
         for node in nodes:
-            if node.startswith(("P0-", "P1-")):
+            if node.startswith(("P0-", "P1-", "D15-G")):
                 if node not in gate_ids:
                     reasons.append("GATE_ID_MISSING")
             else:
@@ -1312,6 +1528,56 @@ def _validate_git_anchors(
     ancestor = _git(root, "merge-base", "--is-ancestor", EVIDENCE_SNAPSHOT_COMMIT, "HEAD")
     if ancestor.returncode != 0:
         reasons.append("EVIDENCE_SNAPSHOT_NOT_ANCESTOR")
+    day15_commits = (
+        _FROZEN_DAY15_START_COMMIT,
+        _FROZEN_DAY15_M1_COMMIT,
+        _FROZEN_DAY15_M2_COMMIT,
+    )
+    for commit in day15_commits:
+        exists = _git(root, "cat-file", "-e", f"{commit}^{{commit}}")
+        if exists.returncode != 0:
+            reasons.append("DAY15_COMMIT_MISSING")
+    baseline_to_start = _git(
+        root,
+        "merge-base",
+        "--is-ancestor",
+        _FROZEN_L1_COMMIT,
+        _FROZEN_DAY15_START_COMMIT,
+    )
+    m2_to_head = _git(
+        root,
+        "merge-base",
+        "--is-ancestor",
+        _FROZEN_DAY15_M2_COMMIT,
+        "HEAD",
+    )
+    m1_parents = _git(
+        root,
+        "rev-list",
+        "--parents",
+        "-n",
+        "1",
+        _FROZEN_DAY15_M1_COMMIT,
+    )
+    m2_parents = _git(
+        root,
+        "rev-list",
+        "--parents",
+        "-n",
+        "1",
+        _FROZEN_DAY15_M2_COMMIT,
+    )
+    if (
+        baseline_to_start.returncode != 0
+        or m2_to_head.returncode != 0
+        or m1_parents.returncode != 0
+        or m1_parents.stdout.split()
+        != [_FROZEN_DAY15_M1_COMMIT, _FROZEN_DAY15_START_COMMIT]
+        or m2_parents.returncode != 0
+        or m2_parents.stdout.split()
+        != [_FROZEN_DAY15_M2_COMMIT, _FROZEN_DAY15_M1_COMMIT]
+    ):
+        reasons.append("DAY15_ANCHOR_CHAIN_DRIFT")
     tag = _git(root, "rev-parse", f"refs/tags/{facts.phase1_tag_name}^{{}}")
     if tag.returncode != 0 or tag.stdout.strip() != facts.phase1_tag_commit:
         reasons.append("PHASE1_TAG_DRIFT")
@@ -1354,8 +1620,23 @@ def _validate_git_anchors(
             if not isinstance(commit, str) or _COMMIT.fullmatch(commit) is None:
                 continue
             exists = _git(root, "cat-file", "-e", f"{commit}^{{commit}}")
-            history = _git(root, "merge-base", "--is-ancestor", commit, EVIDENCE_SNAPSHOT_COMMIT)
-            if exists.returncode != 0 or history.returncode != 0:
+            history = _git(
+                root,
+                "merge-base",
+                "--is-ancestor",
+                commit,
+                _FROZEN_DAY15_M2_COMMIT,
+            )
+            if (
+                commit
+                not in {
+                    _FROZEN_L1_COMMIT,
+                    _FROZEN_DAY15_M1_COMMIT,
+                    _FROZEN_DAY15_M2_COMMIT,
+                }
+                or exists.returncode != 0
+                or history.returncode != 0
+            ):
                 reasons.append("CLAIM_COMMIT_ANCHOR_DRIFT")
     return tuple(reasons)
 
@@ -1380,6 +1661,13 @@ def validate_manifest(
                 document.get("evidence_snapshot"),
                 current_facts,
                 frozen_facts,
+            )
+        )
+        reasons.extend(
+            _validate_day15_candidate_snapshot(
+                document.get("day15_candidate_snapshot"),
+                current_facts,
+                root,
             )
         )
         reasons.extend(_validate_claims(document, root, current_facts))
@@ -1442,9 +1730,20 @@ def main() -> int:
     parser.add_argument("--json", action="store_true", help="emit stable machine output")
     args = parser.parse_args()
     reasons = validate_generated_files()
+    claim_count = 0
+    receipt_count = 0
+    if not reasons:
+        try:
+            document = load_manifest()
+            claims = document.get("claims")
+            receipts = document.get("live_receipts")
+            claim_count = len(claims) if isinstance(claims, list) else 0
+            receipt_count = len(receipts) if isinstance(receipts, list) else 0
+        except (OSError, ValueError, UnicodeDecodeError, json.JSONDecodeError):
+            reasons = ("MANIFEST_JSON_UNREADABLE",)
     payload = {
         "status": "PASS" if not reasons else "FAIL",
-        "claim_count": 19 if not reasons else 0,
+        "claim_count": claim_count if not reasons else 0,
         "reasons": list(reasons),
     }
     if args.json:
@@ -1452,7 +1751,10 @@ def main() -> int:
     elif reasons:
         print(f"EVIDENCE_VALIDATE FAIL reasons={','.join(reasons)}")
     else:
-        print("EVIDENCE_VALIDATE PASS claims=19 live_receipts=0")
+        print(
+            f"EVIDENCE_VALIDATE PASS claims={claim_count} "
+            f"live_receipts={receipt_count}"
+        )
     return 0 if not reasons else 1
 
 

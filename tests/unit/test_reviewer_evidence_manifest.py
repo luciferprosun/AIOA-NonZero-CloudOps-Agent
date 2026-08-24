@@ -11,6 +11,10 @@ import pytest
 import scripts.build_reviewer_evidence_manifest as builder
 import scripts.validate_reviewer_evidence_manifest as validator
 from scripts.build_reviewer_evidence_manifest import (
+    DAY15_M1_COMMIT,
+    DAY15_M2_COMMIT,
+    DAY15_START_COMMIT,
+    EVIDENCE_SNAPSHOT_COMMIT,
     EXPECTED_STRANDS_REQUIREMENT,
     JSON_PATH,
     MARKDOWN_PATH,
@@ -57,7 +61,7 @@ def _seal(document: dict[str, object]) -> dict[str, object]:
 def test_fresh_reviewer_manifest_build_and_validation_pass() -> None:
     manifest = build_manifest()
 
-    assert len(manifest["claims"]) == 19
+    assert len(manifest["claims"]) == 26
     assert canonical_manifest_bytes(manifest) == JSON_PATH.read_bytes()
     assert render_markdown(manifest) == MARKDOWN_PATH.read_text(encoding="utf-8")
     assert render_evidence_readme() == README_PATH.read_text(encoding="utf-8")
@@ -78,7 +82,7 @@ def test_fresh_reviewer_manifest_build_and_validation_pass() -> None:
     )
     assert result.returncode == 0
     assert json.loads(result.stdout) == {
-        "claim_count": 19,
+        "claim_count": 26,
         "reason": "",
         "status": "PASS",
     }
@@ -585,6 +589,81 @@ def test_changed_but_ancestral_claim_commit_anchor_is_rejected() -> None:
     _seal(manifest)
 
     assert "CLAIM_COMMIT_ANCHOR_DRIFT" in validate_manifest(manifest)
+
+
+def test_day15_candidate_and_claim_anchors_are_exact_pre_m3_objects() -> None:
+    manifest = build_manifest()
+    candidate = manifest["day15_candidate_snapshot"]
+    assert isinstance(candidate, dict)
+    assert candidate == {
+        "bedrock_model_id": "eu.amazon.nova-2-lite-v1:0",
+        "bedrock_region": "eu-central-1",
+        "canonical_tools": [
+            "inspect_instance",
+            "read_utilization_metrics",
+            "build_remediation_evidence",
+            "stop_sandbox_instance",
+            "verify_instance_state",
+        ],
+        "commit": DAY15_M2_COMMIT,
+        "day15_gate_ids": [f"D15-G{index:02d}" for index in range(1, 11)],
+        "final_tool_cap": 5,
+        "m1_commit": DAY15_M1_COMMIT,
+        "primary_agent_count": 1,
+        "registered_tool_count": 5,
+        "start_commit": DAY15_START_COMMIT,
+        "status": "LOCAL_IMPLEMENTATION_CANDIDATE",
+        "strands_requirement": "strands-agents[otel]==1.53.0",
+        "strands_version": "1.53.0",
+    }
+    claims = manifest["claims"]
+    assert isinstance(claims, list)
+    anchors = {
+        claim["commit_anchor"] for claim in claims if isinstance(claim, dict)
+    }
+    assert anchors == {
+        EVIDENCE_SNAPSHOT_COMMIT,
+        DAY15_M1_COMMIT,
+        DAY15_M2_COMMIT,
+    }
+    assert _claim(manifest, "LIVE-EC2-01")["commit_anchor"] == EVIDENCE_SNAPSHOT_COMMIT
+    assert manifest["evidence_snapshot"]["commit"] == EVIDENCE_SNAPSHOT_COMMIT
+    assert _claim(manifest, "PRIOR-ART-HISTORY-01")["proof_nodes"] == ["P0-15"]
+
+
+def test_day15_anchor_chain_is_exact_single_parent_history() -> None:
+    def parents(commit: str) -> list[str]:
+        result = subprocess.run(
+            ["git", "rev-list", "--parents", "-n", "1", commit],
+            cwd=ROOT,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        return result.stdout.split()
+
+    assert parents(DAY15_M1_COMMIT) == [DAY15_M1_COMMIT, DAY15_START_COMMIT]
+    assert parents(DAY15_M2_COMMIT) == [DAY15_M2_COMMIT, DAY15_M1_COMMIT]
+    assert validator.collect_frozen_day15_gate_ids() == tuple(
+        f"D15-G{index:02d}" for index in range(1, 11)
+    )
+
+
+def test_day15_candidate_anchor_or_gate_rewrite_is_rejected() -> None:
+    anchor_drift = deepcopy(build_manifest())
+    candidate = anchor_drift["day15_candidate_snapshot"]
+    assert isinstance(candidate, dict)
+    candidate["commit"] = DAY15_M1_COMMIT
+    _seal(anchor_drift)
+
+    gate_drift = deepcopy(build_manifest())
+    candidate = gate_drift["day15_candidate_snapshot"]
+    assert isinstance(candidate, dict)
+    candidate["day15_gate_ids"] = ["D15-G01"]
+    _seal(gate_drift)
+
+    assert "DAY15_CANDIDATE_SNAPSHOT_DRIFT" in validate_manifest(anchor_drift)
+    assert "DAY15_CANDIDATE_SNAPSHOT_DRIFT" in validate_manifest(gate_drift)
 
 
 def test_synthetic_future_live_receipt_is_rejected(
