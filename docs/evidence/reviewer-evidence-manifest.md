@@ -3,10 +3,10 @@
 This judge-facing view is generated from the canonical JSON. It is reviewer proof, not runtime authority.
 
 - Frozen Phase 1 / Day 14 snapshot: `fbb536400594306f2bb3abd31c7064a66735c82d`
-- Day 15 local candidate snapshot: `3464bc869e7a11acb5aab61ae279cf196a1ebd0f` (`LOCAL_IMPLEMENTATION_CANDIDATE`)
-- Day 15 additive recovery lineage: `aa941a989a8b8cd0e40367bb130472e9f3c082a7` -> `17d5f4637dbd69a33eff1cbb46282c36b19ce6ad` -> `8e4583ac9341cb7b66de47cf0e7b2a442ac67b32` -> `30c2a30cda0ac6d6e2003166daf6c29bf2c764f0` -> `f2ee79c09ba174ba72cb527b70c095f412151758` -> `36fd17df981dfa593d4e63f6a143410317410763` -> `ce35a67f6491ea92aeef534d0dc4f5dc4a8da7ff` -> `5a6127f43a9251a72203c0eb6c7a903d817599f7` -> `3464bc869e7a11acb5aab61ae279cf196a1ebd0f`
+- Day 15 local candidate snapshot: `5e1904408d402c1e6492d6b2e153a7f1a5c56b58` (`LOCAL_IMPLEMENTATION_CANDIDATE`)
+- Day 15 additive recovery lineage: `aa941a989a8b8cd0e40367bb130472e9f3c082a7` -> `17d5f4637dbd69a33eff1cbb46282c36b19ce6ad` -> `8e4583ac9341cb7b66de47cf0e7b2a442ac67b32` -> `30c2a30cda0ac6d6e2003166daf6c29bf2c764f0` -> `f2ee79c09ba174ba72cb527b70c095f412151758` -> `36fd17df981dfa593d4e63f6a143410317410763` -> `ce35a67f6491ea92aeef534d0dc4f5dc4a8da7ff` -> `5a6127f43a9251a72203c0eb6c7a903d817599f7` -> `3464bc869e7a11acb5aab61ae279cf196a1ebd0f` -> `41ba5586180e9aa3a25fc5469d42815073a0bbf8` -> `858770d5e5c7b59fa883cc56e06f4a9e915d70c1` -> `5e1904408d402c1e6492d6b2e153a7f1a5c56b58`
 - Day 15 gates: `D15-G01, D15-G02, D15-G03, D15-G04, D15-G05, D15-G06, D15-G07, D15-G08, D15-G09, D15-G10`
-- Manifest SHA-256: `dbdebd918901bfb51a74f6fd0bd2d42c06c298387a88b59fafdd5f69732fc99e`
+- Manifest SHA-256: `1e61b36045bd900ca8104ca19580b2264d3bc9606059a0dc31a7e299c52ce8cd`
 - Primary agents: `1`
 - Canonical tools: `inspect_instance, read_utilization_metrics, build_remediation_evidence, stop_sandbox_instance, verify_instance_state`
 - Bedrock model: `eu.amazon.nova-2-lite-v1:0` in `eu-central-1`
@@ -132,7 +132,7 @@ A fresh Agent runtime can restore a durable native interrupt using trusted princ
 The Day 15 controller implements candidate-bound G10 closure with exact private-contract selection, a fixed read-only AWS-operation allowlist, bound private and sanitized receipts, and ten fail-closed local gates that never authorize deployment.
 
 - Status / kind / scope: `PROVEN` / `TEST` / `Local deterministic`
-- Commit anchor: `3464bc869e7a11acb5aab61ae279cf196a1ebd0f`
+- Commit anchor: `5e1904408d402c1e6492d6b2e153a7f1a5c56b58`
 - Authority source:
   - `scripts/day15/g10_aws_preflight.py::observe_aws_preflight`
   - `scripts/day15/g10_aws_preflight.py::validate_private_observation_receipt`
@@ -161,7 +161,7 @@ The Day 15 controller implements candidate-bound G10 closure with exact private-
   - `tests/unit/test_day15_g10_closure.py::test_no_private_binding_is_blocked_and_performs_no_aws_call`
   - `tests/unit/test_day15_gate.py::test_gate_matrix_has_exact_stable_ids_status_vocabulary_and_validate_only_output`
 - Limitations: Proves candidate and receipt binding plus bounded adapter behavior with local fakes. No AWS API call, external-prerequisite success, change set, or deployment is attested.
-- Claim SHA-256: `8d822ba861550e78b0169d48d0babb9bdc5f51cba40ff8cfe4d856ffb64b2f08`
+- Claim SHA-256: `12de3664686023bcf183d1d0c22686fb02445cf28f65e25785fbab026f8af623`
 
 ### DAY15-JUDGE-SURFACE-01
 

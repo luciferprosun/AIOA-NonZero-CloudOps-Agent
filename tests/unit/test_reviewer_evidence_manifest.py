@@ -13,7 +13,10 @@ import scripts.build_reviewer_evidence_manifest as builder
 import scripts.validate_reviewer_evidence_manifest as validator
 from scripts.build_reviewer_evidence_manifest import (
     DAY15_FINAL_BLOCKER_COMMIT,
+    DAY15_G10_BLOCKER_COMMIT,
     DAY15_G10_COMMIT,
+    DAY15_G10_EVIDENCE_COMMIT,
+    DAY15_G10_IMPLEMENTATION_COMMIT,
     DAY15_M1_COMMIT,
     DAY15_M2_COMMIT,
     DAY15_ORIGINAL_M1_COMMIT,
@@ -709,7 +712,16 @@ def test_day15_anchor_chain_preserves_every_recovery_commit_as_single_parent_his
         DAY15_M2_COMMIT,
         DAY15_FINAL_BLOCKER_COMMIT,
         DAY15_SECRET_FIX_COMMIT,
+        DAY15_G10_IMPLEMENTATION_COMMIT,
+        DAY15_G10_EVIDENCE_COMMIT,
+        DAY15_G10_BLOCKER_COMMIT,
         DAY15_G10_COMMIT,
+    )
+    assert DAY15_RECOVERY_LINEAGE[-4:] == (
+        "3464bc869e7a11acb5aab61ae279cf196a1ebd0f",
+        "41ba5586180e9aa3a25fc5469d42815073a0bbf8",
+        "858770d5e5c7b59fa883cc56e06f4a9e915d70c1",
+        "5e1904408d402c1e6492d6b2e153a7f1a5c56b58",
     )
     for parent, child in pairwise(DAY15_RECOVERY_LINEAGE):
         assert parents(child) == [child, parent]

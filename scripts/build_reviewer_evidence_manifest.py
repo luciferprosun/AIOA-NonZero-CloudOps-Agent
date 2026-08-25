@@ -50,7 +50,10 @@ DAY15_M1_COMMIT = "f2ee79c09ba174ba72cb527b70c095f412151758"
 DAY15_M2_COMMIT = "36fd17df981dfa593d4e63f6a143410317410763"
 DAY15_FINAL_BLOCKER_COMMIT = "ce35a67f6491ea92aeef534d0dc4f5dc4a8da7ff"
 DAY15_SECRET_FIX_COMMIT = "5a6127f43a9251a72203c0eb6c7a903d817599f7"
-DAY15_G10_COMMIT = "3464bc869e7a11acb5aab61ae279cf196a1ebd0f"
+DAY15_G10_IMPLEMENTATION_COMMIT = "3464bc869e7a11acb5aab61ae279cf196a1ebd0f"
+DAY15_G10_EVIDENCE_COMMIT = "41ba5586180e9aa3a25fc5469d42815073a0bbf8"
+DAY15_G10_BLOCKER_COMMIT = "858770d5e5c7b59fa883cc56e06f4a9e915d70c1"
+DAY15_G10_COMMIT = "5e1904408d402c1e6492d6b2e153a7f1a5c56b58"
 DAY15_RECOVERY_LINEAGE = (
     DAY15_START_COMMIT,
     DAY15_ORIGINAL_M1_COMMIT,
@@ -60,6 +63,9 @@ DAY15_RECOVERY_LINEAGE = (
     DAY15_M2_COMMIT,
     DAY15_FINAL_BLOCKER_COMMIT,
     DAY15_SECRET_FIX_COMMIT,
+    DAY15_G10_IMPLEMENTATION_COMMIT,
+    DAY15_G10_EVIDENCE_COMMIT,
+    DAY15_G10_BLOCKER_COMMIT,
     DAY15_G10_COMMIT,
 )
 DAY15_CANDIDATE_STATUS = "LOCAL_IMPLEMENTATION_CANDIDATE"
@@ -829,7 +835,7 @@ From the repository root in the documented development environment:
 .venv/bin/python scripts/validate_reviewer_evidence_manifest.py
 ```
 
-The immutable Phase 1 / Day 14 baseline remains anchored to `{EVIDENCE_SNAPSHOT_COMMIT}`. Unchanged Day 15 M1 claims remain at their original reviewed commit `{DAY15_ORIGINAL_M1_COMMIT}`; recovered telemetry, cold-resume, runtime-guard, and approval-binding claims use `{DAY15_M1_COMMIT}`; historical release-safety evidence remains at `{DAY15_M2_COMMIT}`; and current candidate-bound G10 authority is anchored to `{DAY15_G10_COMMIT}`. The preserved additive lineage, in order, is `{DAY15_START_COMMIT}`, then `{DAY15_ORIGINAL_M1_COMMIT}`, `{DAY15_ORIGINAL_M2_COMMIT}`, `{DAY15_ORIGINAL_M3_COMMIT}`, `{DAY15_M1_COMMIT}`, `{DAY15_M2_COMMIT}`, `{DAY15_FINAL_BLOCKER_COMMIT}`, `{DAY15_SECRET_FIX_COMMIT}`, and `{DAY15_G10_COMMIT}`. The candidate snapshot is deliberately `LOCAL_IMPLEMENTATION_CANDIDATE`; it records no live AWS observation, change set, or deployment. The builder never derives an anchor from changing `HEAD`, and a later evidence-only commit is never an anchor, avoiding a self-referential commit hash.
+The immutable Phase 1 / Day 14 baseline remains anchored to `{EVIDENCE_SNAPSHOT_COMMIT}`. Unchanged Day 15 M1 claims remain at their original reviewed commit `{DAY15_ORIGINAL_M1_COMMIT}`; recovered telemetry, cold-resume, runtime-guard, and approval-binding claims use `{DAY15_M1_COMMIT}`; historical release-safety evidence remains at `{DAY15_M2_COMMIT}`; and current candidate-bound G10 authority is anchored to `{DAY15_G10_COMMIT}`. The preserved additive lineage, in order, is `{DAY15_START_COMMIT}`, then `{DAY15_ORIGINAL_M1_COMMIT}`, `{DAY15_ORIGINAL_M2_COMMIT}`, `{DAY15_ORIGINAL_M3_COMMIT}`, `{DAY15_M1_COMMIT}`, `{DAY15_M2_COMMIT}`, `{DAY15_FINAL_BLOCKER_COMMIT}`, `{DAY15_SECRET_FIX_COMMIT}`, `{DAY15_G10_IMPLEMENTATION_COMMIT}`, `{DAY15_G10_EVIDENCE_COMMIT}`, `{DAY15_G10_BLOCKER_COMMIT}`, and `{DAY15_G10_COMMIT}`. The candidate snapshot is deliberately `LOCAL_IMPLEMENTATION_CANDIDATE`; it records no live AWS observation, change set, or deployment. The builder never derives an anchor from changing `HEAD`, and a later evidence-only commit is never an anchor, avoiding a self-referential commit hash.
 
 ## Canonical model
 

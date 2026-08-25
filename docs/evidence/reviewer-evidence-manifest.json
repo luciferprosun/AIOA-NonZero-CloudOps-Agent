@@ -108,9 +108,9 @@
       ],
       "claim": "The Day 15 controller implements candidate-bound G10 closure with exact private-contract selection, a fixed read-only AWS-operation allowlist, bound private and sanitized receipts, and ten fail-closed local gates that never authorize deployment.",
       "claim_id": "DAY15-DEPLOYMENT-GATE-01",
-      "commit_anchor": "3464bc869e7a11acb5aab61ae279cf196a1ebd0f",
+      "commit_anchor": "5e1904408d402c1e6492d6b2e153a7f1a5c56b58",
       "evidence_kind": "TEST",
-      "hash": "8d822ba861550e78b0169d48d0babb9bdc5f51cba40ff8cfe4d856ffb64b2f08",
+      "hash": "12de3664686023bcf183d1d0c22686fb02445cf28f65e25785fbab026f8af623",
       "limitations": "Proves candidate and receipt binding plus bounded adapter behavior with local fakes. No AWS API call, external-prerequisite success, change set, or deployment is attested.",
       "proof_nodes": [
         "D15-G01",
@@ -543,7 +543,7 @@
       "stop_sandbox_instance",
       "verify_instance_state"
     ],
-    "commit": "3464bc869e7a11acb5aab61ae279cf196a1ebd0f",
+    "commit": "5e1904408d402c1e6492d6b2e153a7f1a5c56b58",
     "day15_gate_ids": [
       "D15-G01",
       "D15-G02",
@@ -608,6 +608,6 @@
     "strands_version": "1.53.0"
   },
   "live_receipts": [],
-  "manifest_hash": "dbdebd918901bfb51a74f6fd0bd2d42c06c298387a88b59fafdd5f69732fc99e",
+  "manifest_hash": "1e61b36045bd900ca8104ca19580b2264d3bc9606059a0dc31a7e299c52ce8cd",
   "schema_version": "2.0"
 }
