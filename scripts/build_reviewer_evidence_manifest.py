@@ -53,7 +53,9 @@ DAY15_SECRET_FIX_COMMIT = "5a6127f43a9251a72203c0eb6c7a903d817599f7"
 DAY15_G10_IMPLEMENTATION_COMMIT = "3464bc869e7a11acb5aab61ae279cf196a1ebd0f"
 DAY15_G10_EVIDENCE_COMMIT = "41ba5586180e9aa3a25fc5469d42815073a0bbf8"
 DAY15_G10_BLOCKER_COMMIT = "858770d5e5c7b59fa883cc56e06f4a9e915d70c1"
-DAY15_G10_COMMIT = "5e1904408d402c1e6492d6b2e153a7f1a5c56b58"
+DAY15_NOVA_PROBE_FIX_COMMIT = "5e1904408d402c1e6492d6b2e153a7f1a5c56b58"
+DAY15_G10_REANCHOR_COMMIT = "99f70c43a26ce9715e9b57fde81ca265382dd5f2"
+DAY15_G10_COMMIT = "197db56f828b8ab0b9139a1d3708fb8a58ca336a"
 DAY15_RECOVERY_LINEAGE = (
     DAY15_START_COMMIT,
     DAY15_ORIGINAL_M1_COMMIT,
@@ -66,6 +68,8 @@ DAY15_RECOVERY_LINEAGE = (
     DAY15_G10_IMPLEMENTATION_COMMIT,
     DAY15_G10_EVIDENCE_COMMIT,
     DAY15_G10_BLOCKER_COMMIT,
+    DAY15_NOVA_PROBE_FIX_COMMIT,
+    DAY15_G10_REANCHOR_COMMIT,
     DAY15_G10_COMMIT,
 )
 DAY15_CANDIDATE_STATUS = "LOCAL_IMPLEMENTATION_CANDIDATE"
@@ -459,12 +463,16 @@ def build_claims() -> list[dict[str, Any]]:
         ),
         _claim(
             "DAY15-DEPLOYMENT-GATE-01",
-            "The Day 15 controller implements candidate-bound G10 closure with exact private-contract selection, a fixed read-only AWS-operation allowlist, bound private and sanitized receipts, and ten fail-closed local gates that never authorize deployment.",
+            "The Day 15 controller implements candidate-bound G10 closure and a protected exact-role authority bootstrap with deterministic source selection, bounded identity and one-role-assumption verification, append-only alias construction, closed private and sanitized receipts, a fixed read-only preflight allowlist, and ten fail-closed local gates that never authorize deployment.",
             "TEST",
             (
                 "scripts/day15/g10_aws_preflight.py::observe_aws_preflight",
                 "scripts/day15/g10_aws_preflight.py::validate_private_observation_receipt",
                 "scripts/day15/g10_candidate.py::build_candidate_descriptor",
+                "scripts/day15/g10_operator_bootstrap.py::run_authority_bootstrap",
+                "scripts/day15/g10_operator_bootstrap.py::select_source_profile",
+                "scripts/day15/g10_operator_bootstrap.py::validate_private_authority_receipt",
+                "scripts/day15/g10_operator_bootstrap.py::validate_sanitized_authority_receipt",
                 "scripts/day15/run_g10_closure.py::run_closure",
                 "scripts/day15/run_g10_closure.py::validate_sanitized_receipt",
                 "scripts/day15/run_day15_gate.py::GATES",
@@ -485,11 +493,27 @@ def build_claims() -> list[dict[str, Any]]:
                 "test_day15_g10_rejects_stale_authenticated_receipt",
                 "tests/unit/test_day15_g10_closure.py::"
                 "test_no_private_binding_is_blocked_and_performs_no_aws_call",
+                "tests/unit/test_day15_g10_operator_bootstrap.py::"
+                "test_select_source_profile_is_explicit_or_uniquely_deterministic",
+                "tests/unit/test_day15_g10_operator_bootstrap.py::"
+                "test_assumable_exact_role_creates_and_reverifies_zero_authority_alias",
+                "tests/unit/test_day15_g10_operator_bootstrap.py::"
+                "test_root_source_principal_is_never_substituted_for_the_role",
+                "tests/unit/test_day15_g10_operator_bootstrap.py::"
+                "test_unassumable_role_is_sanitized_blocked_and_never_writes_alias",
+                "tests/unit/test_day15_g10_operator_bootstrap.py::"
+                "test_public_and_private_receipt_schemas_reject_unknown_fields",
+                "tests/unit/test_day15_g10_operator_bootstrap.py::"
+                "test_endpoint_override_environment_blocks_before_session_creation",
+                "tests/unit/test_day15_g10_operator_bootstrap.py::"
+                "test_repository_guard_requires_main_origin_clean_and_phase1_tag",
+                "tests/unit/test_day15_g10_operator_bootstrap.py::"
+                "test_default_factories_bound_nested_credential_provider_clients",
                 "tests/unit/test_day15_gate.py::"
                 "test_gate_matrix_has_exact_stable_ids_status_vocabulary_and_validate_only_output",
             ),
             commit_anchor=DAY15_G10_COMMIT,
-            limitations="Proves candidate and receipt binding plus bounded adapter behavior with local fakes. No AWS API call, external-prerequisite success, change set, or deployment is attested.",
+            limitations="Proves candidate and receipt binding plus protected bootstrap and bounded adapter behavior with local fakes. No AWS API call, exact-role success, external-prerequisite success, change set, or deployment is attested.",
         ),
         _claim(
             "DAY15-JUDGE-SURFACE-01",
@@ -835,7 +859,7 @@ From the repository root in the documented development environment:
 .venv/bin/python scripts/validate_reviewer_evidence_manifest.py
 ```
 
-The immutable Phase 1 / Day 14 baseline remains anchored to `{EVIDENCE_SNAPSHOT_COMMIT}`. Unchanged Day 15 M1 claims remain at their original reviewed commit `{DAY15_ORIGINAL_M1_COMMIT}`; recovered telemetry, cold-resume, runtime-guard, and approval-binding claims use `{DAY15_M1_COMMIT}`; historical release-safety evidence remains at `{DAY15_M2_COMMIT}`; and current candidate-bound G10 authority is anchored to `{DAY15_G10_COMMIT}`. The preserved additive lineage, in order, is `{DAY15_START_COMMIT}`, then `{DAY15_ORIGINAL_M1_COMMIT}`, `{DAY15_ORIGINAL_M2_COMMIT}`, `{DAY15_ORIGINAL_M3_COMMIT}`, `{DAY15_M1_COMMIT}`, `{DAY15_M2_COMMIT}`, `{DAY15_FINAL_BLOCKER_COMMIT}`, `{DAY15_SECRET_FIX_COMMIT}`, `{DAY15_G10_IMPLEMENTATION_COMMIT}`, `{DAY15_G10_EVIDENCE_COMMIT}`, `{DAY15_G10_BLOCKER_COMMIT}`, and `{DAY15_G10_COMMIT}`. The candidate snapshot is deliberately `LOCAL_IMPLEMENTATION_CANDIDATE`; it records no live AWS observation, change set, or deployment. The builder never derives an anchor from changing `HEAD`, and a later evidence-only commit is never an anchor, avoiding a self-referential commit hash.
+The immutable Phase 1 / Day 14 baseline remains anchored to `{EVIDENCE_SNAPSHOT_COMMIT}`. Unchanged Day 15 M1 claims remain at their original reviewed commit `{DAY15_ORIGINAL_M1_COMMIT}`; recovered telemetry, cold-resume, runtime-guard, and approval-binding claims use `{DAY15_M1_COMMIT}`; historical release-safety evidence remains at `{DAY15_M2_COMMIT}`; and current candidate-bound G10 authority is anchored to `{DAY15_G10_COMMIT}`. The preserved additive lineage, in order, is `{DAY15_START_COMMIT}`, then `{DAY15_ORIGINAL_M1_COMMIT}`, `{DAY15_ORIGINAL_M2_COMMIT}`, `{DAY15_ORIGINAL_M3_COMMIT}`, `{DAY15_M1_COMMIT}`, `{DAY15_M2_COMMIT}`, `{DAY15_FINAL_BLOCKER_COMMIT}`, `{DAY15_SECRET_FIX_COMMIT}`, `{DAY15_G10_IMPLEMENTATION_COMMIT}`, `{DAY15_G10_EVIDENCE_COMMIT}`, `{DAY15_G10_BLOCKER_COMMIT}`, `{DAY15_NOVA_PROBE_FIX_COMMIT}`, `{DAY15_G10_REANCHOR_COMMIT}`, and `{DAY15_G10_COMMIT}`. The candidate snapshot is deliberately `LOCAL_IMPLEMENTATION_CANDIDATE`; it records no live AWS observation, change set, or deployment. The builder never derives an anchor from changing `HEAD`, and a later evidence-only commit is never an anchor, avoiding a self-referential commit hash.
 
 ## Canonical model
 

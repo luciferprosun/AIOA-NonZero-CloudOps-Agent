@@ -100,18 +100,22 @@
         "scripts/day15/g10_aws_preflight.py::observe_aws_preflight",
         "scripts/day15/g10_aws_preflight.py::validate_private_observation_receipt",
         "scripts/day15/g10_candidate.py::build_candidate_descriptor",
+        "scripts/day15/g10_operator_bootstrap.py::run_authority_bootstrap",
+        "scripts/day15/g10_operator_bootstrap.py::select_source_profile",
+        "scripts/day15/g10_operator_bootstrap.py::validate_private_authority_receipt",
+        "scripts/day15/g10_operator_bootstrap.py::validate_sanitized_authority_receipt",
         "scripts/day15/run_day15_gate.py::GATES",
         "scripts/day15/run_day15_gate.py::_g10_candidate_receipt_result",
         "scripts/day15/run_day15_gate.py::run_gate",
         "scripts/day15/run_g10_closure.py::run_closure",
         "scripts/day15/run_g10_closure.py::validate_sanitized_receipt"
       ],
-      "claim": "The Day 15 controller implements candidate-bound G10 closure with exact private-contract selection, a fixed read-only AWS-operation allowlist, bound private and sanitized receipts, and ten fail-closed local gates that never authorize deployment.",
+      "claim": "The Day 15 controller implements candidate-bound G10 closure and a protected exact-role authority bootstrap with deterministic source selection, bounded identity and one-role-assumption verification, append-only alias construction, closed private and sanitized receipts, a fixed read-only preflight allowlist, and ten fail-closed local gates that never authorize deployment.",
       "claim_id": "DAY15-DEPLOYMENT-GATE-01",
-      "commit_anchor": "5e1904408d402c1e6492d6b2e153a7f1a5c56b58",
+      "commit_anchor": "197db56f828b8ab0b9139a1d3708fb8a58ca336a",
       "evidence_kind": "TEST",
-      "hash": "12de3664686023bcf183d1d0c22686fb02445cf28f65e25785fbab026f8af623",
-      "limitations": "Proves candidate and receipt binding plus bounded adapter behavior with local fakes. No AWS API call, external-prerequisite success, change set, or deployment is attested.",
+      "hash": "86cc24e7e13db2f2b0af3195a20c4b66c4c7bbed0be744df57e2ccfdb5eb161d",
+      "limitations": "Proves candidate and receipt binding plus protected bootstrap and bounded adapter behavior with local fakes. No AWS API call, exact-role success, external-prerequisite success, change set, or deployment is attested.",
       "proof_nodes": [
         "D15-G01",
         "D15-G02",
@@ -129,6 +133,14 @@
         "tests/unit/test_day15_g10_closure.py::test_day15_g10_accepts_only_candidate_bound_private_and_sanitized_pair",
         "tests/unit/test_day15_g10_closure.py::test_day15_g10_rejects_stale_authenticated_receipt",
         "tests/unit/test_day15_g10_closure.py::test_no_private_binding_is_blocked_and_performs_no_aws_call",
+        "tests/unit/test_day15_g10_operator_bootstrap.py::test_assumable_exact_role_creates_and_reverifies_zero_authority_alias",
+        "tests/unit/test_day15_g10_operator_bootstrap.py::test_default_factories_bound_nested_credential_provider_clients",
+        "tests/unit/test_day15_g10_operator_bootstrap.py::test_endpoint_override_environment_blocks_before_session_creation",
+        "tests/unit/test_day15_g10_operator_bootstrap.py::test_public_and_private_receipt_schemas_reject_unknown_fields",
+        "tests/unit/test_day15_g10_operator_bootstrap.py::test_repository_guard_requires_main_origin_clean_and_phase1_tag",
+        "tests/unit/test_day15_g10_operator_bootstrap.py::test_root_source_principal_is_never_substituted_for_the_role",
+        "tests/unit/test_day15_g10_operator_bootstrap.py::test_select_source_profile_is_explicit_or_uniquely_deterministic",
+        "tests/unit/test_day15_g10_operator_bootstrap.py::test_unassumable_role_is_sanitized_blocked_and_never_writes_alias",
         "tests/unit/test_day15_gate.py::test_gate_matrix_has_exact_stable_ids_status_vocabulary_and_validate_only_output"
       ],
       "scope": "Local deterministic",
@@ -543,7 +555,7 @@
       "stop_sandbox_instance",
       "verify_instance_state"
     ],
-    "commit": "5e1904408d402c1e6492d6b2e153a7f1a5c56b58",
+    "commit": "197db56f828b8ab0b9139a1d3708fb8a58ca336a",
     "day15_gate_ids": [
       "D15-G01",
       "D15-G02",
@@ -608,6 +620,6 @@
     "strands_version": "1.53.0"
   },
   "live_receipts": [],
-  "manifest_hash": "1e61b36045bd900ca8104ca19580b2264d3bc9606059a0dc31a7e299c52ce8cd",
+  "manifest_hash": "933d88f24102b29decfa487c3e62bb6f85914c0638bc3f2aee5e7827418497bb",
   "schema_version": "2.0"
 }

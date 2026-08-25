@@ -17,8 +17,10 @@ from scripts.build_reviewer_evidence_manifest import (
     DAY15_G10_COMMIT,
     DAY15_G10_EVIDENCE_COMMIT,
     DAY15_G10_IMPLEMENTATION_COMMIT,
+    DAY15_G10_REANCHOR_COMMIT,
     DAY15_M1_COMMIT,
     DAY15_M2_COMMIT,
+    DAY15_NOVA_PROBE_FIX_COMMIT,
     DAY15_ORIGINAL_M1_COMMIT,
     DAY15_ORIGINAL_M2_COMMIT,
     DAY15_ORIGINAL_M3_COMMIT,
@@ -715,13 +717,17 @@ def test_day15_anchor_chain_preserves_every_recovery_commit_as_single_parent_his
         DAY15_G10_IMPLEMENTATION_COMMIT,
         DAY15_G10_EVIDENCE_COMMIT,
         DAY15_G10_BLOCKER_COMMIT,
+        DAY15_NOVA_PROBE_FIX_COMMIT,
+        DAY15_G10_REANCHOR_COMMIT,
         DAY15_G10_COMMIT,
     )
-    assert DAY15_RECOVERY_LINEAGE[-4:] == (
+    assert DAY15_RECOVERY_LINEAGE[-6:] == (
         "3464bc869e7a11acb5aab61ae279cf196a1ebd0f",
         "41ba5586180e9aa3a25fc5469d42815073a0bbf8",
         "858770d5e5c7b59fa883cc56e06f4a9e915d70c1",
         "5e1904408d402c1e6492d6b2e153a7f1a5c56b58",
+        "99f70c43a26ce9715e9b57fde81ca265382dd5f2",
+        "197db56f828b8ab0b9139a1d3708fb8a58ca336a",
     )
     for parent, child in pairwise(DAY15_RECOVERY_LINEAGE):
         assert parents(child) == [child, parent]
@@ -740,6 +746,10 @@ def test_current_g10_authority_replaces_historical_external_attestation_proof() 
             "scripts/day15/g10_aws_preflight.py::observe_aws_preflight",
             "scripts/day15/g10_aws_preflight.py::validate_private_observation_receipt",
             "scripts/day15/g10_candidate.py::build_candidate_descriptor",
+            "scripts/day15/g10_operator_bootstrap.py::run_authority_bootstrap",
+            "scripts/day15/g10_operator_bootstrap.py::select_source_profile",
+            "scripts/day15/g10_operator_bootstrap.py::validate_private_authority_receipt",
+            "scripts/day15/g10_operator_bootstrap.py::validate_sanitized_authority_receipt",
             "scripts/day15/run_g10_closure.py::run_closure",
             "scripts/day15/run_g10_closure.py::validate_sanitized_receipt",
             "scripts/day15/run_day15_gate.py::GATES",
@@ -753,6 +763,24 @@ def test_current_g10_authority_replaces_historical_external_attestation_proof() 
         for reference in [*claim["authority_source"], *claim["proof_nodes"]]
     )
     assert "No AWS API call" in claim["limitations"]
+    assert {
+        "tests/unit/test_day15_g10_operator_bootstrap.py::"
+        "test_select_source_profile_is_explicit_or_uniquely_deterministic",
+        "tests/unit/test_day15_g10_operator_bootstrap.py::"
+        "test_assumable_exact_role_creates_and_reverifies_zero_authority_alias",
+        "tests/unit/test_day15_g10_operator_bootstrap.py::"
+        "test_root_source_principal_is_never_substituted_for_the_role",
+        "tests/unit/test_day15_g10_operator_bootstrap.py::"
+        "test_unassumable_role_is_sanitized_blocked_and_never_writes_alias",
+        "tests/unit/test_day15_g10_operator_bootstrap.py::"
+        "test_public_and_private_receipt_schemas_reject_unknown_fields",
+        "tests/unit/test_day15_g10_operator_bootstrap.py::"
+        "test_endpoint_override_environment_blocks_before_session_creation",
+        "tests/unit/test_day15_g10_operator_bootstrap.py::"
+        "test_repository_guard_requires_main_origin_clean_and_phase1_tag",
+        "tests/unit/test_day15_g10_operator_bootstrap.py::"
+        "test_default_factories_bound_nested_credential_provider_clients",
+    }.issubset(set(claim["proof_nodes"]))
 
 
 def test_m2_release_safety_remains_explicitly_historical() -> None:

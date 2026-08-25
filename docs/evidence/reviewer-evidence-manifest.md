@@ -3,10 +3,10 @@
 This judge-facing view is generated from the canonical JSON. It is reviewer proof, not runtime authority.
 
 - Frozen Phase 1 / Day 14 snapshot: `fbb536400594306f2bb3abd31c7064a66735c82d`
-- Day 15 local candidate snapshot: `5e1904408d402c1e6492d6b2e153a7f1a5c56b58` (`LOCAL_IMPLEMENTATION_CANDIDATE`)
-- Day 15 additive recovery lineage: `aa941a989a8b8cd0e40367bb130472e9f3c082a7` -> `17d5f4637dbd69a33eff1cbb46282c36b19ce6ad` -> `8e4583ac9341cb7b66de47cf0e7b2a442ac67b32` -> `30c2a30cda0ac6d6e2003166daf6c29bf2c764f0` -> `f2ee79c09ba174ba72cb527b70c095f412151758` -> `36fd17df981dfa593d4e63f6a143410317410763` -> `ce35a67f6491ea92aeef534d0dc4f5dc4a8da7ff` -> `5a6127f43a9251a72203c0eb6c7a903d817599f7` -> `3464bc869e7a11acb5aab61ae279cf196a1ebd0f` -> `41ba5586180e9aa3a25fc5469d42815073a0bbf8` -> `858770d5e5c7b59fa883cc56e06f4a9e915d70c1` -> `5e1904408d402c1e6492d6b2e153a7f1a5c56b58`
+- Day 15 local candidate snapshot: `197db56f828b8ab0b9139a1d3708fb8a58ca336a` (`LOCAL_IMPLEMENTATION_CANDIDATE`)
+- Day 15 additive recovery lineage: `aa941a989a8b8cd0e40367bb130472e9f3c082a7` -> `17d5f4637dbd69a33eff1cbb46282c36b19ce6ad` -> `8e4583ac9341cb7b66de47cf0e7b2a442ac67b32` -> `30c2a30cda0ac6d6e2003166daf6c29bf2c764f0` -> `f2ee79c09ba174ba72cb527b70c095f412151758` -> `36fd17df981dfa593d4e63f6a143410317410763` -> `ce35a67f6491ea92aeef534d0dc4f5dc4a8da7ff` -> `5a6127f43a9251a72203c0eb6c7a903d817599f7` -> `3464bc869e7a11acb5aab61ae279cf196a1ebd0f` -> `41ba5586180e9aa3a25fc5469d42815073a0bbf8` -> `858770d5e5c7b59fa883cc56e06f4a9e915d70c1` -> `5e1904408d402c1e6492d6b2e153a7f1a5c56b58` -> `99f70c43a26ce9715e9b57fde81ca265382dd5f2` -> `197db56f828b8ab0b9139a1d3708fb8a58ca336a`
 - Day 15 gates: `D15-G01, D15-G02, D15-G03, D15-G04, D15-G05, D15-G06, D15-G07, D15-G08, D15-G09, D15-G10`
-- Manifest SHA-256: `1e61b36045bd900ca8104ca19580b2264d3bc9606059a0dc31a7e299c52ce8cd`
+- Manifest SHA-256: `933d88f24102b29decfa487c3e62bb6f85914c0638bc3f2aee5e7827418497bb`
 - Primary agents: `1`
 - Canonical tools: `inspect_instance, read_utilization_metrics, build_remediation_evidence, stop_sandbox_instance, verify_instance_state`
 - Bedrock model: `eu.amazon.nova-2-lite-v1:0` in `eu-central-1`
@@ -23,7 +23,7 @@ This judge-facing view is generated from the canonical JSON. It is reviewer proo
 | BOUNDED-FAILURES-01 | PROVEN | TEST | Local deterministic | Schema correction, dependency retry, circuit suppression, and workflow budgets are finite and typed. |
 | DAY15-AWS-CLIENT-BOUNDS-01 | PROVEN | TEST | Local deterministic | Critical AWS clients own explicit one-attempt transport configuration, and the bounded model wrapper suppresses repeated warm-runtime failures without a hidden retry. |
 | DAY15-COLD-RESUME-01 | PROVEN | TEST | mocked AWS | A fresh Agent runtime can restore a durable native interrupt using trusted principal identity and a server-issued one-time challenge, while no approval or resume route is public. |
-| DAY15-DEPLOYMENT-GATE-01 | PROVEN | TEST | Local deterministic | The Day 15 controller implements candidate-bound G10 closure with exact private-contract selection, a fixed read-only AWS-operation allowlist, bound private and sanitized receipts, and ten fail-closed local gates that never authorize deployment. |
+| DAY15-DEPLOYMENT-GATE-01 | PROVEN | TEST | Local deterministic | The Day 15 controller implements candidate-bound G10 closure and a protected exact-role authority bootstrap with deterministic source selection, bounded identity and one-role-assumption verification, append-only alias construction, closed private and sanitized receipts, a fixed read-only preflight allowlist, and ten fail-closed local gates that never authorize deployment. |
 | DAY15-JUDGE-SURFACE-01 | PROVEN | TEST | Local deterministic | The Day 15 application exposes health, readiness, same-origin UI, and token-protected read-only investigation and status routes; approval and mutation routes fail before services. |
 | DAY15-RELEASE-SAFETY-01 | PROVEN | TEST | Local deterministic | At the reviewed M2 anchor, the Day 15 candidate used a hash-locked runtime and template-enforced retained state, explicit region, conditioned URL permissions, immutable aliases, bounded concurrency, and reviewed alias rollback. |
 | DAY15-RUNTIME-GUARDS-01 | PROVEN | TEST | mocked AWS | Judge inputs cannot set authority or budgets; fresh investigations use exact server budgets, atomic daily quota reservations, and finite read-only status observations. |
@@ -129,14 +129,18 @@ A fresh Agent runtime can restore a durable native interrupt using trusted princ
 
 ### DAY15-DEPLOYMENT-GATE-01
 
-The Day 15 controller implements candidate-bound G10 closure with exact private-contract selection, a fixed read-only AWS-operation allowlist, bound private and sanitized receipts, and ten fail-closed local gates that never authorize deployment.
+The Day 15 controller implements candidate-bound G10 closure and a protected exact-role authority bootstrap with deterministic source selection, bounded identity and one-role-assumption verification, append-only alias construction, closed private and sanitized receipts, a fixed read-only preflight allowlist, and ten fail-closed local gates that never authorize deployment.
 
 - Status / kind / scope: `PROVEN` / `TEST` / `Local deterministic`
-- Commit anchor: `5e1904408d402c1e6492d6b2e153a7f1a5c56b58`
+- Commit anchor: `197db56f828b8ab0b9139a1d3708fb8a58ca336a`
 - Authority source:
   - `scripts/day15/g10_aws_preflight.py::observe_aws_preflight`
   - `scripts/day15/g10_aws_preflight.py::validate_private_observation_receipt`
   - `scripts/day15/g10_candidate.py::build_candidate_descriptor`
+  - `scripts/day15/g10_operator_bootstrap.py::run_authority_bootstrap`
+  - `scripts/day15/g10_operator_bootstrap.py::select_source_profile`
+  - `scripts/day15/g10_operator_bootstrap.py::validate_private_authority_receipt`
+  - `scripts/day15/g10_operator_bootstrap.py::validate_sanitized_authority_receipt`
   - `scripts/day15/run_day15_gate.py::GATES`
   - `scripts/day15/run_day15_gate.py::_g10_candidate_receipt_result`
   - `scripts/day15/run_day15_gate.py::run_gate`
@@ -159,9 +163,17 @@ The Day 15 controller implements candidate-bound G10 closure with exact private-
   - `tests/unit/test_day15_g10_closure.py::test_day15_g10_accepts_only_candidate_bound_private_and_sanitized_pair`
   - `tests/unit/test_day15_g10_closure.py::test_day15_g10_rejects_stale_authenticated_receipt`
   - `tests/unit/test_day15_g10_closure.py::test_no_private_binding_is_blocked_and_performs_no_aws_call`
+  - `tests/unit/test_day15_g10_operator_bootstrap.py::test_assumable_exact_role_creates_and_reverifies_zero_authority_alias`
+  - `tests/unit/test_day15_g10_operator_bootstrap.py::test_default_factories_bound_nested_credential_provider_clients`
+  - `tests/unit/test_day15_g10_operator_bootstrap.py::test_endpoint_override_environment_blocks_before_session_creation`
+  - `tests/unit/test_day15_g10_operator_bootstrap.py::test_public_and_private_receipt_schemas_reject_unknown_fields`
+  - `tests/unit/test_day15_g10_operator_bootstrap.py::test_repository_guard_requires_main_origin_clean_and_phase1_tag`
+  - `tests/unit/test_day15_g10_operator_bootstrap.py::test_root_source_principal_is_never_substituted_for_the_role`
+  - `tests/unit/test_day15_g10_operator_bootstrap.py::test_select_source_profile_is_explicit_or_uniquely_deterministic`
+  - `tests/unit/test_day15_g10_operator_bootstrap.py::test_unassumable_role_is_sanitized_blocked_and_never_writes_alias`
   - `tests/unit/test_day15_gate.py::test_gate_matrix_has_exact_stable_ids_status_vocabulary_and_validate_only_output`
-- Limitations: Proves candidate and receipt binding plus bounded adapter behavior with local fakes. No AWS API call, external-prerequisite success, change set, or deployment is attested.
-- Claim SHA-256: `12de3664686023bcf183d1d0c22686fb02445cf28f65e25785fbab026f8af623`
+- Limitations: Proves candidate and receipt binding plus protected bootstrap and bounded adapter behavior with local fakes. No AWS API call, exact-role success, external-prerequisite success, change set, or deployment is attested.
+- Claim SHA-256: `86cc24e7e13db2f2b0af3195a20c4b66c4c7bbed0be744df57e2ccfdb5eb161d`
 
 ### DAY15-JUDGE-SURFACE-01
 
