@@ -25,6 +25,8 @@ from scripts.day15.g10_aws_preflight import (
 )
 from scripts.day15.g10_candidate import COMPONENT_KEYS, derive_candidate_digest
 
+from aioa_cloudops_agent.config import NOVA_2_LITE_MIN_TEMPERATURE
+
 _ACCOUNT = "1" * 12
 _OTHER_ACCOUNT = "2" * 12
 _ROLE = f"arn:aws:iam::{_ACCOUNT}:role/AIOANonZeroCloudOpsDay15DeploymentRole"
@@ -662,6 +664,8 @@ def test_synthetic_converse_is_optional_bounded_and_called_at_most_once() -> Non
     parameters = converse_calls[0][1]
     assert parameters["inferenceConfig"]["maxTokens"] == MAX_SYNTHETIC_TOKENS
     assert parameters["inferenceConfig"]["maxTokens"] <= 32
+    assert parameters["inferenceConfig"]["temperature"] == NOVA_2_LITE_MIN_TEMPERATURE
+    assert parameters["inferenceConfig"]["temperature"] > 0
 
 
 def test_session_profile_mismatch_fails_before_client_creation() -> None:

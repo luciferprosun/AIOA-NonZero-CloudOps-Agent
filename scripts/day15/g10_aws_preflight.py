@@ -28,6 +28,7 @@ from typing import Any, Final, Protocol
 
 from botocore.config import Config
 
+from aioa_cloudops_agent.config import NOVA_2_LITE_MIN_TEMPERATURE
 from scripts.day15.g10_candidate import (
     ARTIFACT_PATH,
     COMPONENT_KEYS,
@@ -1097,7 +1098,7 @@ def _observe_nova(
         {
             "inferenceConfig": {
                 "maxTokens": min(contract.max_tokens, MAX_SYNTHETIC_TOKENS),
-                "temperature": 0,
+                "temperature": NOVA_2_LITE_MIN_TEMPERATURE,
             },
             "messages": [{"content": [{"text": _SYNTHETIC_PROMPT}], "role": "user"}],
             "modelId": contract.nova_profile_id,
