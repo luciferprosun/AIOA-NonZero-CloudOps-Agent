@@ -76,6 +76,47 @@ runbook.
    intentionally not a G10 prerequisite. No actual account, bucket, role ARN, target, or owner is
    committed.
 
+### One-time operator authority bootstrap
+
+Before creating the private contract, the explicitly authorized Day 15 operator workflow may run
+the protected authority adapter. Run it only after fetching `origin`, committing and normally
+pushing the exact reviewed tooling, and re-proving the complete local suite. The adapter itself
+also rejects a dirty/non-`main` worktree, local `HEAD != origin/main`, or Phase 1 tag drift:
+
+```bash
+timeout 120s .venv/bin/python scripts/day15/g10_operator_bootstrap.py --json
+```
+
+It lists profile names internally but never prints them. An explicit `AWS_PROFILE` or
+`AWS_DEFAULT_PROFILE` wins only when it names one configured profile; otherwise exactly one
+non-deployment source profile must remain. The only direct AWS operations are bounded
+`sts:GetCallerIdentity`, at most one explicit `sts:AssumeRole` to the existing exact
+`AIOANonZeroCloudOpsDay15DeploymentRole`, and a temporary-role identity check. Credential-provider
+clients inherit the same bounded SDK configuration, and endpoint overrides are rejected. The
+local `aioa-day15-deployer` alias is append-only, byte-reverified, and fixes the exact role session
+to 900 seconds; canonical G10 performs its later named-profile authentication. Root is forbidden.
+IAM authority is never created, and temporary credentials are never persisted.
+An already-exact role under a different profile name blocks as
+`SOURCE_PROFILE_ALIAS_AUTHORITY_UNPROVEN` because credential-provider precedence cannot prove that
+copying a cross-name profile preserves identity without another unbounded authentication call.
+
+Identity-bearing account/role values remain only in protected local AWS configuration and the
+canonical mode-`0600`, ignored private receipt at
+`.aioa-private/day15-authority-bootstrap.json`; they never enter stdout or tracked files. Existing
+valid receipts are preserved before reuse. The public result contains closed booleans and reason
+codes only. A missing or unassumable exact role returns `BLOCKED` with
+`EXACT_DEPLOYMENT_ROLE_NOT_ASSUMABLE`; that is a terminal
+`DAY15_BLOCKED_ROLE` result for this package, so no sandbox/bucket/budget discovery, contract,
+G10 AWS preflight, change set, or deployment may follow.
+
+A `PASS` proves exact-role authority and the exact local alias configuration only. It does not
+authorize deployment and is not a substitute for the candidate-bound private contract or
+canonical G10 receipt. When a later
+contract builder consumes the protected receipt, it must deliberately map
+`EXPLICIT_ENVIRONMENT_PROFILE` to `EXPLICIT_AWS_PROFILE` and `UNIQUE_LOCAL_PROFILE` to
+`UNIQUE_EXPLICIT_PROJECT_PROFILE`; bootstrap labels must never be copied into the contract as an
+unvalidated new enum.
+
 5. Run the G10 closure command once without a contract. It performs no AWS call and writes a
    sanitized `BLOCKED` receipt containing the exact candidate digest. The command first reruns the
    complete P0 and P1 matrices and stores their canonical results under `.aioa-private/`; use
