@@ -176,6 +176,11 @@ EXPECTED_ASSUME_ROLE_POLICY: Final = {
     ],
     "Version": "2012-10-17",
 }
+EXPECTED_OWNERSHIP_TAGS: Final = [
+    {"Key": "AIOAProject", "Value": "NonZeroCloudOps"},
+    {"Key": "AIOAStage", "Value": "hackathon"},
+    {"Key": "ManagedBy", "Value": "CloudFormation"},
+]
 EXPECTED_ROLE_POLICIES: Final = {
     "RemediationExecutorRole": {
         "BoundedXRayDelivery": [
@@ -915,8 +920,9 @@ def _gate_iam(context: GateContext) -> GateResult:
             for name, statements in expected_policies.items()
         }
         if (
-            set(properties) != {"AssumeRolePolicyDocument", "Policies"}
+            set(properties) != {"AssumeRolePolicyDocument", "Policies", "Tags"}
             or properties.get("AssumeRolePolicyDocument") != EXPECTED_ASSUME_ROLE_POLICY
+            or properties.get("Tags") != EXPECTED_OWNERSHIP_TAGS
             or actual_policies != expected_documents
         ):
             reasons.append("IAM_ROLE_POLICY_ALLOWLIST_INVALID")

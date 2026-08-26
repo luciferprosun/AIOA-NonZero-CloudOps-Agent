@@ -11,6 +11,8 @@ Parameters:
   AppStage:
     Type: String
     Default: hackathon
+    AllowedValues:
+      - hackathon
     AllowedPattern: "^[a-z][a-z0-9-]{1,31}$"
   SandboxInstanceId:
     Type: String
@@ -93,6 +95,13 @@ Resources:
     Type: AWS::SecretsManager::Secret
     Properties:
       Description: Dedicated bounded-lifetime Day 15 judge bearer token
+      Tags:
+        - Key: AIOAProject
+          Value: NonZeroCloudOps
+        - Key: AIOAStage
+          Value: hackathon
+        - Key: ManagedBy
+          Value: CloudFormation
       GenerateSecretString:
         SecretStringTemplate:
           Fn::Sub: '{"not_after":"${JudgeTokenNotAfter}"}'
@@ -121,6 +130,13 @@ Resources:
           KeyType: HASH
         - AttributeName: SK
           KeyType: RANGE
+      Tags:
+        - Key: AIOAProject
+          Value: NonZeroCloudOps
+        - Key: AIOAStage
+          Value: hackathon
+        - Key: ManagedBy
+          Value: CloudFormation
 
   OrchestratorFunctionLogGroup:
     Type: AWS::Logs::LogGroup
@@ -128,6 +144,13 @@ Resources:
       LogGroupName:
         Fn::Sub: /aws/lambda/${AWS::StackName}-orchestrator
       RetentionInDays: 3
+      Tags:
+        - Key: AIOAProject
+          Value: NonZeroCloudOps
+        - Key: AIOAStage
+          Value: hackathon
+        - Key: ManagedBy
+          Value: CloudFormation
 
   RemediationExecutorLogGroup:
     Type: AWS::Logs::LogGroup
@@ -135,10 +158,24 @@ Resources:
       LogGroupName:
         Fn::Sub: /aws/lambda/${AWS::StackName}-remediation-executor
       RetentionInDays: 3
+      Tags:
+        - Key: AIOAProject
+          Value: NonZeroCloudOps
+        - Key: AIOAStage
+          Value: hackathon
+        - Key: ManagedBy
+          Value: CloudFormation
 
   RemediationExecutorRole:
     Type: AWS::IAM::Role
     Properties:
+      Tags:
+        - Key: AIOAProject
+          Value: NonZeroCloudOps
+        - Key: AIOAStage
+          Value: hackathon
+        - Key: ManagedBy
+          Value: CloudFormation
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:
@@ -206,6 +243,10 @@ Resources:
       MemorySize: 256
       Timeout: 15
       ReservedConcurrentExecutions: 1
+      Tags:
+        AIOAProject: NonZeroCloudOps
+        AIOAStage: hackathon
+        ManagedBy: CloudFormation
       Role:
         Fn::GetAtt:
           - RemediationExecutorRole
@@ -251,6 +292,13 @@ Resources:
   OrchestratorRole:
     Type: AWS::IAM::Role
     Properties:
+      Tags:
+        - Key: AIOAProject
+          Value: NonZeroCloudOps
+        - Key: AIOAStage
+          Value: hackathon
+        - Key: ManagedBy
+          Value: CloudFormation
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:
@@ -366,6 +414,10 @@ Resources:
       MemorySize: 512
       Timeout: 70
       ReservedConcurrentExecutions: 1
+      Tags:
+        AIOAProject: NonZeroCloudOps
+        AIOAStage: hackathon
+        ManagedBy: CloudFormation
       Role:
         Fn::GetAtt:
           - OrchestratorRole
@@ -474,6 +526,13 @@ Resources:
       Threshold: 1
       ComparisonOperator: GreaterThanOrEqualToThreshold
       TreatMissingData: notBreaching
+      Tags:
+        - Key: AIOAProject
+          Value: NonZeroCloudOps
+        - Key: AIOAStage
+          Value: hackathon
+        - Key: ManagedBy
+          Value: CloudFormation
 
   OrchestratorThrottlesAlarm:
     Type: AWS::CloudWatch::Alarm
@@ -492,6 +551,13 @@ Resources:
       Threshold: 1
       ComparisonOperator: GreaterThanOrEqualToThreshold
       TreatMissingData: notBreaching
+      Tags:
+        - Key: AIOAProject
+          Value: NonZeroCloudOps
+        - Key: AIOAStage
+          Value: hackathon
+        - Key: ManagedBy
+          Value: CloudFormation
 
   OrchestratorDurationAlarm:
     Type: AWS::CloudWatch::Alarm
@@ -510,6 +576,13 @@ Resources:
       Threshold: 65000
       ComparisonOperator: GreaterThanOrEqualToThreshold
       TreatMissingData: notBreaching
+      Tags:
+        - Key: AIOAProject
+          Value: NonZeroCloudOps
+        - Key: AIOAStage
+          Value: hackathon
+        - Key: ManagedBy
+          Value: CloudFormation
 
   RemediationExecutorErrorsAlarm:
     Type: AWS::CloudWatch::Alarm
@@ -528,6 +601,13 @@ Resources:
       Threshold: 1
       ComparisonOperator: GreaterThanOrEqualToThreshold
       TreatMissingData: notBreaching
+      Tags:
+        - Key: AIOAProject
+          Value: NonZeroCloudOps
+        - Key: AIOAStage
+          Value: hackathon
+        - Key: ManagedBy
+          Value: CloudFormation
 
   RemediationExecutorThrottlesAlarm:
     Type: AWS::CloudWatch::Alarm
@@ -546,6 +626,13 @@ Resources:
       Threshold: 1
       ComparisonOperator: GreaterThanOrEqualToThreshold
       TreatMissingData: notBreaching
+      Tags:
+        - Key: AIOAProject
+          Value: NonZeroCloudOps
+        - Key: AIOAStage
+          Value: hackathon
+        - Key: ManagedBy
+          Value: CloudFormation
 
   RemediationExecutorDurationAlarm:
     Type: AWS::CloudWatch::Alarm
@@ -564,6 +651,13 @@ Resources:
       Threshold: 12000
       ComparisonOperator: GreaterThanOrEqualToThreshold
       TreatMissingData: notBreaching
+      Tags:
+        - Key: AIOAProject
+          Value: NonZeroCloudOps
+        - Key: AIOAStage
+          Value: hackathon
+        - Key: ManagedBy
+          Value: CloudFormation
 
   StateTableThrottledRequestsAlarm:
     Type: AWS::CloudWatch::Alarm
@@ -582,6 +676,13 @@ Resources:
       Threshold: 1
       ComparisonOperator: GreaterThanOrEqualToThreshold
       TreatMissingData: notBreaching
+      Tags:
+        - Key: AIOAProject
+          Value: NonZeroCloudOps
+        - Key: AIOAStage
+          Value: hackathon
+        - Key: ManagedBy
+          Value: CloudFormation
 
 Outputs:
   OrchestratorFunctionUrl:

@@ -135,6 +135,16 @@ def test_local_only_mode_never_promotes_unexecuted_aws_checks() -> None:
     assert receipt.status is PreflightStatus.BLOCKED_EXTERNAL
 
 
+def test_library_requires_an_explicit_local_command_runner() -> None:
+    with pytest.raises(PreflightError, match="PREFLIGHT_LOCAL_COMMAND_RUNNER_REQUIRED"):
+        run_preflight(
+            root=ROOT,
+            contract_path=DEFAULT_CONTRACT,
+            expected_head=HEAD,
+            environment={"PATH": "/usr/bin"},
+        )
+
+
 def test_preflight_strips_all_ambient_authority_from_local_child_commands() -> None:
     runner = FakeRunner()
     _fixture_receipt(runner=runner)

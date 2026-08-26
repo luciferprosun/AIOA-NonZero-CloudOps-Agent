@@ -7,7 +7,6 @@ import json
 import os
 import platform
 import re
-import subprocess
 import sys
 from collections.abc import Callable, Mapping, Sequence
 from datetime import UTC, datetime, timedelta
@@ -286,27 +285,6 @@ class CommandResult(Protocol):
 
 
 CommandRunner = Callable[[Sequence[str], Path, Mapping[str, str], int], CommandResult]
-
-
-def _run_command(
-    command: Sequence[str],
-    cwd: Path,
-    environment: Mapping[str, str],
-    timeout_seconds: int,
-) -> subprocess.CompletedProcess[str]:
-    try:
-        return subprocess.run(
-            tuple(command),
-            cwd=cwd,
-            env=dict(environment),
-            stdin=subprocess.DEVNULL,
-            capture_output=True,
-            check=False,
-            text=True,
-            timeout=timeout_seconds,
-        )
-    except (OSError, subprocess.TimeoutExpired):
-        return subprocess.CompletedProcess(tuple(command), 126, "", "")
 
 
 def sanitized_local_environment(base: Mapping[str, str]) -> dict[str, str]:
@@ -705,11 +683,13 @@ def run_preflight(
     mode: PreflightMode = PreflightMode.LOCAL_ONLY,
     fixture_path: Path | None = None,
     clock: Callable[[], datetime] = lambda: datetime.now(UTC),
-    runner: CommandRunner = _run_command,
+    runner: CommandRunner | None = None,
     environment: Mapping[str, str] | None = None,
 ) -> PreflightReceipt:
     """Run local checks and optional synthetic AWS checks; never open a network path."""
 
+    if runner is None:
+        raise PreflightError("PREFLIGHT_LOCAL_COMMAND_RUNNER_REQUIRED")
     try:
         contract = load_deployment_contract(contract_path)
     except DeploymentContractError as error:

@@ -7,6 +7,7 @@ import argparse
 import json
 import os
 import stat
+import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -23,6 +24,29 @@ from aioa_cloudops_agent.release.preflight import (  # noqa: E402
     run_preflight,
 )
 from scripts.phase3.build_deployment_contract import DEFAULT_CONTRACT  # noqa: E402
+
+
+def _run_command(
+    command: object,
+    cwd: Path,
+    environment: object,
+    timeout_seconds: int,
+) -> subprocess.CompletedProcess[str]:
+    if not isinstance(command, tuple | list) or not isinstance(environment, dict):
+        return subprocess.CompletedProcess((), 126, "", "")
+    try:
+        return subprocess.run(
+            tuple(str(value) for value in command),
+            cwd=cwd,
+            env={str(name): str(value) for name, value in environment.items()},
+            stdin=subprocess.DEVNULL,
+            capture_output=True,
+            check=False,
+            text=True,
+            timeout=timeout_seconds,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return subprocess.CompletedProcess(tuple(command), 126, "", "")
 
 
 def _write_private(path: Path, payload: str) -> None:
@@ -74,6 +98,7 @@ def main() -> int:
             expected_head=args.expected_head,
             mode=mode,
             fixture_path=args.fixture,
+            runner=_run_command,
         )
         payload: dict[str, object] = receipt.model_dump(mode="json")
         status = receipt.status
