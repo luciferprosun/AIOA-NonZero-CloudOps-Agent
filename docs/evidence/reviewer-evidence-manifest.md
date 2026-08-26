@@ -6,7 +6,7 @@ This judge-facing view is generated from the canonical JSON. It is reviewer proo
 - Day 15 local candidate snapshot: `197db56f828b8ab0b9139a1d3708fb8a58ca336a` (`LOCAL_IMPLEMENTATION_CANDIDATE`)
 - Day 15 additive recovery lineage: `aa941a989a8b8cd0e40367bb130472e9f3c082a7` -> `17d5f4637dbd69a33eff1cbb46282c36b19ce6ad` -> `8e4583ac9341cb7b66de47cf0e7b2a442ac67b32` -> `30c2a30cda0ac6d6e2003166daf6c29bf2c764f0` -> `f2ee79c09ba174ba72cb527b70c095f412151758` -> `36fd17df981dfa593d4e63f6a143410317410763` -> `ce35a67f6491ea92aeef534d0dc4f5dc4a8da7ff` -> `5a6127f43a9251a72203c0eb6c7a903d817599f7` -> `3464bc869e7a11acb5aab61ae279cf196a1ebd0f` -> `41ba5586180e9aa3a25fc5469d42815073a0bbf8` -> `858770d5e5c7b59fa883cc56e06f4a9e915d70c1` -> `5e1904408d402c1e6492d6b2e153a7f1a5c56b58` -> `99f70c43a26ce9715e9b57fde81ca265382dd5f2` -> `197db56f828b8ab0b9139a1d3708fb8a58ca336a`
 - Day 15 gates: `D15-G01, D15-G02, D15-G03, D15-G04, D15-G05, D15-G06, D15-G07, D15-G08, D15-G09, D15-G10`
-- Manifest SHA-256: `933d88f24102b29decfa487c3e62bb6f85914c0638bc3f2aee5e7827418497bb`
+- Manifest SHA-256: `d42a8bce9857c0b754bf3b6bf8ac09dca396984533505590508e9d559ebb0363`
 - Primary agents: `1`
 - Canonical tools: `inspect_instance, read_utilization_metrics, build_remediation_evidence, stop_sandbox_instance, verify_instance_state`
 - Bedrock model: `eu.amazon.nova-2-lite-v1:0` in `eu-central-1`
@@ -66,7 +66,7 @@ The runtime factory creates one primary Strands Agent.
 Human approval is explicit and bound to the proposal, request, actor session, and decision nonce.
 
 - Status / kind / scope: `PROVEN` / `TEST` / `mocked AWS`
-- Commit anchor: `f2ee79c09ba174ba72cb527b70c095f412151758`
+- Commit anchor: `b5dba16a9af1bc979b2b96a50ddbf0e590e829a5`
 - Authority source:
   - `src/aioa_cloudops_agent/agent/approval_flow.py::DurableApprovalFlow.resume`
   - `src/aioa_cloudops_agent/nz/contracts.py::Approval.validate_action_binding`
@@ -76,7 +76,7 @@ Human approval is explicit and bound to the proposal, request, actor session, an
   - `tests/integration/test_durable_hitl_approval_flow.py::test_changed_decision_nonce_replay_is_rejected_without_second_tool_call`
   - `tests/unit/test_durable_memory_repository.py::test_approval_from_another_run_or_proposal_cannot_authorize_execution`
 - Limitations: Does not attest to a real operator approval or a deployed identity provider.
-- Claim SHA-256: `4c9eadb152ff1842da68d8b618953c3cd1c06b4932914424a230fee0cc5a9b05`
+- Claim SHA-256: `20b33ef3e63b29f76154e982d4614cfa7ee493c1d273eb5b6f3d6bc0bf56805a`
 
 ### BOUNDED-FAILURES-01
 
@@ -269,7 +269,7 @@ Judge telemetry exports only allowlisted identifiers and bounded classifications
 Unknown and NEVER_AUTONOMOUS capabilities are denied by deterministic policy.
 
 - Status / kind / scope: `PROVEN` / `TEST` / `Local deterministic`
-- Commit anchor: `fbb536400594306f2bb3abd31c7064a66735c82d`
+- Commit anchor: `b5dba16a9af1bc979b2b96a50ddbf0e590e829a5`
 - Authority source:
   - `src/aioa_cloudops_agent/nz/authority.py::authority_for_capability`
   - `src/aioa_cloudops_agent/safety/policy.py::DefaultDenyToolPolicy.evaluate`
@@ -278,7 +278,7 @@ Unknown and NEVER_AUTONOMOUS capabilities are denied by deterministic policy.
   - `P1-01`
   - `tests/unit/test_safety_hardening.py::test_unknown_tool_alias_defaults_to_policy_denial`
 - Limitations: Proves the registered policy boundary, not protection from every future code change.
-- Claim SHA-256: `24321e971a48e35e24604d412cbddf5468720a2fe5ebfe89e3d169badc429530`
+- Claim SHA-256: `af30a211b5790eca047f0d067972fe947447d31c2b4ac75031872e93b93d1bc8`
 
 ### EXECUTOR-GATES-01
 
@@ -345,7 +345,7 @@ A live EC2 StopInstances event is not yet proven by this repository.
 Model output cannot itself authorize mutation; execution requires deterministic policy and durable human authority.
 
 - Status / kind / scope: `PROVEN` / `TEST` / `Local deterministic`
-- Commit anchor: `17d5f4637dbd69a33eff1cbb46282c36b19ce6ad`
+- Commit anchor: `b5dba16a9af1bc979b2b96a50ddbf0e590e829a5`
 - Authority source:
   - `src/aioa_cloudops_agent/agent/hitl.py::DurableProposalHumanInTheLoop`
   - `src/aioa_cloudops_agent/nz/contracts.py::ActionProposal.authorizes_execution`
@@ -354,7 +354,7 @@ Model output cannot itself authorize mutation; execution requires deterministic 
   - `P0-02`
   - `tests/unit/test_private_sandbox_remediation.py::test_model_like_payload_cannot_construct_privileged_execution_command`
 - Limitations: Does not claim the model is intrinsically safe; authority remains outside the model.
-- Claim SHA-256: `c87f3cfb02cc8f9f19e9b72ae3c6519b28cbc818dbbc58b1a675507fa96226a4`
+- Claim SHA-256: `030c36aee5a85ef704b6f7ce02df36e5f726756418576648cc95cf0f36907c07`
 
 ### MODEL-PIN-01
 
@@ -447,7 +447,7 @@ The frozen Phase 1 tag, pre-armor ancestry, and prior-art document blobs remain 
 An ActionProposal is persisted before approval and never authorizes execution by itself.
 
 - Status / kind / scope: `PROVEN` / `TEST` / `mocked AWS`
-- Commit anchor: `fbb536400594306f2bb3abd31c7064a66735c82d`
+- Commit anchor: `b5dba16a9af1bc979b2b96a50ddbf0e590e829a5`
 - Authority source:
   - `src/aioa_cloudops_agent/nz/contracts.py::ActionProposal.authorizes_execution`
   - `src/aioa_cloudops_agent/persistence/nz_dynamodb.py::DynamoDbDurableTruthRepository.create_proposal`
@@ -455,7 +455,7 @@ An ActionProposal is persisted before approval and never authorizes execution by
   - `P0-04`
   - `tests/integration/test_read_only_investigation_flow.py::test_strands_happy_path_persists_evidence_backed_non_authorizing_proposal`
 - Limitations: Proves persistence contracts and mocked repository behavior, not a live DynamoDB write.
-- Claim SHA-256: `65870290833508b04ff82076430e1cd0b870fa6f595cbb44777ecb45810e6abc`
+- Claim SHA-256: `0f8878f20bb7cd07443826743edb5262e02e1516f20205596aae804ba43918cf`
 
 ### RECOVERY-NO-REPLAY-01
 
@@ -505,7 +505,7 @@ The primary agent exposes exactly the five canonical principal tools derived fro
 SUCCESS_WITH_EVIDENCE is reached only after independent verification evidence is durably recorded.
 
 - Status / kind / scope: `PROVEN` / `TEST` / `mocked AWS`
-- Commit anchor: `fbb536400594306f2bb3abd31c7064a66735c82d`
+- Commit anchor: `b5dba16a9af1bc979b2b96a50ddbf0e590e829a5`
 - Authority source:
   - `src/aioa_cloudops_agent/nz/enums.py::WorkflowState.SUCCESS_WITH_EVIDENCE`
   - `src/aioa_cloudops_agent/verification/coordinator.py::BoundedVerificationCoordinator.verify`
@@ -513,7 +513,7 @@ SUCCESS_WITH_EVIDENCE is reached only after independent verification evidence is
   - `P0-09`
   - `tests/unit/test_verification_closure.py::test_success_transition_without_durable_verification_evidence_is_rejected`
 - Limitations: Proves mocked verification and durable ordering, not a live EC2 observation.
-- Claim SHA-256: `b9f3edfc9f2c4db6e756c7c4abb68270bd8669e91c140984318739563184eb84`
+- Claim SHA-256: `f8ae8bfa6255b72f901677672e9dfddf97d276ffe39d0df29cf0e779b5b5909b`
 
 ## Truthfulness boundary
 

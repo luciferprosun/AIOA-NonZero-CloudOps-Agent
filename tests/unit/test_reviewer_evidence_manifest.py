@@ -30,6 +30,7 @@ from scripts.build_reviewer_evidence_manifest import (
     EVIDENCE_SNAPSHOT_COMMIT,
     EXPECTED_STRANDS_REQUIREMENT,
     JSON_PATH,
+    LOCAL_FIRST_PHASE1_COMMIT,
     MARKDOWN_PATH,
     README_PATH,
     build_manifest,
@@ -648,6 +649,7 @@ def test_day15_candidate_and_claim_anchors_are_exact_recovery_objects() -> None:
         DAY15_M1_COMMIT,
         DAY15_M2_COMMIT,
         DAY15_G10_COMMIT,
+        LOCAL_FIRST_PHASE1_COMMIT,
     }
     original_m1_claims = {
         "AGENT-TOPOLOGY-01",
@@ -657,14 +659,12 @@ def test_day15_candidate_and_claim_anchors_are_exact_recovery_objects() -> None:
         "EXECUTOR-GATES-01",
         "IAM-SEPARATION-01",
         "IDEMPOTENCY-01",
-        "MODEL-AUTHORITY-01",
         "MODEL-PIN-01",
         "P0-GATE-01",
         "P1-GATE-01",
         "TOOL-SURFACE-01",
     }
     recovered_m1_claims = {
-        "APPROVAL-BINDING-01",
         "DAY15-COLD-RESUME-01",
         "DAY15-RUNTIME-GUARDS-01",
         "DAY15-TELEMETRY-01",
@@ -673,6 +673,13 @@ def test_day15_candidate_and_claim_anchors_are_exact_recovery_objects() -> None:
         "DAY15-RELEASE-SAFETY-01",
     }
     current_g10_claims = {"DAY15-DEPLOYMENT-GATE-01"}
+    local_first_claims = {
+        "APPROVAL-BINDING-01",
+        "DEFAULT-DENY-01",
+        "MODEL-AUTHORITY-01",
+        "PROPOSAL-DURABILITY-01",
+        "VERIFIED-SUCCESS-01",
+    }
     assert all(
         _claim(manifest, claim_id)["commit_anchor"] == DAY15_ORIGINAL_M1_COMMIT
         for claim_id in original_m1_claims
@@ -688,6 +695,10 @@ def test_day15_candidate_and_claim_anchors_are_exact_recovery_objects() -> None:
     assert all(
         _claim(manifest, claim_id)["commit_anchor"] == DAY15_G10_COMMIT
         for claim_id in current_g10_claims
+    )
+    assert all(
+        _claim(manifest, claim_id)["commit_anchor"] == LOCAL_FIRST_PHASE1_COMMIT
+        for claim_id in local_first_claims
     )
     assert _claim(manifest, "LIVE-EC2-01")["commit_anchor"] == EVIDENCE_SNAPSHOT_COMMIT
     assert manifest["evidence_snapshot"]["commit"] == EVIDENCE_SNAPSHOT_COMMIT

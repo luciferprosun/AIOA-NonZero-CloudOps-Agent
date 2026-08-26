@@ -25,9 +25,9 @@
       ],
       "claim": "Human approval is explicit and bound to the proposal, request, actor session, and decision nonce.",
       "claim_id": "APPROVAL-BINDING-01",
-      "commit_anchor": "f2ee79c09ba174ba72cb527b70c095f412151758",
+      "commit_anchor": "b5dba16a9af1bc979b2b96a50ddbf0e590e829a5",
       "evidence_kind": "TEST",
-      "hash": "4c9eadb152ff1842da68d8b618953c3cd1c06b4932914424a230fee0cc5a9b05",
+      "hash": "20b33ef3e63b29f76154e982d4614cfa7ee493c1d273eb5b6f3d6bc0bf56805a",
       "limitations": "Does not attest to a real operator approval or a deployed identity provider.",
       "proof_nodes": [
         "P0-05",
@@ -254,9 +254,9 @@
       ],
       "claim": "Unknown and NEVER_AUTONOMOUS capabilities are denied by deterministic policy.",
       "claim_id": "DEFAULT-DENY-01",
-      "commit_anchor": "fbb536400594306f2bb3abd31c7064a66735c82d",
+      "commit_anchor": "b5dba16a9af1bc979b2b96a50ddbf0e590e829a5",
       "evidence_kind": "TEST",
-      "hash": "24321e971a48e35e24604d412cbddf5468720a2fe5ebfe89e3d169badc429530",
+      "hash": "af30a211b5790eca047f0d067972fe947447d31c2b4ac75031872e93b93d1bc8",
       "limitations": "Proves the registered policy boundary, not protection from every future code change.",
       "proof_nodes": [
         "P0-11",
@@ -344,9 +344,9 @@
       ],
       "claim": "Model output cannot itself authorize mutation; execution requires deterministic policy and durable human authority.",
       "claim_id": "MODEL-AUTHORITY-01",
-      "commit_anchor": "17d5f4637dbd69a33eff1cbb46282c36b19ce6ad",
+      "commit_anchor": "b5dba16a9af1bc979b2b96a50ddbf0e590e829a5",
       "evidence_kind": "TEST",
-      "hash": "c87f3cfb02cc8f9f19e9b72ae3c6519b28cbc818dbbc58b1a675507fa96226a4",
+      "hash": "030c36aee5a85ef704b6f7ce02df36e5f726756418576648cc95cf0f36907c07",
       "limitations": "Does not claim the model is intrinsically safe; authority remains outside the model.",
       "proof_nodes": [
         "P0-02",
@@ -463,9 +463,9 @@
       ],
       "claim": "An ActionProposal is persisted before approval and never authorizes execution by itself.",
       "claim_id": "PROPOSAL-DURABILITY-01",
-      "commit_anchor": "fbb536400594306f2bb3abd31c7064a66735c82d",
+      "commit_anchor": "b5dba16a9af1bc979b2b96a50ddbf0e590e829a5",
       "evidence_kind": "TEST",
-      "hash": "65870290833508b04ff82076430e1cd0b870fa6f595cbb44777ecb45810e6abc",
+      "hash": "0f8878f20bb7cd07443826743edb5262e02e1516f20205596aae804ba43918cf",
       "limitations": "Proves persistence contracts and mocked repository behavior, not a live DynamoDB write.",
       "proof_nodes": [
         "P0-04",
@@ -533,9 +533,9 @@
       ],
       "claim": "SUCCESS_WITH_EVIDENCE is reached only after independent verification evidence is durably recorded.",
       "claim_id": "VERIFIED-SUCCESS-01",
-      "commit_anchor": "fbb536400594306f2bb3abd31c7064a66735c82d",
+      "commit_anchor": "b5dba16a9af1bc979b2b96a50ddbf0e590e829a5",
       "evidence_kind": "TEST",
-      "hash": "b9f3edfc9f2c4db6e756c7c4abb68270bd8669e91c140984318739563184eb84",
+      "hash": "f8ae8bfa6255b72f901677672e9dfddf97d276ffe39d0df29cf0e779b5b5909b",
       "limitations": "Proves mocked verification and durable ordering, not a live EC2 observation.",
       "proof_nodes": [
         "P0-09",
@@ -620,6 +620,6 @@
     "strands_version": "1.53.0"
   },
   "live_receipts": [],
-  "manifest_hash": "933d88f24102b29decfa487c3e62bb6f85914c0638bc3f2aee5e7827418497bb",
+  "manifest_hash": "d42a8bce9857c0b754bf3b6bf8ac09dca396984533505590508e9d559ebb0363",
   "schema_version": "2.0"
 }

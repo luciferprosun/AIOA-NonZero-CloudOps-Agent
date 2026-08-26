@@ -56,6 +56,7 @@ DAY15_G10_BLOCKER_COMMIT = "858770d5e5c7b59fa883cc56e06f4a9e915d70c1"
 DAY15_NOVA_PROBE_FIX_COMMIT = "5e1904408d402c1e6492d6b2e153a7f1a5c56b58"
 DAY15_G10_REANCHOR_COMMIT = "99f70c43a26ce9715e9b57fde81ca265382dd5f2"
 DAY15_G10_COMMIT = "197db56f828b8ab0b9139a1d3708fb8a58ca336a"
+LOCAL_FIRST_PHASE1_COMMIT = "b5dba16a9af1bc979b2b96a50ddbf0e590e829a5"
 DAY15_RECOVERY_LINEAGE = (
     DAY15_START_COMMIT,
     DAY15_ORIGINAL_M1_COMMIT,
@@ -195,7 +196,7 @@ def build_claims() -> list[dict[str, Any]]:
                 "tests/unit/test_durable_memory_repository.py::"
                 "test_approval_from_another_run_or_proposal_cannot_authorize_execution",
             ),
-            commit_anchor=DAY15_M1_COMMIT,
+            commit_anchor=LOCAL_FIRST_PHASE1_COMMIT,
             scope="mocked AWS",
             limitations="Does not attest to a real operator approval or a deployed identity provider.",
         ),
@@ -232,6 +233,7 @@ def build_claims() -> list[dict[str, Any]]:
                 "tests/unit/test_safety_hardening.py::"
                 "test_unknown_tool_alias_defaults_to_policy_denial",
             ),
+            commit_anchor=LOCAL_FIRST_PHASE1_COMMIT,
             limitations="Proves the registered policy boundary, not protection from every future code change.",
         ),
         _claim(
@@ -312,7 +314,7 @@ def build_claims() -> list[dict[str, Any]]:
                 "tests/unit/test_private_sandbox_remediation.py::"
                 "test_model_like_payload_cannot_construct_privileged_execution_command",
             ),
-            commit_anchor=DAY15_ORIGINAL_M1_COMMIT,
+            commit_anchor=LOCAL_FIRST_PHASE1_COMMIT,
             limitations="Does not claim the model is intrinsically safe; authority remains outside the model.",
         ),
         _claim(
@@ -384,6 +386,7 @@ def build_claims() -> list[dict[str, Any]]:
                 "tests/integration/test_read_only_investigation_flow.py::"
                 "test_strands_happy_path_persists_evidence_backed_non_authorizing_proposal",
             ),
+            commit_anchor=LOCAL_FIRST_PHASE1_COMMIT,
             scope="mocked AWS",
             limitations="Proves persistence contracts and mocked repository behavior, not a live DynamoDB write.",
         ),
@@ -643,6 +646,7 @@ def build_claims() -> list[dict[str, Any]]:
                 "tests/unit/test_verification_closure.py::"
                 "test_success_transition_without_durable_verification_evidence_is_rejected",
             ),
+            commit_anchor=LOCAL_FIRST_PHASE1_COMMIT,
             scope="mocked AWS",
             limitations="Proves mocked verification and durable ordering, not a live EC2 observation.",
         ),
