@@ -41,6 +41,7 @@ SAFE_SMOKE_CHECKS = (
     "evidence_manifest_validation",
     "mocked_approved_e2e",
 )
+DEV_INSTALL_TIMEOUT_SECONDS = 900
 _SHA_PATTERN = re.compile(r"[0-9a-f]{40}\Z")
 _SCRUBBED_PREFIXES = (
     "AIOA_",
@@ -358,6 +359,7 @@ def prove_clean_clone(
             install_command(venv_python),
             cwd=clone_root,
             env=environment,
+            timeout_seconds=DEV_INSTALL_TIMEOUT_SECONDS,
         )
         if installed.returncode != 0:
             raise ReproFailure("DEV_INSTALL_FAILED")

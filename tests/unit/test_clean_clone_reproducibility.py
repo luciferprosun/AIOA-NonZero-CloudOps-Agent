@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 from scripts.prove_clean_clone import (
+    DEV_INSTALL_TIMEOUT_SECONDS,
     PUBLIC_REPOSITORY_URL,
     SAFE_SMOKE_CHECKS,
     _run,
@@ -66,6 +67,7 @@ def test_harness_plan_uses_full_no_local_clone_and_fresh_noneditable_install() -
     assert PUBLIC_REPOSITORY_URL in remote
     assert install[-1] == ".[dev]"
     assert "-e" not in install and "--editable" not in install
+    assert DEV_INSTALL_TIMEOUT_SECONDS == 900
 
 
 def test_missing_bootstrap_executable_is_a_fixed_failure_without_traceback(
