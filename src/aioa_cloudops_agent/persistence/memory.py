@@ -82,18 +82,35 @@ class InMemoryTestDurableTruthRepository:
                 )
             proposal = self._proposals.get(approval_proposal_id)
             approval = self._approvals.get(approval_proposal_id)
+            checkpoint = self._checkpoints.get(run_id)
             expected_decision = (
                 ApprovalDecision.APPROVED
                 if next_state is WorkflowState.APPROVED
                 else ApprovalDecision.DENIED
             )
-            if (
-                proposal is None
-                or proposal.run_id != run_id
-                or proposal.state is not ProposalState.AWAITING_APPROVAL
-                or approval is None
-                or approval.decision is not expected_decision
-            ):
+            legacy_decision_valid = (
+                proposal is not None
+                and proposal.run_id == run_id
+                and proposal.state is ProposalState.AWAITING_APPROVAL
+                and approval is not None
+                and approval.decision is expected_decision
+            )
+            local_proposal = (
+                checkpoint.remediation_proposal if checkpoint is not None else None
+            )
+            local_approval = checkpoint.local_approval if checkpoint is not None else None
+            local_decision_valid = (
+                checkpoint is not None
+                and local_proposal is not None
+                and local_proposal.proposal_id == approval_proposal_id
+                and local_proposal.run_id == run_id
+                and local_proposal.status is ProposalState.AWAITING_APPROVAL
+                and local_approval is not None
+                and local_approval.proposal_id == approval_proposal_id
+                and local_approval.run_id == run_id
+                and local_approval.decision is expected_decision
+            )
+            if not legacy_decision_valid and not local_decision_valid:
                 raise StorageConflictError(
                     "decision transition requires matching durable human decision"
                 )
@@ -107,16 +124,40 @@ class InMemoryTestDurableTruthRepository:
                 if proposal is not None
                 else None
             )
-            if (
-                proposal is None
-                or evidence is None
-                or evidence.run_id != run_id
-                or evidence.observed_state is not ObservedInstanceState.STOPPED
-                or idempotency is None
-                or idempotency.status is not IdempotencyStatus.COMPLETED
-                or idempotency.action_result is None
-                or idempotency.action_result.evidence_hash != evidence.evidence_hash
-            ):
+            legacy_proof_valid = (
+                proposal is not None
+                and evidence is not None
+                and evidence.run_id == run_id
+                and evidence.observed_state is ObservedInstanceState.STOPPED
+                and idempotency is not None
+                and idempotency.status is IdempotencyStatus.COMPLETED
+                and idempotency.action_result is not None
+                and idempotency.action_result.evidence_hash == evidence.evidence_hash
+            )
+            checkpoint = self._checkpoints.get(run_id)
+            local_proposal = (
+                checkpoint.remediation_proposal if checkpoint is not None else None
+            )
+            local_receipt = (
+                checkpoint.local_execution_receipt if checkpoint is not None else None
+            )
+            local_verification = (
+                checkpoint.local_verification if checkpoint is not None else None
+            )
+            local_proof_valid = (
+                checkpoint is not None
+                and local_proposal is not None
+                and local_proposal.proposal_id == verification_proposal_id
+                and local_proposal.run_id == run_id
+                and local_receipt is not None
+                and local_receipt.proposal_id == verification_proposal_id
+                and local_receipt.run_id == run_id
+                and local_verification is not None
+                and local_verification.proposal_id == verification_proposal_id
+                and local_verification.run_id == run_id
+                and local_verification.receipt_hash == local_receipt.receipt_hash
+            )
+            if not legacy_proof_valid and not local_proof_valid:
                 raise StorageConflictError("SUCCESS_WITH_EVIDENCE proof is incomplete")
         updated = transition_run(current, next_state, updated_at=updated_at)
         self._runs[run_id] = updated

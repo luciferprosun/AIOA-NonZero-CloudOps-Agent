@@ -103,3 +103,19 @@
 - Decision: Add provider-neutral `ModelProvider`, `CloudProvider`, local durable-state, `QueryResource`, and `PlanRemediation` boundaries for credential-free Phase 1 execution. These are domain/application services and do not add registered tools to the canonical five-tool Strands agent.
 - Rationale: Loss of AWS access must not block contract, policy, state-machine, evidence, proposal, persistence, and approval-boundary engineering. The mock path must exercise production-intended interfaces rather than become a disposable agent architecture.
 - Reversal condition: Live adapters may replace mock implementations only behind the same contracts. Any registered Strands tool expansion still requires a separate decision under D-012.
+
+## D-014 — Local Human Authority Before Protected Mock Execution
+
+- Date: 2026-08-26
+- Status: ACCEPTED
+- Decision: Complete Local-2 by persisting a server-issued approval challenge and an exact human decision before any protected mock execution. Bind the decision to run, proposal ID/hash, evidence hash, proposal version, expiry, authenticated actor session, and a one-time nonce hash. Persist idempotency ownership before execution and require an atomic receipt plus independent read-back before `SUCCESS_WITH_EVIDENCE`.
+- Rationale: A visually convincing demo is not sufficient authority. The local path must prove the same ordering, replay, recovery, and verification invariants intended for a future cloud adapter while keeping every side effect inside an isolated mock state file.
+- Reversal condition: A future live adapter may replace the mock executor only after separate deployment authority and account-scoped prerequisites are proven. It may not weaken or bypass any Local-2 binding or durable ordering invariant.
+
+## D-015 — Loopback-Only Local Operator Surface
+
+- Date: 2026-08-26
+- Status: ACCEPTED
+- Decision: Expose the Local-2 demo through one standard-library HTTP server bound only to `127.0.0.1`, with an owner-only bearer-token file, strict JSON and request-size handling, no CORS, hardened response headers, and a same-origin UI that retains its token only in page memory. The surface is an application boundary, not a sixth Strands tool.
+- Rationale: Judges and developers need an inspectable human interaction without turning local demonstration convenience into public or cloud authority.
+- Reversal condition: Any non-loopback or deployed approval surface requires a separately reviewed identity, freshness, quota, secret-management, and infrastructure decision.

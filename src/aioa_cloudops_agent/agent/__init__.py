@@ -31,8 +31,24 @@ from .investigation_flow import (
     InvestigationCompletion,
     InvestigationFlowResult,
 )
-from .local_composition import LocalFirstRuntime, create_local_first_runtime
+from .local_composition import (
+    LocalFirstRuntime,
+    LocalHitlRuntime,
+    create_local_first_runtime,
+    create_local_hitl_runtime,
+)
 from .local_first import LocalFirstCompletion, LocalFirstPhaseOneFlow, LocalFirstResult
+from .local_hitl import (
+    LocalApprovalChallenge,
+    LocalApprovalChallengeResult,
+    LocalApprovalResolution,
+    LocalApprovalResolutionResult,
+    LocalDecisionRequest,
+    LocalExecutionCompletion,
+    LocalExecutionResult,
+    LocalHitlExecutionFlow,
+    LocalOperatorPrincipal,
+)
 from .prompts import SYSTEM_PROMPT
 from .runtime import build_inspection_request, build_investigation_request
 from .tracing import PRIMARY_AGENT_ID, build_agent_trace_attributes
@@ -57,10 +73,20 @@ __all__ = [
     "DurableProposalHumanInTheLoop",
     "InvestigationCompletion",
     "InvestigationFlowResult",
+    "LocalApprovalChallenge",
+    "LocalApprovalChallengeResult",
+    "LocalApprovalResolution",
+    "LocalApprovalResolutionResult",
+    "LocalDecisionRequest",
+    "LocalExecutionCompletion",
+    "LocalExecutionResult",
     "LocalFirstCompletion",
     "LocalFirstPhaseOneFlow",
     "LocalFirstResult",
     "LocalFirstRuntime",
+    "LocalHitlExecutionFlow",
+    "LocalHitlRuntime",
+    "LocalOperatorPrincipal",
     "PrimaryAgentRuntime",
     "approval_request_hash",
     "build_agent_trace_attributes",
@@ -70,5 +96,6 @@ __all__ = [
     "create_bedrock_model",
     "create_human_in_the_loop",
     "create_local_first_runtime",
+    "create_local_hitl_runtime",
     "create_primary_agent",
 ]

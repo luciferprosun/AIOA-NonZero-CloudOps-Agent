@@ -821,6 +821,374 @@ class IdempotencyRecord(NonZeroContract):
         return self
 
 
+class LocalApprovalRequestRecord(NonZeroContract):
+    """Durable, nonce-hash-bound request for one local human decision."""
+
+    request_id: Uuid7Identifier
+    proposal_id: Uuid7Identifier
+    run_id: Uuid7Identifier
+    correlation_id: Uuid7Identifier
+    proposal_hash: Sha256Digest
+    evidence_hash: Sha256Digest
+    proposal_version: int = Field(gt=0)
+    operation_type: RemediationOperation
+    target_resource_type: CloudResourceType
+    target_resource_id: ShortIdentifier
+    actor_session_id: ShortIdentifier
+    decision_nonce_hash: Sha256Digest
+    requested_at: datetime
+    expires_at: datetime
+    request_hash: Sha256Digest
+
+    @field_validator("requested_at", "expires_at")
+    @classmethod
+    def validate_timestamps(cls, value: datetime, info: object) -> datetime:
+        return _require_utc(getattr(info, "field_name", "timestamp"), value)
+
+    @model_validator(mode="after")
+    def validate_request_binding(self) -> Self:
+        if self.expires_at <= self.requested_at:
+            raise ValueError("local approval request must expire after it is created")
+        if self.request_hash != _canonical_digest(self.binding_payload()):
+            raise ValueError("local approval request hash does not match its binding")
+        return self
+
+    def binding_payload(self) -> dict[str, object]:
+        return {
+            "actor_session_id": self.actor_session_id,
+            "correlation_id": str(self.correlation_id),
+            "decision_nonce_hash": self.decision_nonce_hash,
+            "evidence_hash": self.evidence_hash,
+            "expires_at": self.expires_at.isoformat(),
+            "operation_type": self.operation_type.value,
+            "proposal_hash": self.proposal_hash,
+            "proposal_id": str(self.proposal_id),
+            "proposal_version": self.proposal_version,
+            "request_id": str(self.request_id),
+            "run_id": str(self.run_id),
+            "target_resource_id": self.target_resource_id,
+            "target_resource_type": self.target_resource_type.value,
+        }
+
+    @classmethod
+    def create(
+        cls,
+        *,
+        request_id: Uuid7Identifier,
+        proposal: RemediationProposal,
+        actor_session_id: str,
+        decision_nonce_hash: Sha256Digest,
+        requested_at: datetime,
+        expires_at: datetime,
+    ) -> "LocalApprovalRequestRecord":
+        if proposal.authority_class is not AuthorityGate.PLAN_AND_CONFIRM:
+            raise ValueError("only PLAN_AND_CONFIRM proposals may request local approval")
+        if proposal.status is not ProposalState.AWAITING_APPROVAL:
+            raise ValueError("local approval requires an awaiting proposal")
+        if expires_at > proposal.expires_at:
+            raise ValueError("approval request cannot outlive its proposal")
+        values: dict[str, object] = {
+            "request_id": request_id,
+            "proposal_id": proposal.proposal_id,
+            "run_id": proposal.run_id,
+            "correlation_id": proposal.correlation_id,
+            "proposal_hash": proposal.proposal_hash,
+            "evidence_hash": proposal.evidence_hash,
+            "proposal_version": proposal.version,
+            "operation_type": proposal.operation_type,
+            "target_resource_type": proposal.target_resource_type,
+            "target_resource_id": proposal.target_resource_id,
+            "actor_session_id": actor_session_id,
+            "decision_nonce_hash": decision_nonce_hash,
+            "requested_at": requested_at,
+            "expires_at": expires_at,
+        }
+        provisional = cls.model_construct(**values, request_hash="0" * 64)
+        return cls(**values, request_hash=_canonical_digest(provisional.binding_payload()))
+
+
+class LocalApprovalDecisionRecord(NonZeroContract):
+    """One immutable human decision bound to the complete local request."""
+
+    request_id: Uuid7Identifier
+    proposal_id: Uuid7Identifier
+    run_id: Uuid7Identifier
+    request_hash: Sha256Digest
+    proposal_hash: Sha256Digest
+    evidence_hash: Sha256Digest
+    proposal_version: int = Field(gt=0)
+    decision: ApprovalDecision
+    actor_session_id: ShortIdentifier
+    decision_nonce_hash: Sha256Digest
+    decided_at: datetime
+    decision_hash: Sha256Digest
+
+    @field_validator("decided_at")
+    @classmethod
+    def validate_decided_at(cls, value: datetime) -> datetime:
+        return _require_utc("decided_at", value)
+
+    @model_validator(mode="after")
+    def validate_decision_binding(self) -> Self:
+        if self.decision_hash != _canonical_digest(self.binding_payload()):
+            raise ValueError("local approval decision hash does not match its binding")
+        return self
+
+    def binding_payload(self) -> dict[str, object]:
+        return {
+            "actor_session_id": self.actor_session_id,
+            "decided_at": self.decided_at.isoformat(),
+            "decision": self.decision.value,
+            "decision_nonce_hash": self.decision_nonce_hash,
+            "evidence_hash": self.evidence_hash,
+            "proposal_hash": self.proposal_hash,
+            "proposal_id": str(self.proposal_id),
+            "proposal_version": self.proposal_version,
+            "request_hash": self.request_hash,
+            "request_id": str(self.request_id),
+            "run_id": str(self.run_id),
+        }
+
+    @classmethod
+    def create(
+        cls,
+        request: LocalApprovalRequestRecord,
+        *,
+        decision: ApprovalDecision,
+        decided_at: datetime,
+    ) -> "LocalApprovalDecisionRecord":
+        values: dict[str, object] = {
+            "request_id": request.request_id,
+            "proposal_id": request.proposal_id,
+            "run_id": request.run_id,
+            "request_hash": request.request_hash,
+            "proposal_hash": request.proposal_hash,
+            "evidence_hash": request.evidence_hash,
+            "proposal_version": request.proposal_version,
+            "decision": decision,
+            "actor_session_id": request.actor_session_id,
+            "decision_nonce_hash": request.decision_nonce_hash,
+            "decided_at": decided_at,
+        }
+        provisional = cls.model_construct(**values, decision_hash="0" * 64)
+        return cls(**values, decision_hash=_canonical_digest(provisional.binding_payload()))
+
+
+class LocalExecutionIntent(NonZeroContract):
+    """Write-before-execute ownership for one approved local mock mutation."""
+
+    run_id: Uuid7Identifier
+    proposal_id: Uuid7Identifier
+    proposal_hash: Sha256Digest
+    evidence_hash: Sha256Digest
+    decision_hash: Sha256Digest
+    operation_type: RemediationOperation
+    target_resource_type: CloudResourceType
+    target_resource_id: ShortIdentifier
+    idempotency_key: IdempotencyKey
+    registered_at: datetime
+    intent_hash: Sha256Digest
+
+    @field_validator("registered_at")
+    @classmethod
+    def validate_registered_at(cls, value: datetime) -> datetime:
+        return _require_utc("registered_at", value)
+
+    @model_validator(mode="after")
+    def validate_intent_binding(self) -> Self:
+        if self.operation_type is RemediationOperation.APPLY_REQUIRED_TAGS:
+            raise ValueError("NEVER_AUTONOMOUS tag proposals cannot form execution intent")
+        if self.intent_hash != _canonical_digest(self.binding_payload()):
+            raise ValueError("local execution intent hash does not match its binding")
+        return self
+
+    def binding_payload(self) -> dict[str, object]:
+        return {
+            "decision_hash": self.decision_hash,
+            "evidence_hash": self.evidence_hash,
+            "idempotency_key": self.idempotency_key,
+            "operation_type": self.operation_type.value,
+            "proposal_hash": self.proposal_hash,
+            "proposal_id": str(self.proposal_id),
+            "registered_at": self.registered_at.isoformat(),
+            "run_id": str(self.run_id),
+            "target_resource_id": self.target_resource_id,
+            "target_resource_type": self.target_resource_type.value,
+        }
+
+    @classmethod
+    def create(
+        cls,
+        proposal: RemediationProposal,
+        approval: LocalApprovalDecisionRecord,
+        *,
+        registered_at: datetime,
+    ) -> "LocalExecutionIntent":
+        if approval.decision is not ApprovalDecision.APPROVED:
+            raise ValueError("local execution intent requires approval")
+        if (
+            approval.proposal_id != proposal.proposal_id
+            or approval.run_id != proposal.run_id
+            or approval.proposal_hash != proposal.proposal_hash
+            or approval.evidence_hash != proposal.evidence_hash
+            or approval.proposal_version != proposal.version
+        ):
+            raise ValueError("local execution intent prerequisites do not match")
+        values: dict[str, object] = {
+            "run_id": proposal.run_id,
+            "proposal_id": proposal.proposal_id,
+            "proposal_hash": proposal.proposal_hash,
+            "evidence_hash": proposal.evidence_hash,
+            "decision_hash": approval.decision_hash,
+            "operation_type": proposal.operation_type,
+            "target_resource_type": proposal.target_resource_type,
+            "target_resource_id": proposal.target_resource_id,
+            "idempotency_key": f"local-exec:{proposal.proposal_hash}",
+            "registered_at": registered_at,
+        }
+        provisional = cls.model_construct(**values, intent_hash="0" * 64)
+        return cls(**values, intent_hash=_canonical_digest(provisional.binding_payload()))
+
+
+class LocalExecutionReceipt(NonZeroContract):
+    """Atomic mock-provider mutation receipt; a receipt is not final verification."""
+
+    run_id: Uuid7Identifier
+    proposal_id: Uuid7Identifier
+    proposal_hash: Sha256Digest
+    evidence_hash: Sha256Digest
+    decision_hash: Sha256Digest
+    intent_hash: Sha256Digest
+    idempotency_key: IdempotencyKey
+    operation_type: RemediationOperation
+    target_resource_type: CloudResourceType
+    target_resource_id: ShortIdentifier
+    before_resource: CloudResource
+    after_resource: CloudResource | None = None
+    executed_at: datetime
+    receipt_hash: Sha256Digest
+
+    @field_validator("executed_at")
+    @classmethod
+    def validate_executed_at(cls, value: datetime) -> datetime:
+        return _require_utc("executed_at", value)
+
+    @model_validator(mode="after")
+    def validate_receipt_binding(self) -> Self:
+        if (
+            self.before_resource.resource_type is not self.target_resource_type
+            or self.before_resource.resource_id != self.target_resource_id
+        ):
+            raise ValueError("local receipt before-resource target does not match")
+        if self.operation_type is RemediationOperation.RELEASE_ELASTIC_IP:
+            if not isinstance(self.before_resource, ElasticIpResource):
+                raise ValueError("release receipt requires Elastic IP state")
+            if self.before_resource.association_id is not None or self.after_resource is not None:
+                raise ValueError("release receipt must prove an unattached address became absent")
+        elif self.operation_type is RemediationOperation.REVOKE_PUBLIC_INGRESS:
+            if not isinstance(self.before_resource, SecurityGroupResource) or not isinstance(
+                self.after_resource, SecurityGroupResource
+            ):
+                raise ValueError("ingress receipt requires Security Group before/after state")
+            if (
+                self.after_resource.resource_id != self.before_resource.resource_id
+                or self.after_resource.region != self.before_resource.region
+                or self.after_resource.vpc_id != self.before_resource.vpc_id
+                or self.after_resource.outbound_rules != self.before_resource.outbound_rules
+                or self.after_resource.tags != self.before_resource.tags
+                or len(self.after_resource.inbound_rules) >= len(self.before_resource.inbound_rules)
+            ):
+                raise ValueError("ingress receipt does not prove a bounded rule removal")
+            remaining_before = iter(self.before_resource.inbound_rules)
+            for expected_rule in self.after_resource.inbound_rules:
+                if not any(rule == expected_rule for rule in remaining_before):
+                    raise ValueError(
+                        "ingress receipt after-state is not an ordered subset"
+                    )
+        else:
+            raise ValueError("local receipt operation is non-executable")
+        if self.receipt_hash != _canonical_digest(self.receipt_payload()):
+            raise ValueError("local execution receipt hash does not match its payload")
+        return self
+
+    def receipt_payload(self) -> dict[str, object]:
+        return {
+            "after_resource": (
+                None if self.after_resource is None else self.after_resource.model_dump(mode="json")
+            ),
+            "before_resource": self.before_resource.model_dump(mode="json"),
+            "decision_hash": self.decision_hash,
+            "evidence_hash": self.evidence_hash,
+            "executed_at": self.executed_at.isoformat(),
+            "idempotency_key": self.idempotency_key,
+            "intent_hash": self.intent_hash,
+            "operation_type": self.operation_type.value,
+            "proposal_hash": self.proposal_hash,
+            "proposal_id": str(self.proposal_id),
+            "run_id": str(self.run_id),
+            "target_resource_id": self.target_resource_id,
+            "target_resource_type": self.target_resource_type.value,
+        }
+
+
+class LocalVerificationEvidence(NonZeroContract):
+    """Independent read-back proof for a completed local mock mutation."""
+
+    run_id: Uuid7Identifier
+    proposal_id: Uuid7Identifier
+    receipt_hash: Sha256Digest
+    operation_type: RemediationOperation
+    target_resource_type: CloudResourceType
+    target_resource_id: ShortIdentifier
+    observed_absent: bool
+    observed_resource: CloudResource | None = None
+    verified_at: datetime
+    verification_hash: Sha256Digest
+
+    @field_validator("verified_at")
+    @classmethod
+    def validate_verified_at(cls, value: datetime) -> datetime:
+        return _require_utc("verified_at", value)
+
+    @model_validator(mode="after")
+    def validate_verification_binding(self) -> Self:
+        if self.operation_type is RemediationOperation.RELEASE_ELASTIC_IP:
+            if not self.observed_absent or self.observed_resource is not None:
+                raise ValueError("release verification requires exact target absence")
+        elif self.operation_type is RemediationOperation.REVOKE_PUBLIC_INGRESS:
+            if self.observed_absent or not isinstance(
+                self.observed_resource, SecurityGroupResource
+            ):
+                raise ValueError("ingress verification requires Security Group read-back")
+            if (
+                self.observed_resource.resource_id != self.target_resource_id
+                or self.observed_resource.resource_type is not self.target_resource_type
+            ):
+                raise ValueError("local verification observed a different target")
+        else:
+            raise ValueError("local verification operation is non-executable")
+        if self.verification_hash != _canonical_digest(self.verification_payload()):
+            raise ValueError("local verification hash does not match its payload")
+        return self
+
+    def verification_payload(self) -> dict[str, object]:
+        return {
+            "observed_absent": self.observed_absent,
+            "observed_resource": (
+                None
+                if self.observed_resource is None
+                else self.observed_resource.model_dump(mode="json")
+            ),
+            "operation_type": self.operation_type.value,
+            "proposal_id": str(self.proposal_id),
+            "receipt_hash": self.receipt_hash,
+            "run_id": str(self.run_id),
+            "target_resource_id": self.target_resource_id,
+            "target_resource_type": self.target_resource_type.value,
+            "verified_at": self.verified_at.isoformat(),
+        }
+
+
 class Checkpoint(NonZeroContract):
     """Versioned last-safe-state foundation for later restart reconciliation."""
 
@@ -830,6 +1198,11 @@ class Checkpoint(NonZeroContract):
     tool_result_hashes: dict[ShortIdentifier, Sha256Digest] = Field(default_factory=dict)
     resource_evidence: ResourceEvidence | None = None
     remediation_proposal: RemediationProposal | None = None
+    local_approval_request: LocalApprovalRequestRecord | None = None
+    local_approval: LocalApprovalDecisionRecord | None = None
+    local_execution_intent: LocalExecutionIntent | None = None
+    local_execution_receipt: LocalExecutionReceipt | None = None
+    local_verification: LocalVerificationEvidence | None = None
     created_at: datetime
     version: int = Field(default=1, gt=0)
 
@@ -851,6 +1224,83 @@ class Checkpoint(NonZeroContract):
             or self.remediation_proposal.evidence_hash != self.resource_evidence.evidence_hash
         ):
             raise ValueError("checkpoint evidence and proposal identities must match")
+        proposal = self.remediation_proposal
+        request = self.local_approval_request
+        approval = self.local_approval
+        intent = self.local_execution_intent
+        receipt = self.local_execution_receipt
+        verification = self.local_verification
+        if request is not None and (
+            proposal is None
+            or request.run_id != self.run_id
+            or request.proposal_id != proposal.proposal_id
+            or request.proposal_hash != proposal.proposal_hash
+            or request.evidence_hash != proposal.evidence_hash
+            or request.proposal_version != proposal.version
+            or request.operation_type is not proposal.operation_type
+            or request.target_resource_type is not proposal.target_resource_type
+            or request.target_resource_id != proposal.target_resource_id
+        ):
+            raise ValueError("checkpoint local approval request is not proposal-bound")
+        if approval is not None and (
+            request is None
+            or approval.run_id != self.run_id
+            or approval.request_id != request.request_id
+            or approval.request_hash != request.request_hash
+            or approval.proposal_id != request.proposal_id
+            or approval.proposal_hash != request.proposal_hash
+            or approval.evidence_hash != request.evidence_hash
+            or approval.proposal_version != request.proposal_version
+            or approval.actor_session_id != request.actor_session_id
+            or approval.decision_nonce_hash != request.decision_nonce_hash
+            or approval.decided_at < request.requested_at
+            or approval.decided_at > request.expires_at
+        ):
+            raise ValueError("checkpoint local approval is not request-bound")
+        if intent is not None and (
+            proposal is None
+            or approval is None
+            or approval.decision is not ApprovalDecision.APPROVED
+            or intent.run_id != self.run_id
+            or intent.proposal_id != proposal.proposal_id
+            or intent.proposal_hash != proposal.proposal_hash
+            or intent.evidence_hash != proposal.evidence_hash
+            or intent.decision_hash != approval.decision_hash
+            or intent.operation_type is not proposal.operation_type
+            or intent.target_resource_type is not proposal.target_resource_type
+            or intent.target_resource_id != proposal.target_resource_id
+            or intent.idempotency_key != f"local-exec:{proposal.proposal_hash}"
+            or intent.registered_at < approval.decided_at
+            or intent.registered_at > proposal.expires_at
+        ):
+            raise ValueError("checkpoint local execution intent is not approval-bound")
+        if receipt is not None and (
+            intent is None
+            or receipt.run_id != self.run_id
+            or receipt.proposal_id != intent.proposal_id
+            or receipt.proposal_hash != intent.proposal_hash
+            or receipt.evidence_hash != intent.evidence_hash
+            or receipt.decision_hash != intent.decision_hash
+            or receipt.intent_hash != intent.intent_hash
+            or receipt.idempotency_key != intent.idempotency_key
+            or receipt.operation_type is not intent.operation_type
+            or receipt.target_resource_type is not intent.target_resource_type
+            or receipt.target_resource_id != intent.target_resource_id
+            or receipt.executed_at < intent.registered_at
+        ):
+            raise ValueError("checkpoint local receipt is not intent-bound")
+        if verification is not None and (
+            receipt is None
+            or verification.run_id != self.run_id
+            or verification.proposal_id != receipt.proposal_id
+            or verification.receipt_hash != receipt.receipt_hash
+            or verification.operation_type is not receipt.operation_type
+            or verification.target_resource_type is not receipt.target_resource_type
+            or verification.target_resource_id != receipt.target_resource_id
+            or verification.observed_resource != receipt.after_resource
+            or verification.verified_at < receipt.executed_at
+        ):
+            raise ValueError("checkpoint local verification is not receipt-bound")
         return self
 
 

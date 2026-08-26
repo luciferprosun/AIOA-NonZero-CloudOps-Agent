@@ -26,6 +26,14 @@ from .inspect_instance import (
     inspection_to_provenance,
 )
 from .investigation_context import InvestigationToolContext
+from .local_mock import (
+    LocalMockConflictError,
+    LocalMockMutationError,
+    LocalMockPolicyError,
+    LocalMockRemediationExecutor,
+    LocalMockStateStore,
+    PersistentMockAwsAdapter,
+)
 from .metrics_models import (
     MetricDatapoint,
     MetricStatistic,
@@ -111,10 +119,16 @@ __all__ = [
     "InstanceInspectionError",
     "InvestigationIdentity",
     "InvestigationToolContext",
+    "LocalMockConflictError",
+    "LocalMockMutationError",
+    "LocalMockPolicyError",
+    "LocalMockRemediationExecutor",
+    "LocalMockStateStore",
     "MetricDatapoint",
     "MetricStatistic",
     "MockAwsAdapter",
     "ModelPlanCandidate",
+    "PersistentMockAwsAdapter",
     "PlanRemediation",
     "QueryResource",
     "ReadUtilizationMetricsService",

@@ -23,4 +23,9 @@
 
 The project is a bounded idle-EC2 remediation agent for exactly one allow-listed sandbox instance. The canonical maximum tool surface is `inspect_instance`, `read_utilization_metrics`, `build_remediation_evidence`, `stop_sandbox_instance`, and `verify_instance_state`.
 
-The current implementation contains only `inspect_instance`, classified `READ_ONLY` under `AUTO`. Strands orchestrates, the model proposes, and the deterministic Non-Zero layer controls valid state and authority. No remediation tool, AWS deployment, live state write, or EC2 mutation has been implemented.
+The current canonical Strands runtime implements all five bounded tools. Its private EC2 stop path is
+live-disabled and has never been invoked against AWS by this project. The credential-free Local-First
+path additionally demonstrates provider-neutral resource planning, exact human approval or denial,
+protected mock execution, restart reconciliation, and independent verification through the same
+Non-Zero run/checkpoint lifecycle. These local application services do not expand the five registered
+Strands tools. No AWS deployment or live cloud mutation has been performed.
