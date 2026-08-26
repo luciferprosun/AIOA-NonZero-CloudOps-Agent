@@ -1,7 +1,11 @@
 """Clearly test-only in-memory implementation of the durable repository contract."""
 
+from collections.abc import Mapping
 from datetime import datetime
+from typing import Any
 from uuid import UUID
+
+from pydantic import ValidationError
 
 from aioa_cloudops_agent.nz import (
     ActionProposal,
@@ -22,7 +26,7 @@ from aioa_cloudops_agent.nz import (
     WorkflowState,
     transition_run,
 )
-from aioa_cloudops_agent.nz.errors import StorageConflictError
+from aioa_cloudops_agent.nz.errors import StorageConflictError, StorageDependencyError
 
 from .durable_logic import (
     completed_idempotency_status,
@@ -358,3 +362,112 @@ class InMemoryTestDurableTruthRepository:
         proposal_id: UUID,
     ) -> VerificationEvidence | None:
         return self._verification_evidence.get((run_id, proposal_id))
+
+    def export_snapshot(self) -> dict[str, object]:
+        """Return a complete, deterministic JSON-safe snapshot for a local adapter."""
+
+        return {
+            "format_version": 1,
+            "runs": [
+                self._runs[key].model_dump(mode="json")
+                for key in sorted(self._runs, key=str)
+            ],
+            "proposals": [
+                self._proposals[key].model_dump(mode="json")
+                for key in sorted(self._proposals, key=str)
+            ],
+            "approvals": [
+                self._approvals[key].model_dump(mode="json")
+                for key in sorted(self._approvals, key=str)
+            ],
+            "idempotency": [
+                self._idempotency[key].model_dump(mode="json")
+                for key in sorted(self._idempotency)
+            ],
+            "checkpoints": [
+                self._checkpoints[key].model_dump(mode="json")
+                for key in sorted(self._checkpoints, key=str)
+            ],
+            "audit_events": [
+                self._audit_events[key].model_dump(mode="json")
+                for key in sorted(self._audit_events, key=lambda item: (str(item[0]), str(item[1])))
+            ],
+            "verification_evidence": [
+                self._verification_evidence[key].model_dump(mode="json")
+                for key in sorted(
+                    self._verification_evidence,
+                    key=lambda item: (str(item[0]), str(item[1])),
+                )
+            ],
+        }
+
+    @classmethod
+    def from_snapshot(cls, payload: object) -> "InMemoryTestDurableTruthRepository":
+        """Rebuild validated durable truth or fail closed on corrupt local state."""
+
+        expected_keys = {
+            "format_version",
+            "runs",
+            "proposals",
+            "approvals",
+            "idempotency",
+            "checkpoints",
+            "audit_events",
+            "verification_evidence",
+        }
+        if not isinstance(payload, Mapping) or set(payload) != expected_keys:
+            raise StorageDependencyError("local durable snapshot shape is invalid")
+        if payload.get("format_version") != 1:
+            raise StorageDependencyError("local durable snapshot version is unsupported")
+
+        def records(name: str, model: Any) -> list[Any]:
+            values = payload.get(name)
+            if not isinstance(values, list):
+                raise StorageDependencyError(f"local durable snapshot {name} is invalid")
+            try:
+                return [model.model_validate(value) for value in values]
+            except (TypeError, ValueError, ValidationError) as error:
+                raise StorageDependencyError(
+                    f"local durable snapshot {name} violates typed contracts"
+                ) from error
+
+        repository = cls()
+        runs = records("runs", Run)
+        proposals = records("proposals", ActionProposal)
+        approvals = records("approvals", Approval)
+        idempotency = records("idempotency", IdempotencyRecord)
+        checkpoints = records("checkpoints", Checkpoint)
+        audit_events = records("audit_events", AuditEvent)
+        verification_evidence = records("verification_evidence", VerificationEvidence)
+
+        repository._runs = {record.run_id: record for record in runs}
+        repository._proposals = {record.proposal_id: record for record in proposals}
+        repository._approvals = {record.proposal_id: record for record in approvals}
+        repository._idempotency = {record.idempotency_key: record for record in idempotency}
+        repository._checkpoints = {record.run_id: record for record in checkpoints}
+        repository._audit_events = {
+            (record.run_id, record.event_id): record for record in audit_events
+        }
+        repository._verification_evidence = {
+            (record.run_id, record.proposal_id): record for record in verification_evidence
+        }
+        counts = (
+            (len(runs), len(repository._runs)),
+            (len(proposals), len(repository._proposals)),
+            (len(approvals), len(repository._approvals)),
+            (len(idempotency), len(repository._idempotency)),
+            (len(checkpoints), len(repository._checkpoints)),
+            (len(audit_events), len(repository._audit_events)),
+            (len(verification_evidence), len(repository._verification_evidence)),
+        )
+        if any(source != restored for source, restored in counts):
+            raise StorageDependencyError("local durable snapshot contains duplicate identities")
+        if any(proposal.run_id not in repository._runs for proposal in proposals):
+            raise StorageDependencyError("local proposal references a missing run")
+        if any(approval.proposal_id not in repository._proposals for approval in approvals):
+            raise StorageDependencyError("local approval references a missing proposal")
+        if any(checkpoint.run_id not in repository._runs for checkpoint in checkpoints):
+            raise StorageDependencyError("local checkpoint references a missing run")
+        if any(event.run_id not in repository._runs for event in audit_events):
+            raise StorageDependencyError("local audit event references a missing run")
+        return repository

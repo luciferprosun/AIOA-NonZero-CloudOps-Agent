@@ -19,6 +19,7 @@ from .investigation import (
     DEMO_OBSERVATION_WINDOW_MINUTES,
     IdlePolicySettings,
 )
+from .local_first import LocalFirstMode, LocalFirstSettings
 from .remediation import SandboxRemediationSettings
 from .settings import AwsSettings, CostGuardrails, DynamoDbBillingMode
 from .verification import VerificationSettings
@@ -41,6 +42,8 @@ __all__ = [
     "DynamoDbBillingMode",
     "DynamoDbSettings",
     "IdlePolicySettings",
+    "LocalFirstMode",
+    "LocalFirstSettings",
     "SandboxRemediationSettings",
     "VerificationSettings",
     "get_bedrock_model_capabilities",

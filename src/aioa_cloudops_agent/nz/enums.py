@@ -15,6 +15,8 @@ class WorkflowState(StrEnum):
     APPROVED = "APPROVED"
     EXECUTING = "EXECUTING"
     VERIFYING = "VERIFYING"
+    NO_ACTION_REQUIRED = "NO_ACTION_REQUIRED"
+    RECOMMENDATION_ONLY = "RECOMMENDATION_ONLY"
     SUCCESS_WITH_EVIDENCE = "SUCCESS_WITH_EVIDENCE"
     DENIED_BY_HUMAN = "DENIED_BY_HUMAN"
     DENIED_BY_POLICY = "DENIED_BY_POLICY"
@@ -30,6 +32,8 @@ class WorkflowState(StrEnum):
 TERMINAL_WORKFLOW_STATES: Final[frozenset[WorkflowState]] = frozenset(
     {
         WorkflowState.SUCCESS_WITH_EVIDENCE,
+        WorkflowState.NO_ACTION_REQUIRED,
+        WorkflowState.RECOMMENDATION_ONLY,
         WorkflowState.DENIED_BY_HUMAN,
         WorkflowState.DENIED_BY_POLICY,
         WorkflowState.MODEL_OUTPUT_INVALID,
@@ -50,6 +54,10 @@ class Capability(StrEnum):
     BUILD_REMEDIATION_EVIDENCE = "build_remediation_evidence"
     STOP_SANDBOX_INSTANCE = "stop_sandbox_instance"
     VERIFY_INSTANCE_STATE = "verify_instance_state"
+    QUERY_RESOURCE = "query_resource"
+    PLAN_REMEDIATION = "plan_remediation"
+    RELEASE_ELASTIC_IP = "ReleaseAddress"
+    REVOKE_PUBLIC_INGRESS = "RevokeSecurityGroupIngress"
     TERMINATE_INSTANCES = "TerminateInstances"
     START_INSTANCES = "StartInstances"
     REBOOT_INSTANCES = "RebootInstances"
@@ -95,6 +103,13 @@ class FailureKind(StrEnum):
     EXECUTION_FAILURE = "EXECUTION_FAILURE"
     VERIFICATION_FAILURE = "VERIFICATION_FAILURE"
     RECOVERY_REQUIREMENT = "RECOVERY_REQUIREMENT"
+    ILLEGAL_STATE_TRANSITION = "ILLEGAL_STATE_TRANSITION"
+    PROVIDER_FAILURE = "PROVIDER_FAILURE"
+    TOOL_ADAPTER_FAILURE = "TOOL_ADAPTER_FAILURE"
+    STORAGE_FAILURE = "STORAGE_FAILURE"
+    IDEMPOTENCY_CONFLICT = "IDEMPOTENCY_CONFLICT"
+    NOT_FOUND = "NOT_FOUND"
+    CONFIGURATION_ERROR = "CONFIGURATION_ERROR"
 
 
 class ResultStatus(StrEnum):
@@ -177,6 +192,43 @@ class AuditEventType(StrEnum):
     MODEL_OUTPUT_REJECTED = "MODEL_OUTPUT_REJECTED"
     BUDGET_UPDATED = "BUDGET_UPDATED"
     BUDGET_EXHAUSTED = "BUDGET_EXHAUSTED"
+    RESOURCE_QUERIED = "RESOURCE_QUERIED"
+    REMEDIATION_PLANNED = "REMEDIATION_PLANNED"
+    NO_ACTION_RECORDED = "NO_ACTION_RECORDED"
+    RECOMMENDATION_RECORDED = "RECOMMENDATION_RECORDED"
+
+
+class CloudResourceType(StrEnum):
+    """Provider-neutral resource kinds supported by the local CloudSecOps read model."""
+
+    EC2_INSTANCE = "AWS::EC2::Instance"
+    ELASTIC_IP = "AWS::EC2::EIP"
+    SECURITY_GROUP = "AWS::EC2::SecurityGroup"
+
+
+class CloudFinding(StrEnum):
+    """Closed deterministic findings derived from normalized resource evidence."""
+
+    UNATTACHED_ELASTIC_IP = "UNATTACHED_ELASTIC_IP"
+    OVERLY_PERMISSIVE_INGRESS = "OVERLY_PERMISSIVE_INGRESS"
+    REQUIRED_TAGS_MISSING = "REQUIRED_TAGS_MISSING"
+    CLEAN = "CLEAN"
+
+
+class RemediationOperation(StrEnum):
+    """Closed proposal operations; entries are data and do not expose execution."""
+
+    RELEASE_ELASTIC_IP = "RELEASE_ELASTIC_IP"
+    REVOKE_PUBLIC_INGRESS = "REVOKE_PUBLIC_INGRESS"
+    APPLY_REQUIRED_TAGS = "APPLY_REQUIRED_TAGS"
+
+
+class PlanDisposition(StrEnum):
+    """Explicit result of deterministic remediation planning."""
+
+    PROPOSAL = "PROPOSAL"
+    NO_ACTION = "NO_ACTION"
+    NON_EXECUTABLE_RECOMMENDATION = "NON_EXECUTABLE_RECOMMENDATION"
 
 
 class RecoveryDisposition(StrEnum):

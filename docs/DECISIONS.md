@@ -95,3 +95,11 @@
 - Decision: Build one bounded idle-EC2 remediation agent for exactly one allow-listed sandbox instance, with a maximum five-tool surface: `inspect_instance`, `read_utilization_metrics`, `build_remediation_evidence`, `stop_sandbox_instance`, and `verify_instance_state`.
 - Rationale: The narrow workflow demonstrates professional CloudOps observation, durable evidence, explicit human authority, bounded remediation, and post-action verification without broad account authority.
 - Reversal condition: Any scope or tool-surface expansion requires an explicit documented decision proving that the five-tool single-agent design is insufficient.
+
+## D-013 — Local-First Adapter Foundation Without Tool-Surface Expansion
+
+- Date: 2026-08-26
+- Status: ACCEPTED
+- Decision: Add provider-neutral `ModelProvider`, `CloudProvider`, local durable-state, `QueryResource`, and `PlanRemediation` boundaries for credential-free Phase 1 execution. These are domain/application services and do not add registered tools to the canonical five-tool Strands agent.
+- Rationale: Loss of AWS access must not block contract, policy, state-machine, evidence, proposal, persistence, and approval-boundary engineering. The mock path must exercise production-intended interfaces rather than become a disposable agent architecture.
+- Reversal condition: Live adapters may replace mock implementations only behind the same contracts. Any registered Strands tool expansion still requires a separate decision under D-012.

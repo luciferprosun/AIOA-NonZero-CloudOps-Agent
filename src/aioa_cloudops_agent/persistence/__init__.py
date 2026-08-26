@@ -16,6 +16,7 @@ from .keys import (
     idempotency_key,
     provenance_key,
 )
+from .local import LocalFileDurableTruthRepository
 from .models import (
     ExecutionRecord,
     IdempotencyClaim,
@@ -50,6 +51,7 @@ __all__ = [
     "ExecutionRepository",
     "IdempotencyClaim",
     "IdempotencyConflictError",
+    "LocalFileDurableTruthRepository",
     "OptimisticConcurrencyError",
     "PersistenceConflictError",
     "PersistenceOperationError",

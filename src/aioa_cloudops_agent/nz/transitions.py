@@ -32,6 +32,8 @@ ALLOWED_WORKFLOW_TRANSITIONS: Final[dict[WorkflowState, frozenset[WorkflowState]
     WorkflowState.EVIDENCE_READY: frozenset(
         {
             WorkflowState.REMEDIATION_PROPOSED,
+            WorkflowState.NO_ACTION_REQUIRED,
+            WorkflowState.RECOMMENDATION_ONLY,
             WorkflowState.DENIED_BY_POLICY,
             *_COMMON_INVESTIGATION_FAILURES,
         }

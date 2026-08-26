@@ -31,6 +31,8 @@ from .investigation_flow import (
     InvestigationCompletion,
     InvestigationFlowResult,
 )
+from .local_composition import LocalFirstRuntime, create_local_first_runtime
+from .local_first import LocalFirstCompletion, LocalFirstPhaseOneFlow, LocalFirstResult
 from .prompts import SYSTEM_PROMPT
 from .runtime import build_inspection_request, build_investigation_request
 from .tracing import PRIMARY_AGENT_ID, build_agent_trace_attributes
@@ -55,6 +57,10 @@ __all__ = [
     "DurableProposalHumanInTheLoop",
     "InvestigationCompletion",
     "InvestigationFlowResult",
+    "LocalFirstCompletion",
+    "LocalFirstPhaseOneFlow",
+    "LocalFirstResult",
+    "LocalFirstRuntime",
     "PrimaryAgentRuntime",
     "approval_request_hash",
     "build_agent_trace_attributes",
@@ -63,5 +69,6 @@ __all__ = [
     "build_investigation_request",
     "create_bedrock_model",
     "create_human_in_the_loop",
+    "create_local_first_runtime",
     "create_primary_agent",
 ]

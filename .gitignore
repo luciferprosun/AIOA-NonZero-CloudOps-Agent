@@ -3,6 +3,7 @@
 .env.*
 !.env.example
 .aioa-private/
+.local/
 secrets/
 credentials/
 *.credential

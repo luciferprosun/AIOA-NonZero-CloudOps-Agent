@@ -4,6 +4,8 @@ from pathlib import Path
 
 import yaml
 
+from aioa_cloudops_agent.agent import CURRENT_TOOL_NAMES
+
 ROOT = Path(__file__).parents[2]
 SOURCE_ROOT = ROOT / "src" / "aioa_cloudops_agent"
 SAM_TEMPLATE = ROOT / "infra" / "sam" / "template.yaml"
@@ -116,12 +118,14 @@ def test_no_multi_agent_agentcore_or_dynamic_tool_loading_is_active() -> None:
     }
 
 
-def test_active_source_has_no_eip_query_surface() -> None:
+def test_local_eip_query_does_not_expand_live_aws_or_strands_tool_surface() -> None:
     source = "\n".join(path.read_text(encoding="utf-8") for path in SOURCE_ROOT.rglob("*.py"))
 
     assert "DescribeAddresses" not in source
-    assert "query_resource" not in source
-    assert "unattached_elastic_ip" not in source.casefold()
+    assert "class QueryResource" in source
+    assert "class MockAwsAdapter" in source
+    assert "query_resource" not in CURRENT_TOOL_NAMES
+    assert "plan_remediation" not in CURRENT_TOOL_NAMES
 
 
 def test_infrastructure_isolates_the_only_stop_authority_from_read_only_policy() -> None:
