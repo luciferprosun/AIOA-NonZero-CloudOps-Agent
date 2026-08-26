@@ -6,14 +6,14 @@ This judge-facing view is generated from the canonical JSON. It is reviewer proo
 - Day 15 local candidate snapshot: `197db56f828b8ab0b9139a1d3708fb8a58ca336a` (`LOCAL_IMPLEMENTATION_CANDIDATE`)
 - Day 15 additive recovery lineage: `aa941a989a8b8cd0e40367bb130472e9f3c082a7` -> `17d5f4637dbd69a33eff1cbb46282c36b19ce6ad` -> `8e4583ac9341cb7b66de47cf0e7b2a442ac67b32` -> `30c2a30cda0ac6d6e2003166daf6c29bf2c764f0` -> `f2ee79c09ba174ba72cb527b70c095f412151758` -> `36fd17df981dfa593d4e63f6a143410317410763` -> `ce35a67f6491ea92aeef534d0dc4f5dc4a8da7ff` -> `5a6127f43a9251a72203c0eb6c7a903d817599f7` -> `3464bc869e7a11acb5aab61ae279cf196a1ebd0f` -> `41ba5586180e9aa3a25fc5469d42815073a0bbf8` -> `858770d5e5c7b59fa883cc56e06f4a9e915d70c1` -> `5e1904408d402c1e6492d6b2e153a7f1a5c56b58` -> `99f70c43a26ce9715e9b57fde81ca265382dd5f2` -> `197db56f828b8ab0b9139a1d3708fb8a58ca336a`
 - Day 15 gates: `D15-G01, D15-G02, D15-G03, D15-G04, D15-G05, D15-G06, D15-G07, D15-G08, D15-G09, D15-G10`
-- Manifest SHA-256: `d42a8bce9857c0b754bf3b6bf8ac09dca396984533505590508e9d559ebb0363`
+- Manifest SHA-256: `de4ab77ea9e783a8100e6eded53e096bc5396ec39f98d72d79bc6264dc3d954b`
 - Primary agents: `1`
 - Canonical tools: `inspect_instance, read_utilization_metrics, build_remediation_evidence, stop_sandbox_instance, verify_instance_state`
 - Bedrock model: `eu.amazon.nova-2-lite-v1:0` in `eu-central-1`
 - Strands Agents: `1.53.0`
 - P0: `15/15 PASS`, `136` proof cases
 - P1: `6/6 PASS`, `93` proof cases
-- Claims: `26`
+- Claims: `28`
 - Sanitized live receipts: `0`
 
 | Claim ID | Status | Kind | Scope | Conservative claim |
@@ -33,6 +33,8 @@ This judge-facing view is generated from the canonical JSON. It is reviewer proo
 | IAM-SEPARATION-01 | PROVEN | STATIC | Local deterministic | The checked-in orchestrator policy can invoke only the private executor and has no direct EC2 StopInstances action. |
 | IDEMPOTENCY-01 | PROVEN | TEST | mocked AWS | A duplicate logical action cannot silently execute twice while durable idempotency state is acknowledged or unresolved. |
 | LIVE-EC2-01 | NOT_YET_PROVEN | DOC | live AWS | A live EC2 StopInstances event is not yet proven by this repository. |
+| LOCAL2-HITL-EXECUTION-01 | PROVEN | TEST | Local deterministic | Local mock execution requires an exact authenticated approval, durable idempotency ownership, one atomic receipt, and independent verification before evidenced success. |
+| LOCAL2-LOOPBACK-API-01 | PROVEN | TEST | Local deterministic | The Local-2 operator surface is loopback-only, bearer-authenticated, schema-bounded, non-cacheable, and keeps its credential out of browser storage. |
 | MODEL-AUTHORITY-01 | PROVEN | TEST | Local deterministic | Model output cannot itself authorize mutation; execution requires deterministic policy and durable human authority. |
 | MODEL-PIN-01 | PROVEN | STATIC | Local deterministic | The default Bedrock model configuration selects Amazon Nova 2 Lite in eu-central-1. |
 | P0-GATE-01 | PROVEN | TEST | Local deterministic | The canonical P0 matrix passed all 15 gates with 136 proof cases at its reviewed commit anchor. |
@@ -66,7 +68,7 @@ The runtime factory creates one primary Strands Agent.
 Human approval is explicit and bound to the proposal, request, actor session, and decision nonce.
 
 - Status / kind / scope: `PROVEN` / `TEST` / `mocked AWS`
-- Commit anchor: `b5dba16a9af1bc979b2b96a50ddbf0e590e829a5`
+- Commit anchor: `7ffe0cf7c9ca4a5c7c311fd5394a245e80bb78e0`
 - Authority source:
   - `src/aioa_cloudops_agent/agent/approval_flow.py::DurableApprovalFlow.resume`
   - `src/aioa_cloudops_agent/nz/contracts.py::Approval.validate_action_binding`
@@ -76,7 +78,7 @@ Human approval is explicit and bound to the proposal, request, actor session, an
   - `tests/integration/test_durable_hitl_approval_flow.py::test_changed_decision_nonce_replay_is_rejected_without_second_tool_call`
   - `tests/unit/test_durable_memory_repository.py::test_approval_from_another_run_or_proposal_cannot_authorize_execution`
 - Limitations: Does not attest to a real operator approval or a deployed identity provider.
-- Claim SHA-256: `20b33ef3e63b29f76154e982d4614cfa7ee493c1d273eb5b6f3d6bc0bf56805a`
+- Claim SHA-256: `ec18fae60b93fc1489615c651ad27c6fa545b8bad32ac38fd820bad3bd2e20b0`
 
 ### BOUNDED-FAILURES-01
 
@@ -340,12 +342,50 @@ A live EC2 StopInstances event is not yet proven by this repository.
 - Limitations: No sanitized live receipt is present; source and mocked tests prove only bounded capability behavior.
 - Claim SHA-256: `c3631b0219d2cd5910bfdc9ae765aa41604a6c529ebf2af4c1de3da24b3f0765`
 
+### LOCAL2-HITL-EXECUTION-01
+
+Local mock execution requires an exact authenticated approval, durable idempotency ownership, one atomic receipt, and independent verification before evidenced success.
+
+- Status / kind / scope: `PROVEN` / `TEST` / `Local deterministic`
+- Commit anchor: `7ffe0cf7c9ca4a5c7c311fd5394a245e80bb78e0`
+- Authority source:
+  - `src/aioa_cloudops_agent/agent/local_hitl.py::LocalHitlExecutionFlow.resume`
+  - `src/aioa_cloudops_agent/cloudops/local_mock.py::LocalMockStateStore.execute`
+  - `src/aioa_cloudops_agent/nz/contracts.py::Checkpoint.validate_last_safe_state`
+- Proof nodes:
+  - `tests/integration/test_local_hitl_execution.py::test_approved_eip_executes_once_verifies_and_reconciles_after_restart`
+  - `tests/integration/test_local_hitl_execution.py::test_identical_decision_reconciles_after_verified_execution`
+  - `tests/integration/test_local_hitl_execution.py::test_receipt_and_verification_reconstruction_reject_semantic_substitution`
+  - `tests/integration/test_local_hitl_execution.py::test_restart_reconciles_success_transition_before_final_checkpoint`
+- Limitations: Bounded to deterministic state files; it provides no provider receipt or account observation.
+- Claim SHA-256: `53e8c79653e260837ca01e132834cf1ad48011f32044d66d5eca96ce5428b5bb`
+
+### LOCAL2-LOOPBACK-API-01
+
+The Local-2 operator surface is loopback-only, bearer-authenticated, schema-bounded, non-cacheable, and keeps its credential out of browser storage.
+
+- Status / kind / scope: `PROVEN` / `TEST` / `Local deterministic`
+- Commit anchor: `7ffe0cf7c9ca4a5c7c311fd5394a245e80bb78e0`
+- Authority source:
+  - `src/aioa_cloudops_agent/local_api/application.py::LocalApiApplication`
+  - `src/aioa_cloudops_agent/local_api/auth.py::LocalApiTokenAuthorizer.authorize`
+  - `src/aioa_cloudops_agent/local_api/server.py::create_local_http_server`
+  - `src/aioa_cloudops_agent/local_api/server.py::load_or_create_local_token`
+- Proof nodes:
+  - `tests/integration/test_local_hitl_http_server.py::test_real_loopback_server_exposes_health_and_authenticated_start`
+  - `tests/integration/test_local_hitl_http_server.py::test_server_refuses_non_loopback_bind`
+  - `tests/integration/test_local_hitl_http_server.py::test_token_file_is_created_once_with_owner_only_permissions`
+  - `tests/unit/test_local_hitl_api.py::test_full_approved_http_flow_executes_verifies_and_reconciles`
+  - `tests/unit/test_local_hitl_api.py::test_public_console_has_strict_csp_and_no_browser_secret_storage`
+- Limitations: Proves a local single-operator demonstration boundary, not a deployed identity provider, public endpoint, or production authorization service.
+- Claim SHA-256: `22b9a0c032cc5fe505934fb5c8c2064e59c5bbc5707d6087b6eeef3825d6de5e`
+
 ### MODEL-AUTHORITY-01
 
 Model output cannot itself authorize mutation; execution requires deterministic policy and durable human authority.
 
 - Status / kind / scope: `PROVEN` / `TEST` / `Local deterministic`
-- Commit anchor: `b5dba16a9af1bc979b2b96a50ddbf0e590e829a5`
+- Commit anchor: `7ffe0cf7c9ca4a5c7c311fd5394a245e80bb78e0`
 - Authority source:
   - `src/aioa_cloudops_agent/agent/hitl.py::DurableProposalHumanInTheLoop`
   - `src/aioa_cloudops_agent/nz/contracts.py::ActionProposal.authorizes_execution`
@@ -354,7 +394,7 @@ Model output cannot itself authorize mutation; execution requires deterministic 
   - `P0-02`
   - `tests/unit/test_private_sandbox_remediation.py::test_model_like_payload_cannot_construct_privileged_execution_command`
 - Limitations: Does not claim the model is intrinsically safe; authority remains outside the model.
-- Claim SHA-256: `030c36aee5a85ef704b6f7ce02df36e5f726756418576648cc95cf0f36907c07`
+- Claim SHA-256: `0bb7c6a4ea0703327bafcf4a6a27748659928dd15d052e6e4a6bafea7c8c87dd`
 
 ### MODEL-PIN-01
 
@@ -447,7 +487,7 @@ The frozen Phase 1 tag, pre-armor ancestry, and prior-art document blobs remain 
 An ActionProposal is persisted before approval and never authorizes execution by itself.
 
 - Status / kind / scope: `PROVEN` / `TEST` / `mocked AWS`
-- Commit anchor: `b5dba16a9af1bc979b2b96a50ddbf0e590e829a5`
+- Commit anchor: `7ffe0cf7c9ca4a5c7c311fd5394a245e80bb78e0`
 - Authority source:
   - `src/aioa_cloudops_agent/nz/contracts.py::ActionProposal.authorizes_execution`
   - `src/aioa_cloudops_agent/persistence/nz_dynamodb.py::DynamoDbDurableTruthRepository.create_proposal`
@@ -455,7 +495,7 @@ An ActionProposal is persisted before approval and never authorizes execution by
   - `P0-04`
   - `tests/integration/test_read_only_investigation_flow.py::test_strands_happy_path_persists_evidence_backed_non_authorizing_proposal`
 - Limitations: Proves persistence contracts and mocked repository behavior, not a live DynamoDB write.
-- Claim SHA-256: `0f8878f20bb7cd07443826743edb5262e02e1516f20205596aae804ba43918cf`
+- Claim SHA-256: `90e7fe43cf91f221857c12732a85fe9608d0278c4e4ffcd8ef99563ae28ef3e0`
 
 ### RECOVERY-NO-REPLAY-01
 

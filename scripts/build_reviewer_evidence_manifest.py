@@ -57,6 +57,7 @@ DAY15_NOVA_PROBE_FIX_COMMIT = "5e1904408d402c1e6492d6b2e153a7f1a5c56b58"
 DAY15_G10_REANCHOR_COMMIT = "99f70c43a26ce9715e9b57fde81ca265382dd5f2"
 DAY15_G10_COMMIT = "197db56f828b8ab0b9139a1d3708fb8a58ca336a"
 LOCAL_FIRST_PHASE1_COMMIT = "b5dba16a9af1bc979b2b96a50ddbf0e590e829a5"
+LOCAL_FIRST_PHASE2_COMMIT = "7ffe0cf7c9ca4a5c7c311fd5394a245e80bb78e0"
 DAY15_RECOVERY_LINEAGE = (
     DAY15_START_COMMIT,
     DAY15_ORIGINAL_M1_COMMIT,
@@ -196,7 +197,7 @@ def build_claims() -> list[dict[str, Any]]:
                 "tests/unit/test_durable_memory_repository.py::"
                 "test_approval_from_another_run_or_proposal_cannot_authorize_execution",
             ),
-            commit_anchor=LOCAL_FIRST_PHASE1_COMMIT,
+            commit_anchor=LOCAL_FIRST_PHASE2_COMMIT,
             scope="mocked AWS",
             limitations="Does not attest to a real operator approval or a deployed identity provider.",
         ),
@@ -301,6 +302,53 @@ def build_claims() -> list[dict[str, Any]]:
             limitations="No sanitized live receipt is present; source and mocked tests prove only bounded capability behavior.",
         ),
         _claim(
+            "LOCAL2-HITL-EXECUTION-01",
+            "Local mock execution requires an exact authenticated approval, durable idempotency ownership, one atomic receipt, and independent verification before evidenced success.",
+            "TEST",
+            (
+                "src/aioa_cloudops_agent/agent/local_hitl.py::LocalHitlExecutionFlow.resume",
+                "src/aioa_cloudops_agent/cloudops/local_mock.py::LocalMockStateStore.execute",
+                "src/aioa_cloudops_agent/nz/contracts.py::Checkpoint.validate_last_safe_state",
+            ),
+            (
+                "tests/integration/test_local_hitl_execution.py::"
+                "test_approved_eip_executes_once_verifies_and_reconciles_after_restart",
+                "tests/integration/test_local_hitl_execution.py::"
+                "test_identical_decision_reconciles_after_verified_execution",
+                "tests/integration/test_local_hitl_execution.py::"
+                "test_restart_reconciles_success_transition_before_final_checkpoint",
+                "tests/integration/test_local_hitl_execution.py::"
+                "test_receipt_and_verification_reconstruction_reject_semantic_substitution",
+            ),
+            commit_anchor=LOCAL_FIRST_PHASE2_COMMIT,
+            limitations="Bounded to deterministic state files; it provides no provider receipt or account observation.",
+        ),
+        _claim(
+            "LOCAL2-LOOPBACK-API-01",
+            "The Local-2 operator surface is loopback-only, bearer-authenticated, schema-bounded, non-cacheable, and keeps its credential out of browser storage.",
+            "TEST",
+            (
+                "src/aioa_cloudops_agent/local_api/application.py::LocalApiApplication",
+                "src/aioa_cloudops_agent/local_api/auth.py::LocalApiTokenAuthorizer.authorize",
+                "src/aioa_cloudops_agent/local_api/server.py::create_local_http_server",
+                "src/aioa_cloudops_agent/local_api/server.py::load_or_create_local_token",
+            ),
+            (
+                "tests/integration/test_local_hitl_http_server.py::"
+                "test_real_loopback_server_exposes_health_and_authenticated_start",
+                "tests/integration/test_local_hitl_http_server.py::"
+                "test_server_refuses_non_loopback_bind",
+                "tests/integration/test_local_hitl_http_server.py::"
+                "test_token_file_is_created_once_with_owner_only_permissions",
+                "tests/unit/test_local_hitl_api.py::"
+                "test_full_approved_http_flow_executes_verifies_and_reconciles",
+                "tests/unit/test_local_hitl_api.py::"
+                "test_public_console_has_strict_csp_and_no_browser_secret_storage",
+            ),
+            commit_anchor=LOCAL_FIRST_PHASE2_COMMIT,
+            limitations="Proves a local single-operator demonstration boundary, not a deployed identity provider, public endpoint, or production authorization service.",
+        ),
+        _claim(
             "MODEL-AUTHORITY-01",
             "Model output cannot itself authorize mutation; execution requires deterministic policy and durable human authority.",
             "TEST",
@@ -314,7 +362,7 @@ def build_claims() -> list[dict[str, Any]]:
                 "tests/unit/test_private_sandbox_remediation.py::"
                 "test_model_like_payload_cannot_construct_privileged_execution_command",
             ),
-            commit_anchor=LOCAL_FIRST_PHASE1_COMMIT,
+            commit_anchor=LOCAL_FIRST_PHASE2_COMMIT,
             limitations="Does not claim the model is intrinsically safe; authority remains outside the model.",
         ),
         _claim(
@@ -386,7 +434,7 @@ def build_claims() -> list[dict[str, Any]]:
                 "tests/integration/test_read_only_investigation_flow.py::"
                 "test_strands_happy_path_persists_evidence_backed_non_authorizing_proposal",
             ),
-            commit_anchor=LOCAL_FIRST_PHASE1_COMMIT,
+            commit_anchor=LOCAL_FIRST_PHASE2_COMMIT,
             scope="mocked AWS",
             limitations="Proves persistence contracts and mocked repository behavior, not a live DynamoDB write.",
         ),
@@ -863,7 +911,7 @@ From the repository root in the documented development environment:
 .venv/bin/python scripts/validate_reviewer_evidence_manifest.py
 ```
 
-The immutable Phase 1 / Day 14 baseline remains anchored to `{EVIDENCE_SNAPSHOT_COMMIT}`. Unchanged Day 15 M1 claims remain at their original reviewed commit `{DAY15_ORIGINAL_M1_COMMIT}`; recovered telemetry, cold-resume, runtime-guard, and approval-binding claims use `{DAY15_M1_COMMIT}`; historical release-safety evidence remains at `{DAY15_M2_COMMIT}`; and current candidate-bound G10 authority is anchored to `{DAY15_G10_COMMIT}`. The preserved additive lineage, in order, is `{DAY15_START_COMMIT}`, then `{DAY15_ORIGINAL_M1_COMMIT}`, `{DAY15_ORIGINAL_M2_COMMIT}`, `{DAY15_ORIGINAL_M3_COMMIT}`, `{DAY15_M1_COMMIT}`, `{DAY15_M2_COMMIT}`, `{DAY15_FINAL_BLOCKER_COMMIT}`, `{DAY15_SECRET_FIX_COMMIT}`, `{DAY15_G10_IMPLEMENTATION_COMMIT}`, `{DAY15_G10_EVIDENCE_COMMIT}`, `{DAY15_G10_BLOCKER_COMMIT}`, `{DAY15_NOVA_PROBE_FIX_COMMIT}`, `{DAY15_G10_REANCHOR_COMMIT}`, and `{DAY15_G10_COMMIT}`. The candidate snapshot is deliberately `LOCAL_IMPLEMENTATION_CANDIDATE`; it records no live AWS observation, change set, or deployment. The builder never derives an anchor from changing `HEAD`, and a later evidence-only commit is never an anchor, avoiding a self-referential commit hash.
+The immutable Phase 1 / Day 14 baseline remains anchored to `{EVIDENCE_SNAPSHOT_COMMIT}`. Unchanged Day 15 M1 claims remain at their original reviewed commit `{DAY15_ORIGINAL_M1_COMMIT}`; recovered telemetry, cold-resume, and runtime-guard claims use `{DAY15_M1_COMMIT}`; historical release-safety evidence remains at `{DAY15_M2_COMMIT}`; and current candidate-bound G10 authority is anchored to `{DAY15_G10_COMMIT}`. Credential-free Local-First authority is split between the reviewed Phase 1 foundation `{LOCAL_FIRST_PHASE1_COMMIT}` and the reviewed Phase 2 human-authorization/execution implementation `{LOCAL_FIRST_PHASE2_COMMIT}`. The preserved Day 15 recovery lineage, in order, is `{DAY15_START_COMMIT}`, then `{DAY15_ORIGINAL_M1_COMMIT}`, `{DAY15_ORIGINAL_M2_COMMIT}`, `{DAY15_ORIGINAL_M3_COMMIT}`, `{DAY15_M1_COMMIT}`, `{DAY15_M2_COMMIT}`, `{DAY15_FINAL_BLOCKER_COMMIT}`, `{DAY15_SECRET_FIX_COMMIT}`, `{DAY15_G10_IMPLEMENTATION_COMMIT}`, `{DAY15_G10_EVIDENCE_COMMIT}`, `{DAY15_G10_BLOCKER_COMMIT}`, `{DAY15_NOVA_PROBE_FIX_COMMIT}`, `{DAY15_G10_REANCHOR_COMMIT}`, and `{DAY15_G10_COMMIT}`. The candidate snapshot is deliberately `LOCAL_IMPLEMENTATION_CANDIDATE`; it records no live AWS observation, change set, or deployment. The builder never derives an anchor from changing `HEAD`, and a later evidence-only commit is never an anchor, avoiding a self-referential commit hash.
 
 ## Canonical model
 
@@ -871,7 +919,7 @@ Each claim contains the required `claim_id`, `claim`, `evidence_kind`, `authorit
 
 Claim hashes are SHA-256 over compact, key-sorted UTF-8 JSON with the derived `hash` removed and set-like source/proof lists sorted. `manifest_hash` covers the normalized complete document except itself. Canonical JSON uses sorted keys, two-space indentation, sorted claims, and one final newline. The Markdown view is generated from the same normalized model.
 
-The validator resolves authority files and Python symbols at each claim's exact reviewed commit, resolves exact pytest nodes, and requires every referenced current source/test blob to remain byte-identical to that anchor. It admits only the frozen baseline, original M1, recovered M1, historical M2, and current G10 claim anchors; verifies the complete preserved single-parent recovery chain; and extracts the Day 15 gate IDs independently from the immutable G10 Git object. It also checks the explicitly qualified frozen Phase 1 tag and requires every prior-art path to remain a tracked regular file with its immutable blob. Runtime one-agent/five-tool facts must match roots extracted directly from the immutable baseline object, so a synchronized five-for-five tool substitution or emptied provenance baseline cannot be regenerated into truth. Nova 2, its runtime region, and exact `strands-agents[otel]==1.53.0` pins are validated independently against frozen expectations.
+The validator resolves authority files and Python symbols at each claim's exact reviewed commit, resolves exact pytest nodes, and requires every referenced current source/test blob to remain byte-identical to that anchor. It admits only the frozen baseline, original M1, recovered M1, historical M2, current G10, Local-First Phase 1, and Local-First Phase 2 claim anchors; verifies their required ancestry plus the preserved Day 15 single-parent recovery chain; and extracts the Day 15 gate IDs independently from the immutable G10 Git object. It also checks the explicitly qualified frozen Phase 1 tag and requires every prior-art path to remain a tracked regular file with its immutable blob. Runtime one-agent/five-tool facts must match roots extracted directly from the immutable baseline object, so a synchronized five-for-five tool substitution or emptied provenance baseline cannot be regenerated into truth. Nova 2, its runtime region, and exact `strands-agents[otel]==1.53.0` pins are validated independently against frozen expectations.
 
 ## Live-proof boundary
 

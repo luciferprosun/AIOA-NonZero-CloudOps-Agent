@@ -25,9 +25,9 @@
       ],
       "claim": "Human approval is explicit and bound to the proposal, request, actor session, and decision nonce.",
       "claim_id": "APPROVAL-BINDING-01",
-      "commit_anchor": "b5dba16a9af1bc979b2b96a50ddbf0e590e829a5",
+      "commit_anchor": "7ffe0cf7c9ca4a5c7c311fd5394a245e80bb78e0",
       "evidence_kind": "TEST",
-      "hash": "20b33ef3e63b29f76154e982d4614cfa7ee493c1d273eb5b6f3d6bc0bf56805a",
+      "hash": "ec18fae60b93fc1489615c651ad27c6fa545b8bad32ac38fd820bad3bd2e20b0",
       "limitations": "Does not attest to a real operator approval or a deployed identity provider.",
       "proof_nodes": [
         "P0-05",
@@ -338,15 +338,59 @@
     },
     {
       "authority_source": [
+        "src/aioa_cloudops_agent/agent/local_hitl.py::LocalHitlExecutionFlow.resume",
+        "src/aioa_cloudops_agent/cloudops/local_mock.py::LocalMockStateStore.execute",
+        "src/aioa_cloudops_agent/nz/contracts.py::Checkpoint.validate_last_safe_state"
+      ],
+      "claim": "Local mock execution requires an exact authenticated approval, durable idempotency ownership, one atomic receipt, and independent verification before evidenced success.",
+      "claim_id": "LOCAL2-HITL-EXECUTION-01",
+      "commit_anchor": "7ffe0cf7c9ca4a5c7c311fd5394a245e80bb78e0",
+      "evidence_kind": "TEST",
+      "hash": "53e8c79653e260837ca01e132834cf1ad48011f32044d66d5eca96ce5428b5bb",
+      "limitations": "Bounded to deterministic state files; it provides no provider receipt or account observation.",
+      "proof_nodes": [
+        "tests/integration/test_local_hitl_execution.py::test_approved_eip_executes_once_verifies_and_reconciles_after_restart",
+        "tests/integration/test_local_hitl_execution.py::test_identical_decision_reconciles_after_verified_execution",
+        "tests/integration/test_local_hitl_execution.py::test_receipt_and_verification_reconstruction_reject_semantic_substitution",
+        "tests/integration/test_local_hitl_execution.py::test_restart_reconciles_success_transition_before_final_checkpoint"
+      ],
+      "scope": "Local deterministic",
+      "status": "PROVEN"
+    },
+    {
+      "authority_source": [
+        "src/aioa_cloudops_agent/local_api/application.py::LocalApiApplication",
+        "src/aioa_cloudops_agent/local_api/auth.py::LocalApiTokenAuthorizer.authorize",
+        "src/aioa_cloudops_agent/local_api/server.py::create_local_http_server",
+        "src/aioa_cloudops_agent/local_api/server.py::load_or_create_local_token"
+      ],
+      "claim": "The Local-2 operator surface is loopback-only, bearer-authenticated, schema-bounded, non-cacheable, and keeps its credential out of browser storage.",
+      "claim_id": "LOCAL2-LOOPBACK-API-01",
+      "commit_anchor": "7ffe0cf7c9ca4a5c7c311fd5394a245e80bb78e0",
+      "evidence_kind": "TEST",
+      "hash": "22b9a0c032cc5fe505934fb5c8c2064e59c5bbc5707d6087b6eeef3825d6de5e",
+      "limitations": "Proves a local single-operator demonstration boundary, not a deployed identity provider, public endpoint, or production authorization service.",
+      "proof_nodes": [
+        "tests/integration/test_local_hitl_http_server.py::test_real_loopback_server_exposes_health_and_authenticated_start",
+        "tests/integration/test_local_hitl_http_server.py::test_server_refuses_non_loopback_bind",
+        "tests/integration/test_local_hitl_http_server.py::test_token_file_is_created_once_with_owner_only_permissions",
+        "tests/unit/test_local_hitl_api.py::test_full_approved_http_flow_executes_verifies_and_reconciles",
+        "tests/unit/test_local_hitl_api.py::test_public_console_has_strict_csp_and_no_browser_secret_storage"
+      ],
+      "scope": "Local deterministic",
+      "status": "PROVEN"
+    },
+    {
+      "authority_source": [
         "src/aioa_cloudops_agent/agent/hitl.py::DurableProposalHumanInTheLoop",
         "src/aioa_cloudops_agent/nz/contracts.py::ActionProposal.authorizes_execution",
         "src/aioa_cloudops_agent/safety/policy.py::DefaultDenyToolPolicy.evaluate"
       ],
       "claim": "Model output cannot itself authorize mutation; execution requires deterministic policy and durable human authority.",
       "claim_id": "MODEL-AUTHORITY-01",
-      "commit_anchor": "b5dba16a9af1bc979b2b96a50ddbf0e590e829a5",
+      "commit_anchor": "7ffe0cf7c9ca4a5c7c311fd5394a245e80bb78e0",
       "evidence_kind": "TEST",
-      "hash": "030c36aee5a85ef704b6f7ce02df36e5f726756418576648cc95cf0f36907c07",
+      "hash": "0bb7c6a4ea0703327bafcf4a6a27748659928dd15d052e6e4a6bafea7c8c87dd",
       "limitations": "Does not claim the model is intrinsically safe; authority remains outside the model.",
       "proof_nodes": [
         "P0-02",
@@ -463,9 +507,9 @@
       ],
       "claim": "An ActionProposal is persisted before approval and never authorizes execution by itself.",
       "claim_id": "PROPOSAL-DURABILITY-01",
-      "commit_anchor": "b5dba16a9af1bc979b2b96a50ddbf0e590e829a5",
+      "commit_anchor": "7ffe0cf7c9ca4a5c7c311fd5394a245e80bb78e0",
       "evidence_kind": "TEST",
-      "hash": "0f8878f20bb7cd07443826743edb5262e02e1516f20205596aae804ba43918cf",
+      "hash": "90e7fe43cf91f221857c12732a85fe9608d0278c4e4ffcd8ef99563ae28ef3e0",
       "limitations": "Proves persistence contracts and mocked repository behavior, not a live DynamoDB write.",
       "proof_nodes": [
         "P0-04",
@@ -620,6 +664,6 @@
     "strands_version": "1.53.0"
   },
   "live_receipts": [],
-  "manifest_hash": "d42a8bce9857c0b754bf3b6bf8ac09dca396984533505590508e9d559ebb0363",
+  "manifest_hash": "de4ab77ea9e783a8100e6eded53e096bc5396ec39f98d72d79bc6264dc3d954b",
   "schema_version": "2.0"
 }

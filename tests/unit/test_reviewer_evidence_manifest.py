@@ -31,6 +31,7 @@ from scripts.build_reviewer_evidence_manifest import (
     EXPECTED_STRANDS_REQUIREMENT,
     JSON_PATH,
     LOCAL_FIRST_PHASE1_COMMIT,
+    LOCAL_FIRST_PHASE2_COMMIT,
     MARKDOWN_PATH,
     README_PATH,
     build_manifest,
@@ -75,7 +76,7 @@ def _seal(document: dict[str, object]) -> dict[str, object]:
 def test_fresh_reviewer_manifest_build_and_validation_pass() -> None:
     manifest = build_manifest()
 
-    assert len(manifest["claims"]) == 26
+    assert len(manifest["claims"]) == 28
     assert canonical_manifest_bytes(manifest) == JSON_PATH.read_bytes()
     assert render_markdown(manifest) == MARKDOWN_PATH.read_text(encoding="utf-8")
     assert render_evidence_readme() == README_PATH.read_text(encoding="utf-8")
@@ -96,7 +97,7 @@ def test_fresh_reviewer_manifest_build_and_validation_pass() -> None:
     )
     assert result.returncode == 0
     assert json.loads(result.stdout) == {
-        "claim_count": 26,
+        "claim_count": 28,
         "reason": "",
         "status": "PASS",
     }
@@ -650,6 +651,7 @@ def test_day15_candidate_and_claim_anchors_are_exact_recovery_objects() -> None:
         DAY15_M2_COMMIT,
         DAY15_G10_COMMIT,
         LOCAL_FIRST_PHASE1_COMMIT,
+        LOCAL_FIRST_PHASE2_COMMIT,
     }
     original_m1_claims = {
         "AGENT-TOPOLOGY-01",
@@ -673,12 +675,16 @@ def test_day15_candidate_and_claim_anchors_are_exact_recovery_objects() -> None:
         "DAY15-RELEASE-SAFETY-01",
     }
     current_g10_claims = {"DAY15-DEPLOYMENT-GATE-01"}
-    local_first_claims = {
-        "APPROVAL-BINDING-01",
+    local_first_phase1_claims = {
         "DEFAULT-DENY-01",
+        "VERIFIED-SUCCESS-01",
+    }
+    local_first_phase2_claims = {
+        "APPROVAL-BINDING-01",
+        "LOCAL2-HITL-EXECUTION-01",
+        "LOCAL2-LOOPBACK-API-01",
         "MODEL-AUTHORITY-01",
         "PROPOSAL-DURABILITY-01",
-        "VERIFIED-SUCCESS-01",
     }
     assert all(
         _claim(manifest, claim_id)["commit_anchor"] == DAY15_ORIGINAL_M1_COMMIT
@@ -698,7 +704,11 @@ def test_day15_candidate_and_claim_anchors_are_exact_recovery_objects() -> None:
     )
     assert all(
         _claim(manifest, claim_id)["commit_anchor"] == LOCAL_FIRST_PHASE1_COMMIT
-        for claim_id in local_first_claims
+        for claim_id in local_first_phase1_claims
+    )
+    assert all(
+        _claim(manifest, claim_id)["commit_anchor"] == LOCAL_FIRST_PHASE2_COMMIT
+        for claim_id in local_first_phase2_claims
     )
     assert _claim(manifest, "LIVE-EC2-01")["commit_anchor"] == EVIDENCE_SNAPSHOT_COMMIT
     assert manifest["evidence_snapshot"]["commit"] == EVIDENCE_SNAPSHOT_COMMIT
@@ -745,6 +755,31 @@ def test_day15_anchor_chain_preserves_every_recovery_commit_as_single_parent_his
     assert validator.collect_frozen_day15_gate_ids() == tuple(
         f"D15-G{index:02d}" for index in range(1, 11)
     )
+
+
+def test_local2_claims_are_exactly_anchored_to_reviewed_implementation() -> None:
+    manifest = build_manifest()
+    execution = _claim(manifest, "LOCAL2-HITL-EXECUTION-01")
+    api = _claim(manifest, "LOCAL2-LOOPBACK-API-01")
+
+    assert execution["commit_anchor"] == api["commit_anchor"] == LOCAL_FIRST_PHASE2_COMMIT
+    assert execution["authority_source"] == sorted(
+        [
+            "src/aioa_cloudops_agent/agent/local_hitl.py::LocalHitlExecutionFlow.resume",
+            "src/aioa_cloudops_agent/cloudops/local_mock.py::LocalMockStateStore.execute",
+            "src/aioa_cloudops_agent/nz/contracts.py::Checkpoint.validate_last_safe_state",
+        ]
+    )
+    assert api["authority_source"] == sorted(
+        [
+            "src/aioa_cloudops_agent/local_api/application.py::LocalApiApplication",
+            "src/aioa_cloudops_agent/local_api/auth.py::LocalApiTokenAuthorizer.authorize",
+            "src/aioa_cloudops_agent/local_api/server.py::create_local_http_server",
+            "src/aioa_cloudops_agent/local_api/server.py::load_or_create_local_token",
+        ]
+    )
+    assert len(execution["proof_nodes"]) == 4
+    assert len(api["proof_nodes"]) == 5
 
 
 def test_current_g10_authority_replaces_historical_external_attestation_proof() -> None:
