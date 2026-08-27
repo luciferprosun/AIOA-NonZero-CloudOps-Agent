@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "aioa-nonzero-cloudops-agent"
-version = "0.1.0"
+version = "0.2.0rc1"
 description = "Non-Zero execution contracts for the AIOA CloudOps Agent"
 readme = "README.md"
 requires-python = ">=3.12"
