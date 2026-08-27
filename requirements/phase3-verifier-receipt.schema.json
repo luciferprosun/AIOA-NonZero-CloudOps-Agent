@@ -53,6 +53,11 @@
           "title": "Operation",
           "type": "string"
         },
+        "pending_approval_recovered_after_restart": {
+          "const": true,
+          "title": "Pending Approval Recovered After Restart",
+          "type": "boolean"
+        },
         "proposal_id": {
           "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
           "title": "Proposal Id",
@@ -123,6 +128,7 @@
         "independent_verification_sha256",
         "durable_provenance_sha256",
         "mock_mutations_before_explicit_decision",
+        "pending_approval_recovered_after_restart",
         "mock_mutation_count",
         "provider_network_calls",
         "replay_rejected",

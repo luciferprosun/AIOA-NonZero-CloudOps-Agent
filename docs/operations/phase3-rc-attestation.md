@@ -11,6 +11,7 @@ Because a committed report cannot contain its own commit SHA, the attestation pe
 - `docs/architecture/phase3-deployment-ready-local-rc.md` — `PHASE3_ARCHITECTURE_DOCUMENT`
 - `docs/evidence/release/phase3-expected-resources.json` — `EXPECTED_RESOURCE_MANIFEST`
 - `docs/evidence/release/phase3-offline-verifier-receipt.json` — `OFFLINE_VERIFIER_RECEIPT`
+- `docs/evidence/release/phase3-devpost-claim-audit.json` — `DEVPOST_SENTENCE_AUDIT`
 - `docs/submission/demo-runbook.md` — `DEMO_RUNBOOK`
 - `docs/submission/devpost-draft.md` — `DEVPOST_DRAFT`
 - `infra/sam/template.yaml` — `SAM_TEMPLATE`

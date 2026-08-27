@@ -33,6 +33,8 @@ from scripts.build_reviewer_evidence_manifest import (
     LOCAL_FIRST_PHASE1_COMMIT,
     LOCAL_FIRST_PHASE2_COMMIT,
     MARKDOWN_PATH,
+    PHASE3_IAC_COMMIT,
+    PHASE3_RC_COMMIT,
     README_PATH,
     build_manifest,
     canonical_manifest_bytes,
@@ -648,10 +650,10 @@ def test_day15_candidate_and_claim_anchors_are_exact_recovery_objects() -> None:
         EVIDENCE_SNAPSHOT_COMMIT,
         DAY15_ORIGINAL_M1_COMMIT,
         DAY15_M1_COMMIT,
-        DAY15_M2_COMMIT,
-        DAY15_G10_COMMIT,
         LOCAL_FIRST_PHASE1_COMMIT,
         LOCAL_FIRST_PHASE2_COMMIT,
+        PHASE3_IAC_COMMIT,
+        PHASE3_RC_COMMIT,
     }
     original_m1_claims = {
         "AGENT-TOPOLOGY-01",
@@ -671,10 +673,10 @@ def test_day15_candidate_and_claim_anchors_are_exact_recovery_objects() -> None:
         "DAY15-RUNTIME-GUARDS-01",
         "DAY15-TELEMETRY-01",
     }
-    historical_m2_claims = {
+    phase3_iac_claims = {
         "DAY15-RELEASE-SAFETY-01",
+        "DAY15-DEPLOYMENT-GATE-01",
     }
-    current_g10_claims = {"DAY15-DEPLOYMENT-GATE-01"}
     local_first_phase1_claims = {
         "DEFAULT-DENY-01",
         "VERIFIED-SUCCESS-01",
@@ -695,12 +697,8 @@ def test_day15_candidate_and_claim_anchors_are_exact_recovery_objects() -> None:
         for claim_id in recovered_m1_claims
     )
     assert all(
-        _claim(manifest, claim_id)["commit_anchor"] == DAY15_M2_COMMIT
-        for claim_id in historical_m2_claims
-    )
-    assert all(
-        _claim(manifest, claim_id)["commit_anchor"] == DAY15_G10_COMMIT
-        for claim_id in current_g10_claims
+        _claim(manifest, claim_id)["commit_anchor"] == PHASE3_IAC_COMMIT
+        for claim_id in phase3_iac_claims
     )
     assert all(
         _claim(manifest, claim_id)["commit_anchor"] == LOCAL_FIRST_PHASE1_COMMIT
@@ -711,6 +709,7 @@ def test_day15_candidate_and_claim_anchors_are_exact_recovery_objects() -> None:
         for claim_id in local_first_phase2_claims
     )
     assert _claim(manifest, "LIVE-EC2-01")["commit_anchor"] == EVIDENCE_SNAPSHOT_COMMIT
+    assert _claim(manifest, "SDK-PIN-01")["commit_anchor"] == PHASE3_RC_COMMIT
     assert manifest["evidence_snapshot"]["commit"] == EVIDENCE_SNAPSHOT_COMMIT
     assert _claim(manifest, "PRIOR-ART-HISTORY-01")["proof_nodes"] == ["P0-15"]
 
@@ -782,11 +781,11 @@ def test_local2_claims_are_exactly_anchored_to_reviewed_implementation() -> None
     assert len(api["proof_nodes"]) == 5
 
 
-def test_current_g10_authority_replaces_historical_external_attestation_proof() -> None:
+def test_phase3_iac_anchor_preserves_current_g10_authority_proof() -> None:
     manifest = build_manifest()
     claim = _claim(manifest, "DAY15-DEPLOYMENT-GATE-01")
 
-    assert claim["commit_anchor"] == DAY15_G10_COMMIT
+    assert claim["commit_anchor"] == PHASE3_IAC_COMMIT
     assert claim["authority_source"] == sorted(
         [
             "scripts/day15/g10_aws_preflight.py::observe_aws_preflight",
@@ -829,12 +828,12 @@ def test_current_g10_authority_replaces_historical_external_attestation_proof() 
     }.issubset(set(claim["proof_nodes"]))
 
 
-def test_m2_release_safety_remains_explicitly_historical() -> None:
+def test_phase3_release_safety_preserves_controls_without_live_claim() -> None:
     claim = _claim(build_manifest(), "DAY15-RELEASE-SAFETY-01")
 
-    assert claim["commit_anchor"] == DAY15_M2_COMMIT
-    assert claim["claim"].startswith("At the reviewed M2 anchor")
-    assert claim["limitations"].startswith("Historical M2 repository evidence only")
+    assert claim["commit_anchor"] == PHASE3_IAC_COMMIT
+    assert claim["claim"].startswith("The Phase 3 IaC anchor")
+    assert claim["limitations"].startswith("Phase 3 repository evidence only")
     assert not any(
         reference.startswith("tests/unit/test_day15_deployment_gate.py::")
         or reference.startswith("tests/unit/test_day15_gate.py::")

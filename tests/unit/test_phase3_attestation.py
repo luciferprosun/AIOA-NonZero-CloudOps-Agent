@@ -329,7 +329,7 @@ def test_attestation_document_rejects_unknown_fields_hash_tamper_and_secrets(
         AttestationError,
         match="RC_ATTESTATION_SECRET_MATERIAL_FORBIDDEN",
     ):
-        _ensure_public_safe({"value": "AKIAABCDEFGHIJKLMNOP"})
+        _ensure_public_safe({"value": "AKIA" + "ABCDEFGHIJKLMNOP"})
 
 
 def test_schemas_and_document_are_exact_deterministic_projections() -> None:

@@ -133,6 +133,7 @@ class ApprovedPathProof(StrictVerifierModel):
     independent_verification_sha256: Sha256Digest
     durable_provenance_sha256: Sha256Digest
     mock_mutations_before_explicit_decision: Literal[0]
+    pending_approval_recovered_after_restart: Literal[True]
     mock_mutation_count: Literal[1]
     provider_network_calls: Literal[0]
     replay_rejected: Literal[True]
@@ -550,6 +551,29 @@ def _approved_path(
     _require(isinstance(missing_reason, str), "VERIFIER_MISSING_APPROVAL_REASON_MISSING")
     _require(runtime.executor.mutation_calls == 0, "VERIFIER_MISSING_APPROVAL_MUTATED")
 
+    runtime = create_local_hitl_runtime(
+        settings,
+        clock=lambda: fixture.generated_at,
+        proposal_id_factory=lambda: proposal_id,
+        request_id_factory=lambda: request_id,
+        event_id_factory=_UuidFactory(0xD000),
+        nonce_factory=lambda: "offline-verifier-decision-nonce-0001",
+    )
+    application = LocalApiApplication(
+        runtime,
+        LocalApiTokenAuthorizer(token),
+        clock=lambda: fixture.generated_at,
+        run_id_factory=lambda: run_id,
+        trace_id_factory=_UuidFactory(0xE000),
+    )
+    recovered_pending = runtime.repository.get_run(run_id)
+    _require(
+        recovered_pending is not None
+        and recovered_pending.state.value == "AWAITING_APPROVAL"
+        and runtime.executor.mutation_calls == 0,
+        "VERIFIER_PENDING_APPROVAL_RECOVERY_FAILED",
+    )
+
     challenge = _challenge(application, token, str(run_id))
     valid_decision = _decision_body(challenge, "APPROVED")
     invalid_binding = dict(valid_decision)
@@ -637,7 +661,7 @@ def _approved_path(
         clock=lambda: fixture.generated_at,
         proposal_id_factory=lambda: proposal_id,
         request_id_factory=lambda: request_id,
-        event_id_factory=_UuidFactory(0xD000),
+        event_id_factory=_UuidFactory(0xF000),
         nonce_factory=lambda: "offline-verifier-restart-nonce-01",
     )
     restarted_application = LocalApiApplication(
@@ -645,7 +669,7 @@ def _approved_path(
         LocalApiTokenAuthorizer(token),
         clock=lambda: fixture.generated_at,
         run_id_factory=lambda: run_id,
-        trace_id_factory=_UuidFactory(0xE000),
+        trace_id_factory=_UuidFactory(0x10000),
     )
     recovery_status, recovery_payload = _api_call(
         restarted_application,
@@ -717,6 +741,7 @@ def _approved_path(
         independent_verification_sha256=str(verification_hash),
         durable_provenance_sha256=durable_hash,
         mock_mutations_before_explicit_decision=0,
+        pending_approval_recovered_after_restart=True,
         mock_mutation_count=1,
         provider_network_calls=0,
         replay_rejected=True,
@@ -758,7 +783,11 @@ def _approved_path(
         ),
         (
             VerificationStepId.HITL_PAUSE,
-            {"mock_mutations": 0, "state": "AWAITING_APPROVAL"},
+            {
+                "mock_mutations": 0,
+                "recovered_after_restart": True,
+                "state": "AWAITING_APPROVAL",
+            },
             "local:hitl/pause",
         ),
         (

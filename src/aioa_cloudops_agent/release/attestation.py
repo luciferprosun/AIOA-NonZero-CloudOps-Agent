@@ -56,6 +56,10 @@ ATTESTED_ARTIFACTS: tuple[tuple[str, str], ...] = (
         "docs/evidence/release/phase3-offline-verifier-receipt.json",
         "OFFLINE_VERIFIER_RECEIPT",
     ),
+    (
+        "docs/evidence/release/phase3-devpost-claim-audit.json",
+        "DEVPOST_SENTENCE_AUDIT",
+    ),
     ("docs/submission/demo-runbook.md", "DEMO_RUNBOOK"),
     ("docs/submission/devpost-draft.md", "DEVPOST_DRAFT"),
     ("infra/sam/template.yaml", "SAM_TEMPLATE"),

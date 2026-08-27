@@ -57,6 +57,7 @@ def test_complete_offline_chain_proves_approve_deny_replay_recovery_and_fail_clo
     assert receipt.approved_path.final_state == "SUCCESS_WITH_EVIDENCE"
     assert receipt.approved_path.mock_mutation_count == 1
     assert receipt.approved_path.mock_mutations_before_explicit_decision == 0
+    assert receipt.approved_path.pending_approval_recovered_after_restart is True
     assert receipt.approved_path.replay_rejected is True
     assert receipt.approved_path.replay_mutation_delta == 0
     assert receipt.approved_path.recovery_reconciled is True
@@ -201,7 +202,7 @@ def test_fixture_loader_rejects_duplicate_extra_nonfinite_and_secret_material(
         load_verifier_fixture(nonfinite)
 
     for sensitive in (
-        "AKIAABCDEFGHIJKLMNOP",
+        "AKIA" + "ABCDEFGHIJKLMNOP",
         "Bearer secret-token-value",
         "123456789012",
         "arn:aws:iam::123456789012:role/private",
@@ -235,7 +236,7 @@ def test_receipt_validation_rejects_hash_order_count_and_secret_tampering(
         validate_verification_receipt(value)
 
     value = receipt.model_dump(mode="json")
-    value["steps"][0]["evidence_reference"] = "local:AKIAABCDEFGHIJKLMNOP"
+    value["steps"][0]["evidence_reference"] = "local:AKIA" + "ABCDEFGHIJKLMNOP"
     material = {name: item for name, item in value.items() if name != "receipt_sha256"}
     value["receipt_sha256"] = hashlib.sha256(
         canonical_json(material).encode("utf-8")

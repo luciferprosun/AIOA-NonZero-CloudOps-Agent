@@ -63,6 +63,8 @@ from scripts.build_reviewer_evidence_manifest import (  # noqa: E402
     MARKDOWN_PATH,
     P0_PROOF_CASES,
     P1_PROOF_CASES,
+    PHASE3_IAC_COMMIT,
+    PHASE3_RC_COMMIT,
     PRIOR_ARMOR_COMMITS,
     README_PATH,
     SCHEMA_VERSION,
@@ -285,6 +287,8 @@ _FROZEN_DAY15_G10_REANCHOR_COMMIT = "99f70c43a26ce9715e9b57fde81ca265382dd5f2"
 _FROZEN_DAY15_G10_COMMIT = "197db56f828b8ab0b9139a1d3708fb8a58ca336a"
 _FROZEN_LOCAL_FIRST_PHASE1_COMMIT = "b5dba16a9af1bc979b2b96a50ddbf0e590e829a5"
 _FROZEN_LOCAL_FIRST_PHASE2_COMMIT = "7ffe0cf7c9ca4a5c7c311fd5394a245e80bb78e0"
+_FROZEN_PHASE3_IAC_COMMIT = "c16f6829e8b258af86523b0b1d61e34586702b63"
+_FROZEN_PHASE3_RC_COMMIT = "1b3e9ba3ac8e0d6bca3e971cde1322b598607b22"
 _FROZEN_DAY15_RECOVERY_LINEAGE = (
     _FROZEN_DAY15_START_COMMIT,
     _FROZEN_DAY15_ORIGINAL_M1_COMMIT,
@@ -308,7 +312,6 @@ _FROZEN_L1_CLAIM_IDS = {
     "PRIOR-ART-ATTESTATION-01",
     "PRIOR-ART-HISTORY-01",
     "RECOVERY-NO-REPLAY-01",
-    "SDK-PIN-01",
 }
 _DAY15_ORIGINAL_M1_CLAIM_IDS = {
     "AGENT-TOPOLOGY-01",
@@ -339,12 +342,11 @@ _LOCAL_FIRST_PHASE2_CLAIM_IDS = {
     "MODEL-AUTHORITY-01",
     "PROPOSAL-DURABILITY-01",
 }
-_DAY15_M2_CLAIM_IDS = {
+_PHASE3_IAC_CLAIM_IDS = {
     "DAY15-RELEASE-SAFETY-01",
-}
-_DAY15_G10_CLAIM_IDS = {
     "DAY15-DEPLOYMENT-GATE-01",
 }
+_PHASE3_RC_CLAIM_IDS = {"SDK-PIN-01"}
 _FROZEN_P0_PROOF_CASES = 136
 _FROZEN_P1_PROOF_CASES = 93
 _FROZEN_NEGATIVE_LIVE_FIELDS = {
@@ -1226,6 +1228,8 @@ def _validate_day15_candidate_snapshot(
         or DAY15_G10_COMMIT != _FROZEN_DAY15_G10_COMMIT
         or LOCAL_FIRST_PHASE1_COMMIT != _FROZEN_LOCAL_FIRST_PHASE1_COMMIT
         or LOCAL_FIRST_PHASE2_COMMIT != _FROZEN_LOCAL_FIRST_PHASE2_COMMIT
+        or PHASE3_IAC_COMMIT != _FROZEN_PHASE3_IAC_COMMIT
+        or PHASE3_RC_COMMIT != _FROZEN_PHASE3_RC_COMMIT
         or DAY15_RECOVERY_LINEAGE != _FROZEN_DAY15_RECOVERY_LINEAGE
         or DAY15_CANDIDATE_STATUS != _FROZEN_DAY15_CANDIDATE_STATUS
     ):
@@ -1257,10 +1261,10 @@ def _expected_claim_anchor(claim_id: str) -> str | None:
         return _FROZEN_DAY15_ORIGINAL_M1_COMMIT
     if claim_id in _DAY15_RECOVERED_M1_CLAIM_IDS:
         return _FROZEN_DAY15_M1_COMMIT
-    if claim_id in _DAY15_M2_CLAIM_IDS:
-        return _FROZEN_DAY15_M2_COMMIT
-    if claim_id in _DAY15_G10_CLAIM_IDS:
-        return _FROZEN_DAY15_G10_COMMIT
+    if claim_id in _PHASE3_IAC_CLAIM_IDS:
+        return _FROZEN_PHASE3_IAC_COMMIT
+    if claim_id in _PHASE3_RC_CLAIM_IDS:
+        return _FROZEN_PHASE3_RC_COMMIT
     return None
 
 
@@ -1286,8 +1290,8 @@ def _validate_claims(
         _FROZEN_L1_CLAIM_IDS,
         _DAY15_ORIGINAL_M1_CLAIM_IDS,
         _DAY15_RECOVERED_M1_CLAIM_IDS,
-        _DAY15_M2_CLAIM_IDS,
-        _DAY15_G10_CLAIM_IDS,
+        _PHASE3_IAC_CLAIM_IDS,
+        _PHASE3_RC_CLAIM_IDS,
         _LOCAL_FIRST_PHASE1_CLAIM_IDS,
         _LOCAL_FIRST_PHASE2_CLAIM_IDS,
     )
@@ -1651,6 +1655,20 @@ def _validate_git_anchors(
         _FROZEN_DAY15_G10_COMMIT,
         _FROZEN_LOCAL_FIRST_PHASE1_COMMIT,
     )
+    local_phase2_to_phase3_iac = _git(
+        root,
+        "merge-base",
+        "--is-ancestor",
+        _FROZEN_LOCAL_FIRST_PHASE2_COMMIT,
+        _FROZEN_PHASE3_IAC_COMMIT,
+    )
+    phase3_iac_to_rc = _git(
+        root,
+        "merge-base",
+        "--is-ancestor",
+        _FROZEN_PHASE3_IAC_COMMIT,
+        _FROZEN_PHASE3_RC_COMMIT,
+    )
     parent_results = tuple(
         (
             _git(root, "rev-list", "--parents", "-n", "1", child),
@@ -1663,6 +1681,8 @@ def _validate_git_anchors(
         or local_phase2_to_head.returncode != 0
         or local_phase1_to_phase2.returncode != 0
         or g10_to_local_phase1.returncode != 0
+        or local_phase2_to_phase3_iac.returncode != 0
+        or phase3_iac_to_rc.returncode != 0
         or any(
             result.returncode != 0 or result.stdout.split() != expected
             for result, expected in parent_results
@@ -1716,7 +1736,7 @@ def _validate_git_anchors(
                 "merge-base",
                 "--is-ancestor",
                 commit,
-                _FROZEN_LOCAL_FIRST_PHASE2_COMMIT,
+                "HEAD",
             )
             if (
                 commit
@@ -1728,6 +1748,8 @@ def _validate_git_anchors(
                     _FROZEN_DAY15_G10_COMMIT,
                     _FROZEN_LOCAL_FIRST_PHASE1_COMMIT,
                     _FROZEN_LOCAL_FIRST_PHASE2_COMMIT,
+                    _FROZEN_PHASE3_IAC_COMMIT,
+                    _FROZEN_PHASE3_RC_COMMIT,
                 }
                 or exists.returncode != 0
                 or history.returncode != 0

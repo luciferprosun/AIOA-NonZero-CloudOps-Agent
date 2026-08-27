@@ -190,7 +190,7 @@ def test_loader_rejects_duplicate_keys_nonfinite_values_and_secret_material(
         load_deployment_contract(nonfinite)
 
     secret = _validated(_raw_contract()).model_copy(
-        update={"contract_id": "AKIAABCDEFGHIJKLMNOP"}
+        update={"contract_id": "AKIA" + "ABCDEFGHIJKLMNOP"}
     )
     with pytest.raises(
         DeploymentContractError,

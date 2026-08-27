@@ -112,9 +112,9 @@
       ],
       "claim": "The Day 15 controller implements candidate-bound G10 closure and a protected exact-role authority bootstrap with deterministic source selection, bounded identity and one-role-assumption verification, append-only alias construction, closed private and sanitized receipts, a fixed read-only preflight allowlist, and ten fail-closed local gates that never authorize deployment.",
       "claim_id": "DAY15-DEPLOYMENT-GATE-01",
-      "commit_anchor": "197db56f828b8ab0b9139a1d3708fb8a58ca336a",
+      "commit_anchor": "c16f6829e8b258af86523b0b1d61e34586702b63",
       "evidence_kind": "TEST",
-      "hash": "86cc24e7e13db2f2b0af3195a20c4b66c4c7bbed0be744df57e2ccfdb5eb161d",
+      "hash": "b3374659ed6605857a67166c5a94fedfdac8bb59d2c693f35e7daef6f26975c5",
       "limitations": "Proves candidate and receipt binding plus protected bootstrap and bounded adapter behavior with local fakes. No AWS API call, exact-role success, external-prerequisite success, change set, or deployment is attested.",
       "proof_nodes": [
         "D15-G01",
@@ -179,12 +179,12 @@
         "scripts/day15/render_template.py::render_template",
         "scripts/day15/validate_template.py::validate_template_toolchain"
       ],
-      "claim": "At the reviewed M2 anchor, the Day 15 candidate used a hash-locked runtime and template-enforced retained state, explicit region, conditioned URL permissions, immutable aliases, bounded concurrency, and reviewed alias rollback.",
+      "claim": "The Phase 3 IaC anchor preserves the reviewed Day 15 release controls and adds exact ownership tags plus a deterministic expected-resource manifest without widening runtime authority.",
       "claim_id": "DAY15-RELEASE-SAFETY-01",
-      "commit_anchor": "36fd17df981dfa593d4e63f6a143410317410763",
+      "commit_anchor": "c16f6829e8b258af86523b0b1d61e34586702b63",
       "evidence_kind": "TEST",
-      "hash": "9562e57fca041c7f72cc65b370a4fb3995c33cf744b854ff97741b29f0f5ee63",
-      "limitations": "Historical M2 repository evidence only; it proves the reviewed artifact and template contracts at that immutable anchor, not current G10 authority, a built release installed in an account, or any deployment.",
+      "hash": "39d699e177e421a262e9adf9be1e1e4c143b45b4333cc73098df0a08dba29c2b",
+      "limitations": "Phase 3 repository evidence only; it proves static artifact, template, tag, and manifest contracts, not effective IAM, a built release installed in an account, or any deployment.",
       "proof_nodes": [
         "tests/unit/test_day15_artifact.py::test_container_validation_binds_engine_version_platform_and_manifest_digest",
         "tests/unit/test_day15_artifact.py::test_dependency_scan_pass_requires_exact_complete_locked_inventory",
@@ -541,9 +541,9 @@
       ],
       "claim": "The project dependency declares an exact Strands Agents SDK pin at 1.53.0.",
       "claim_id": "SDK-PIN-01",
-      "commit_anchor": "fbb536400594306f2bb3abd31c7064a66735c82d",
+      "commit_anchor": "1b3e9ba3ac8e0d6bca3e971cde1322b598607b22",
       "evidence_kind": "STATIC",
-      "hash": "2474fe6eb000c0f17b4beb230dbec9d4fcfc3c88a8790096b8101c1dac7ef830",
+      "hash": "a47e4783057d0d708ab0924dc6a8181d89f741d72bf2978e7cda6c541757dad5",
       "limitations": "Proves the declared pin and clean install contract, not future package-index availability.",
       "proof_nodes": [
         "P0-01",
@@ -664,6 +664,6 @@
     "strands_version": "1.53.0"
   },
   "live_receipts": [],
-  "manifest_hash": "de4ab77ea9e783a8100e6eded53e096bc5396ec39f98d72d79bc6264dc3d954b",
+  "manifest_hash": "dd6a4d7d780d00a7274e7b58f982c13b36a4c7d96593abd7013d447ef4421589",
   "schema_version": "2.0"
 }

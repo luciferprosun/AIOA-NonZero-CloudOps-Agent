@@ -2,7 +2,7 @@
   "approved_path": {
     "correlation_id": "01890f6c-3311-7abc-8f4a-6e4f7f0b9b3c",
     "decision_sha256": "43c574dcefdcfc53c5ffdfb92153965a372e69c9a073f6eef15702a27b819b15",
-    "durable_provenance_sha256": "1630676df7397a78065268bf6aa25eee3cdd072d9c8b16e8281a0d269c88d926",
+    "durable_provenance_sha256": "761f39c6613b7295578c091886268940dcdeb40ff40a451f34d3b946f44d25cc",
     "evidence_sha256": "233bd1fb24b3f2d33502ccadbcd3a31b7608789b977a2ef919c1d41091b16e06",
     "execution_receipt_sha256": "96bbf6bf24d44082b2791b86cbbe5aa980cc640e9e0c2be62f661b22a9855d32",
     "final_state": "SUCCESS_WITH_EVIDENCE",
@@ -10,6 +10,7 @@
     "mock_mutation_count": 1,
     "mock_mutations_before_explicit_decision": 0,
     "operation": "RELEASE_ELASTIC_IP",
+    "pending_approval_recovered_after_restart": true,
     "proposal_id": "01890f6c-3311-7abc-8f4a-6e4f7f0b9b80",
     "proposal_sha256": "12fa3d65ef906c48ee8065b50e0ab813b11e926e34bda05c440b84d3d5e61bb5",
     "provider_network_calls": 0,
@@ -86,7 +87,7 @@
   "mock_mutations": 1,
   "mode": "OFFLINE_LOCAL_FIXTURE",
   "provider_network_calls": 0,
-  "receipt_sha256": "42d4ac914989ff68b5c527e5b19bf365a5edcbab56377312d62d7883f282fb0e",
+  "receipt_sha256": "24ee3b4a622f2353ca4b9a277d8d2036c4dcdf091ae99d36d16b7bac923054e1",
   "receipt_type": "PHASE3_POST_DEPLOY_VERIFICATION",
   "schema_version": 1,
   "secrets_redacted": true,
@@ -118,13 +119,13 @@
     },
     {
       "evidence_reference": "local:durable-truth/hash",
-      "evidence_sha256": "70c2833d2dd5eb62112e8de18706346e747d759690e3de013087fc1eb2aff32d",
+      "evidence_sha256": "49d92de2ea731f2319f46520e21b8bc7a5e105bb53264f64b6412a0d5f853b40",
       "outcome": "PASS_OFFLINE",
       "step_id": "DURABLE_PROVENANCE"
     },
     {
       "evidence_reference": "local:hitl/pause",
-      "evidence_sha256": "fa4d908d69d73e9cefd64bbb4b0ed129dc5ea8a4d2bc74ca85eb776b8e46169b",
+      "evidence_sha256": "83dbd6c8d18e9255279206030a92605125652bc2e24c3ca29f850ba3e6ea8cce",
       "outcome": "PASS_OFFLINE",
       "step_id": "HITL_PAUSE"
     },

@@ -58,6 +58,8 @@ DAY15_G10_REANCHOR_COMMIT = "99f70c43a26ce9715e9b57fde81ca265382dd5f2"
 DAY15_G10_COMMIT = "197db56f828b8ab0b9139a1d3708fb8a58ca336a"
 LOCAL_FIRST_PHASE1_COMMIT = "b5dba16a9af1bc979b2b96a50ddbf0e590e829a5"
 LOCAL_FIRST_PHASE2_COMMIT = "7ffe0cf7c9ca4a5c7c311fd5394a245e80bb78e0"
+PHASE3_IAC_COMMIT = "c16f6829e8b258af86523b0b1d61e34586702b63"
+PHASE3_RC_COMMIT = "1b3e9ba3ac8e0d6bca3e971cde1322b598607b22"
 DAY15_RECOVERY_LINEAGE = (
     DAY15_START_COMMIT,
     DAY15_ORIGINAL_M1_COMMIT,
@@ -457,6 +459,7 @@ def build_claims() -> list[dict[str, Any]]:
             "STATIC",
             ("pyproject.toml#strands-agents[otel]==1.53.0",),
             ("P0-01", "P1-06"),
+            commit_anchor=PHASE3_RC_COMMIT,
             limitations="Proves the declared pin and clean install contract, not future package-index availability.",
         ),
         _claim(
@@ -563,7 +566,7 @@ def build_claims() -> list[dict[str, Any]]:
                 "tests/unit/test_day15_gate.py::"
                 "test_gate_matrix_has_exact_stable_ids_status_vocabulary_and_validate_only_output",
             ),
-            commit_anchor=DAY15_G10_COMMIT,
+            commit_anchor=PHASE3_IAC_COMMIT,
             limitations="Proves candidate and receipt binding plus protected bootstrap and bounded adapter behavior with local fakes. No AWS API call, exact-role success, external-prerequisite success, change set, or deployment is attested.",
         ),
         _claim(
@@ -590,7 +593,7 @@ def build_claims() -> list[dict[str, Any]]:
         ),
         _claim(
             "DAY15-RELEASE-SAFETY-01",
-            "At the reviewed M2 anchor, the Day 15 candidate used a hash-locked runtime and template-enforced retained state, explicit region, conditioned URL permissions, immutable aliases, bounded concurrency, and reviewed alias rollback.",
+            "The Phase 3 IaC anchor preserves the reviewed Day 15 release controls and adds exact ownership tags plus a deterministic expected-resource manifest without widening runtime authority.",
             "TEST",
             (
                 "infra/sam/template.yaml",
@@ -629,8 +632,8 @@ def build_claims() -> list[dict[str, Any]]:
                 "tests/unit/test_infrastructure_contract.py::"
                 "test_state_table_is_retained_recoverable_encrypted_and_deletion_protected",
             ),
-            commit_anchor=DAY15_M2_COMMIT,
-            limitations="Historical M2 repository evidence only; it proves the reviewed artifact and template contracts at that immutable anchor, not current G10 authority, a built release installed in an account, or any deployment.",
+            commit_anchor=PHASE3_IAC_COMMIT,
+            limitations="Phase 3 repository evidence only; it proves static artifact, template, tag, and manifest contracts, not effective IAM, a built release installed in an account, or any deployment.",
         ),
         _claim(
             "DAY15-RUNTIME-GUARDS-01",
@@ -911,7 +914,7 @@ From the repository root in the documented development environment:
 .venv/bin/python scripts/validate_reviewer_evidence_manifest.py
 ```
 
-The immutable Phase 1 / Day 14 baseline remains anchored to `{EVIDENCE_SNAPSHOT_COMMIT}`. Unchanged Day 15 M1 claims remain at their original reviewed commit `{DAY15_ORIGINAL_M1_COMMIT}`; recovered telemetry, cold-resume, and runtime-guard claims use `{DAY15_M1_COMMIT}`; historical release-safety evidence remains at `{DAY15_M2_COMMIT}`; and current candidate-bound G10 authority is anchored to `{DAY15_G10_COMMIT}`. Credential-free Local-First authority is split between the reviewed Phase 1 foundation `{LOCAL_FIRST_PHASE1_COMMIT}` and the reviewed Phase 2 human-authorization/execution implementation `{LOCAL_FIRST_PHASE2_COMMIT}`. The preserved Day 15 recovery lineage, in order, is `{DAY15_START_COMMIT}`, then `{DAY15_ORIGINAL_M1_COMMIT}`, `{DAY15_ORIGINAL_M2_COMMIT}`, `{DAY15_ORIGINAL_M3_COMMIT}`, `{DAY15_M1_COMMIT}`, `{DAY15_M2_COMMIT}`, `{DAY15_FINAL_BLOCKER_COMMIT}`, `{DAY15_SECRET_FIX_COMMIT}`, `{DAY15_G10_IMPLEMENTATION_COMMIT}`, `{DAY15_G10_EVIDENCE_COMMIT}`, `{DAY15_G10_BLOCKER_COMMIT}`, `{DAY15_NOVA_PROBE_FIX_COMMIT}`, `{DAY15_G10_REANCHOR_COMMIT}`, and `{DAY15_G10_COMMIT}`. The candidate snapshot is deliberately `LOCAL_IMPLEMENTATION_CANDIDATE`; it records no live AWS observation, change set, or deployment. The builder never derives an anchor from changing `HEAD`, and a later evidence-only commit is never an anchor, avoiding a self-referential commit hash.
+The immutable Phase 1 / Day 14 baseline remains anchored to `{EVIDENCE_SNAPSHOT_COMMIT}`. Unchanged Day 15 M1 claims remain at their original reviewed commit `{DAY15_ORIGINAL_M1_COMMIT}`; recovered telemetry, cold-resume, and runtime-guard claims use `{DAY15_M1_COMMIT}`. Credential-free Local-First authority is split between the reviewed Phase 1 foundation `{LOCAL_FIRST_PHASE1_COMMIT}` and the reviewed Phase 2 human-authorization/execution implementation `{LOCAL_FIRST_PHASE2_COMMIT}`. The three authority sources changed during Phase 3 are explicitly re-anchored: current Day 15 gate plus SAM release safety at `{PHASE3_IAC_COMMIT}`, and the RC package/SDK pin at `{PHASE3_RC_COMMIT}`. The preserved Day 15 recovery lineage, in order, is `{DAY15_START_COMMIT}`, then `{DAY15_ORIGINAL_M1_COMMIT}`, `{DAY15_ORIGINAL_M2_COMMIT}`, `{DAY15_ORIGINAL_M3_COMMIT}`, `{DAY15_M1_COMMIT}`, `{DAY15_M2_COMMIT}`, `{DAY15_FINAL_BLOCKER_COMMIT}`, `{DAY15_SECRET_FIX_COMMIT}`, `{DAY15_G10_IMPLEMENTATION_COMMIT}`, `{DAY15_G10_EVIDENCE_COMMIT}`, `{DAY15_G10_BLOCKER_COMMIT}`, `{DAY15_NOVA_PROBE_FIX_COMMIT}`, `{DAY15_G10_REANCHOR_COMMIT}`, and `{DAY15_G10_COMMIT}`. The candidate snapshot is deliberately `LOCAL_IMPLEMENTATION_CANDIDATE`; it records no live AWS observation, change set, or deployment. The builder never derives an anchor from changing `HEAD`; every Phase 3 anchor names a prior immutable implementation commit, avoiding a self-referential commit hash.
 
 ## Canonical model
 

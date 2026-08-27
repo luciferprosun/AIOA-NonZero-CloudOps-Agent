@@ -1,4 +1,4 @@
-# Phase 3 Deployment-Ready Local Release Candidate
+# AIOA Non-Zero CloudOps — Phase 3 Deployment-Ready Local Release Candidate
 
 Status: `DEPLOYMENT_READY_LOCAL_RC`; not deployed, not live verified, and not externally submitted.
 
@@ -41,6 +41,18 @@ Authority remains split:
 6. RC attestation binds the exact clean pushed commit, Git tree, deployment contract, artifact bytes,
    runtime/package versions, full-suite result, P0/P1 results, and all quality gates. Any stale SHA,
    dirty tree, origin mismatch, changed artifact, or invalid gate receipt fails closed.
+7. The jury command executes approve, deny, replay, pending-approval restart recovery, terminal
+   reconciliation, and five failure probes in explicit `MOCK_OFFLINE_NEVER_LIVE` mode. The final
+   gate also audits every Devpost sentence against local evidence and refuses unsupported live claims.
+
+## Local release gate
+
+`scripts/phase3/run_local_gate.py` accepts one expected clean commit and executes the full suite once,
+P0/P1, Ruff, dependency/package checks, generated-artifact checks, secret scanning, explicit socket
+guards, the offline verifier, and the complete jury demo. It writes private hashed evidence under
+`.local/phase3/`; generated output does not grant deployment authority. Actual RC attestation is
+created only after the tested commit and the report-only closure commit are clean and synchronized to
+`origin/main`.
 
 ## Lifecycle and cost
 

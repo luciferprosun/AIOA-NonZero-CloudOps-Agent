@@ -3,7 +3,7 @@
 Newly authored work for the **AWS Agents for Humans Hackathon 2026**.
 
 - Track: Professional Agents
-- Status: Local-First Phase 2 is complete with durable human authorization, protected mock execution, independent verification, a loopback API, and an operator UI; Day 15 deployment and live AWS mutation have not run
+- Status: Phase 3 `DEPLOYMENT_READY_LOCAL_RC` candidate with a frozen deployment contract, offline preflight/IaC/cleanup/verifier proofs, hardened jury demo, and commit-bound attestation; no live deployment or AWS mutation has run
 - Orchestration: one Strands Agent
 - Model platform: Amazon Bedrock
 - Current capability: five bounded tools covering investigation, proposal-bound stop, and independent verification
@@ -15,7 +15,10 @@ No silent, ambiguous, untraceable, unverifiable, or falsely-successful state may
 
 This repository contains newly authored hackathon work. Existing AIOA, AOIA, and Non-Zero projects are prior art; no implementation code from them has been imported.
 
-No AWS infrastructure has been deployed by this project. A private, tightly scoped stop executor is implemented but defaults disabled and has not been invoked against live EC2. A truthful local Devpost draft and demo runbook are prepared, but no external submission has been made.
+No AWS infrastructure has been deployed by this project. A private, tightly scoped stop executor is
+implemented but defaults disabled and has not been invoked against live EC2. A truthful local Devpost
+draft and demo runbook are prepared, but no external submission has been made. “Release candidate”
+means deployment-ready from local evidence; it does not mean production deployed or live verified.
 
 ## Local quickstart
 
@@ -41,7 +44,35 @@ The P1 runner includes the clean-clone proof. To run only that reproducibility c
 
 The harness creates another disposable environment with `python -m venv`. On hosts where the standard-library module lacks `ensurepip`, the declared dev dependency provides the documented `python -m virtualenv` fallback. These checks use mocks and static proof. They do not deploy infrastructure or call live AWS services.
 
-The deterministic claim-to-proof index is in [`docs/evidence/`](docs/evidence/). Day 15 prerequisites and known deployment gaps are frozen in [`docs/architecture/day-15-deployment-readiness.md`](docs/architecture/day-15-deployment-readiness.md); AU-2 remains evaluation-only in [`docs/architecture/au-2-risk-evaluation.md`](docs/architecture/au-2-risk-evaluation.md).
+Phase 3 adds local release validation without requiring AWS credentials:
+
+```bash
+.venv/bin/python scripts/phase3/build_deployment_contract.py --check --json
+.venv/bin/python scripts/phase3/validate_iac.py --check
+.venv/bin/python scripts/phase3/build_cleanup_contract.py --check
+.venv/bin/python scripts/phase3/run_post_deploy_verifier.py --check
+.venv/bin/python scripts/phase3/scan_secrets.py
+.venv/bin/python scripts/phase3/run_jury_demo.py
+```
+
+After committing all intended files, the all-in-one final gate binds its evidence to that clean SHA:
+
+```bash
+HEAD_SHA="$(git rev-parse HEAD)"
+.venv/bin/python scripts/phase3/run_local_gate.py --expected-head "$HEAD_SHA"
+```
+
+The gate executes the complete suite once, P0/P1, Ruff, dependency and package checks, generated
+artifact checks, secret scanning, no-socket tests, verifier, and the approve/deny/replay/recovery jury
+path. Its receipts are private files under `.local/phase3/`; the committed gate report publishes only
+safe results and hashes.
+
+The deterministic claim-to-proof index is in [`docs/evidence/`](docs/evidence/). The canonical Phase 3
+architecture is [`docs/architecture/phase3-deployment-ready-local-rc.md`](docs/architecture/phase3-deployment-ready-local-rc.md),
+and the deployment inputs are derived into
+[`docs/architecture/phase3-deployment-contract.md`](docs/architecture/phase3-deployment-contract.md).
+Day 15 remains historical readiness evidence; AU-2 remains evaluation-only in
+[`docs/architecture/au-2-risk-evaluation.md`](docs/architecture/au-2-risk-evaluation.md).
 
 ## Credential-free Local-First flow
 
@@ -51,7 +82,14 @@ execute idempotency, a separately persisted mock inventory, and independent read
 Both phases reuse the canonical Non-Zero run, checkpoint, and transition contracts. They discover no
 AWS credentials and make no cloud network calls.
 
-Run a complete approved or denied terminal demonstration:
+Run the complete Phase 3 jury story—including approve, deny, replay rejection, pending-approval
+restart recovery, terminal reconciliation, and fail-closed probes—in one command:
+
+```bash
+.venv/bin/python scripts/phase3/run_jury_demo.py
+```
+
+Run a standalone approved or denied terminal demonstration:
 
 ```bash
 .venv/bin/python scripts/run_local_hitl_demo.py \

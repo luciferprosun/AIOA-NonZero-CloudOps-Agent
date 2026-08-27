@@ -297,7 +297,7 @@ def test_fixture_parser_rejects_extra_duplicate_nonfinite_and_sensitive_values(
         PreflightError,
         match="PREFLIGHT_RECEIPT_SENSITIVE_VALUE_FORBIDDEN",
     ):
-        _ensure_public_safe({"value": "AKIAABCDEFGHIJKLMNOP"})
+        _ensure_public_safe({"value": "AKIA" + "ABCDEFGHIJKLMNOP"})
     with pytest.raises(
         PreflightError,
         match="PREFLIGHT_RECEIPT_SENSITIVE_VALUE_FORBIDDEN",

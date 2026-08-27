@@ -2,6 +2,7 @@
 
 import argparse
 import json
+import time
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -63,6 +64,7 @@ def _fail(stage: str, result: object) -> int:
 
 
 def main() -> int:
+    started_at = time.monotonic()
     args = _arguments()
     run_id = generate_run_id()
     output_dir = args.output_dir / str(run_id)
@@ -91,6 +93,12 @@ def main() -> int:
     )
     if planned.status is ResultStatus.FAILURE or planned.value is None:
         return _fail("plan", planned)
+    if runtime.executor.mutation_calls != 0:
+        return _fail("pending_approval_mutation_guard", planned)
+    runtime = create_local_hitl_runtime(settings)
+    recovered_pending = runtime.repository.get_run(run_id)
+    if recovered_pending is None or recovered_pending.state.value != "AWAITING_APPROVAL":
+        return _fail("pending_approval_recovery", planned)
     principal = LocalOperatorPrincipal(actor_session_id="local-demo-operator")
     challenge = runtime.phase_two.request_approval(run_id, principal)
     if challenge.status is ResultStatus.FAILURE or challenge.value is None:
@@ -116,23 +124,67 @@ def main() -> int:
     completed = runtime.phase_two.resume(run_id, principal)
     if completed.status is ResultStatus.FAILURE or completed.value is None:
         return _fail("resume", completed)
+    conflicting = LocalDecisionRequest(
+        request_id=request.request_id,
+        run_id=request.run_id,
+        proposal_id=request.proposal_id,
+        request_hash=request.request_hash,
+        proposal_hash=request.proposal_hash,
+        evidence_hash=request.evidence_hash,
+        proposal_version=request.proposal_version,
+        decision=(
+            ApprovalDecision.DENIED
+            if selected_decision is ApprovalDecision.APPROVED
+            else ApprovalDecision.APPROVED
+        ),
+        decision_nonce=challenge.value.decision_nonce,
+    )
+    mutations_before_replay = runtime.executor.mutation_calls
+    replay = runtime.phase_two.decide(conflicting, principal)
+    replay_rejected = (
+        replay.failure is not None
+        and replay.failure.code == "LOCAL_APPROVAL_REPLAY_CONFLICT"
+        and runtime.executor.mutation_calls == mutations_before_replay
+    )
+    if not replay_rejected:
+        return _fail("replay_protection", replay)
+    restarted = create_local_hitl_runtime(settings)
+    recovered = restarted.phase_two.resume(run_id, principal)
+    if recovered.status is ResultStatus.FAILURE or recovered.value is None:
+        return _fail("recovery", recovered)
     receipt = completed.value.receipt
     verification = completed.value.verification
+    elapsed = time.monotonic() - started_at
     payload = {
+        "aws_mutations": 0,
         "decision": selected_decision.value,
+        "demo_label": "MOCK_OFFLINE_NEVER_LIVE",
+        "duration_seconds": round(elapsed, 3),
         "evidence_hash": planned.value.evidence.evidence_hash,
+        "external_network_connections": 0,
+        "fail_closed_probe": "CONFLICTING_APPROVAL_REPLAY_REJECTED",
         "final_state": completed.value.final_state.value,
+        "live_receipts": 0,
+        "mode": "MOCK_OFFLINE",
         "mock_mutation_count": runtime.executor.mutation_calls,
         "network_calls": runtime.cloud_provider.network_calls,
         "ok": True,
         "operation": planned.value.plan.proposal.operation_type.value,
         "output_dir": str(output_dir),
         "proposal_hash": planned.value.plan.proposal.proposal_hash,
+        "recovered_pending_approval": True,
+        "recovered_pending_state": recovered_pending.state.value,
+        "recovery_mock_mutation_count": restarted.executor.mutation_calls,
+        "recovery_reconciled": recovered.value.reconciled,
         "receipt_hash": receipt.receipt_hash if receipt is not None else None,
+        "replay_failure_code": replay.failure.code if replay.failure is not None else None,
+        "replay_rejected": replay_rejected,
         "run_id": str(run_id),
+        "target_under_seconds": 300,
         "verification_hash": (
             verification.verification_hash if verification is not None else None
         ),
+        "within_target": elapsed < 300,
     }
     print(json.dumps(payload, indent=2, sort_keys=True))
     return 0

@@ -6,7 +6,7 @@ This judge-facing view is generated from the canonical JSON. It is reviewer proo
 - Day 15 local candidate snapshot: `197db56f828b8ab0b9139a1d3708fb8a58ca336a` (`LOCAL_IMPLEMENTATION_CANDIDATE`)
 - Day 15 additive recovery lineage: `aa941a989a8b8cd0e40367bb130472e9f3c082a7` -> `17d5f4637dbd69a33eff1cbb46282c36b19ce6ad` -> `8e4583ac9341cb7b66de47cf0e7b2a442ac67b32` -> `30c2a30cda0ac6d6e2003166daf6c29bf2c764f0` -> `f2ee79c09ba174ba72cb527b70c095f412151758` -> `36fd17df981dfa593d4e63f6a143410317410763` -> `ce35a67f6491ea92aeef534d0dc4f5dc4a8da7ff` -> `5a6127f43a9251a72203c0eb6c7a903d817599f7` -> `3464bc869e7a11acb5aab61ae279cf196a1ebd0f` -> `41ba5586180e9aa3a25fc5469d42815073a0bbf8` -> `858770d5e5c7b59fa883cc56e06f4a9e915d70c1` -> `5e1904408d402c1e6492d6b2e153a7f1a5c56b58` -> `99f70c43a26ce9715e9b57fde81ca265382dd5f2` -> `197db56f828b8ab0b9139a1d3708fb8a58ca336a`
 - Day 15 gates: `D15-G01, D15-G02, D15-G03, D15-G04, D15-G05, D15-G06, D15-G07, D15-G08, D15-G09, D15-G10`
-- Manifest SHA-256: `de4ab77ea9e783a8100e6eded53e096bc5396ec39f98d72d79bc6264dc3d954b`
+- Manifest SHA-256: `dd6a4d7d780d00a7274e7b58f982c13b36a4c7d96593abd7013d447ef4421589`
 - Primary agents: `1`
 - Canonical tools: `inspect_instance, read_utilization_metrics, build_remediation_evidence, stop_sandbox_instance, verify_instance_state`
 - Bedrock model: `eu.amazon.nova-2-lite-v1:0` in `eu-central-1`
@@ -25,7 +25,7 @@ This judge-facing view is generated from the canonical JSON. It is reviewer proo
 | DAY15-COLD-RESUME-01 | PROVEN | TEST | mocked AWS | A fresh Agent runtime can restore a durable native interrupt using trusted principal identity and a server-issued one-time challenge, while no approval or resume route is public. |
 | DAY15-DEPLOYMENT-GATE-01 | PROVEN | TEST | Local deterministic | The Day 15 controller implements candidate-bound G10 closure and a protected exact-role authority bootstrap with deterministic source selection, bounded identity and one-role-assumption verification, append-only alias construction, closed private and sanitized receipts, a fixed read-only preflight allowlist, and ten fail-closed local gates that never authorize deployment. |
 | DAY15-JUDGE-SURFACE-01 | PROVEN | TEST | Local deterministic | The Day 15 application exposes health, readiness, same-origin UI, and token-protected read-only investigation and status routes; approval and mutation routes fail before services. |
-| DAY15-RELEASE-SAFETY-01 | PROVEN | TEST | Local deterministic | At the reviewed M2 anchor, the Day 15 candidate used a hash-locked runtime and template-enforced retained state, explicit region, conditioned URL permissions, immutable aliases, bounded concurrency, and reviewed alias rollback. |
+| DAY15-RELEASE-SAFETY-01 | PROVEN | TEST | Local deterministic | The Phase 3 IaC anchor preserves the reviewed Day 15 release controls and adds exact ownership tags plus a deterministic expected-resource manifest without widening runtime authority. |
 | DAY15-RUNTIME-GUARDS-01 | PROVEN | TEST | mocked AWS | Judge inputs cannot set authority or budgets; fresh investigations use exact server budgets, atomic daily quota reservations, and finite read-only status observations. |
 | DAY15-TELEMETRY-01 | PROVEN | TEST | Local deterministic | Judge telemetry exports only allowlisted identifiers and bounded classifications while structured logging discards prompts, secrets, and tool arguments. |
 | DEFAULT-DENY-01 | PROVEN | TEST | Local deterministic | Unknown and NEVER_AUTONOMOUS capabilities are denied by deterministic policy. |
@@ -134,7 +134,7 @@ A fresh Agent runtime can restore a durable native interrupt using trusted princ
 The Day 15 controller implements candidate-bound G10 closure and a protected exact-role authority bootstrap with deterministic source selection, bounded identity and one-role-assumption verification, append-only alias construction, closed private and sanitized receipts, a fixed read-only preflight allowlist, and ten fail-closed local gates that never authorize deployment.
 
 - Status / kind / scope: `PROVEN` / `TEST` / `Local deterministic`
-- Commit anchor: `197db56f828b8ab0b9139a1d3708fb8a58ca336a`
+- Commit anchor: `c16f6829e8b258af86523b0b1d61e34586702b63`
 - Authority source:
   - `scripts/day15/g10_aws_preflight.py::observe_aws_preflight`
   - `scripts/day15/g10_aws_preflight.py::validate_private_observation_receipt`
@@ -175,7 +175,7 @@ The Day 15 controller implements candidate-bound G10 closure and a protected exa
   - `tests/unit/test_day15_g10_operator_bootstrap.py::test_unassumable_role_is_sanitized_blocked_and_never_writes_alias`
   - `tests/unit/test_day15_gate.py::test_gate_matrix_has_exact_stable_ids_status_vocabulary_and_validate_only_output`
 - Limitations: Proves candidate and receipt binding plus protected bootstrap and bounded adapter behavior with local fakes. No AWS API call, exact-role success, external-prerequisite success, change set, or deployment is attested.
-- Claim SHA-256: `86cc24e7e13db2f2b0af3195a20c4b66c4c7bbed0be744df57e2ccfdb5eb161d`
+- Claim SHA-256: `b3374659ed6605857a67166c5a94fedfdac8bb59d2c693f35e7daef6f26975c5`
 
 ### DAY15-JUDGE-SURFACE-01
 
@@ -197,10 +197,10 @@ The Day 15 application exposes health, readiness, same-origin UI, and token-prot
 
 ### DAY15-RELEASE-SAFETY-01
 
-At the reviewed M2 anchor, the Day 15 candidate used a hash-locked runtime and template-enforced retained state, explicit region, conditioned URL permissions, immutable aliases, bounded concurrency, and reviewed alias rollback.
+The Phase 3 IaC anchor preserves the reviewed Day 15 release controls and adds exact ownership tags plus a deterministic expected-resource manifest without widening runtime authority.
 
 - Status / kind / scope: `PROVEN` / `TEST` / `Local deterministic`
-- Commit anchor: `36fd17df981dfa593d4e63f6a143410317410763`
+- Commit anchor: `c16f6829e8b258af86523b0b1d61e34586702b63`
 - Authority source:
   - `infra/sam/template.yaml`
   - `requirements/day15-toolchain.json`
@@ -224,8 +224,8 @@ At the reviewed M2 anchor, the Day 15 candidate used a hash-locked runtime and t
   - `tests/unit/test_infrastructure_contract.py::test_immutable_versions_and_live_aliases_are_retained_for_rollback`
   - `tests/unit/test_infrastructure_contract.py::test_region_is_explicit_and_public_ingress_preserves_all_mutation_vetoes`
   - `tests/unit/test_infrastructure_contract.py::test_state_table_is_retained_recoverable_encrypted_and_deletion_protected`
-- Limitations: Historical M2 repository evidence only; it proves the reviewed artifact and template contracts at that immutable anchor, not current G10 authority, a built release installed in an account, or any deployment.
-- Claim SHA-256: `9562e57fca041c7f72cc65b370a4fb3995c33cf744b854ff97741b29f0f5ee63`
+- Limitations: Phase 3 repository evidence only; it proves static artifact, template, tag, and manifest contracts, not effective IAM, a built release installed in an account, or any deployment.
+- Claim SHA-256: `39d699e177e421a262e9adf9be1e1e4c143b45b4333cc73098df0a08dba29c2b`
 
 ### DAY15-RUNTIME-GUARDS-01
 
@@ -516,14 +516,14 @@ Restart and lost acknowledgement paths reconcile durable evidence and do not bli
 The project dependency declares an exact Strands Agents SDK pin at 1.53.0.
 
 - Status / kind / scope: `PROVEN` / `STATIC` / `Local deterministic`
-- Commit anchor: `fbb536400594306f2bb3abd31c7064a66735c82d`
+- Commit anchor: `1b3e9ba3ac8e0d6bca3e971cde1322b598607b22`
 - Authority source:
   - `pyproject.toml#strands-agents[otel]==1.53.0`
 - Proof nodes:
   - `P0-01`
   - `P1-06`
 - Limitations: Proves the declared pin and clean install contract, not future package-index availability.
-- Claim SHA-256: `2474fe6eb000c0f17b4beb230dbec9d4fcfc3c88a8790096b8101c1dac7ef830`
+- Claim SHA-256: `a47e4783057d0d708ab0924dc6a8181d89f741d72bf2978e7cda6c541757dad5`
 
 ### TOOL-SURFACE-01
 
