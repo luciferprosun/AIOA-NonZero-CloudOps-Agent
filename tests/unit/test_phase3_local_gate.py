@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import tomllib
 from pathlib import Path
 
 import pytest
@@ -88,3 +89,14 @@ def test_private_output_rejects_symlink_and_json_parser_requires_object(tmp_path
 
     with pytest.raises(LocalGateError, match="INVALID"):
         _json_stdout(_command("[]"), reason="INVALID")
+
+
+def test_development_environment_declares_the_offline_wheel_backend() -> None:
+    root = Path(__file__).resolve().parents[2]
+    document = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))
+
+    assert document["build-system"] == {
+        "requires": ["setuptools>=75"],
+        "build-backend": "setuptools.build_meta",
+    }
+    assert "setuptools>=75,<83" in document["project"]["optional-dependencies"]["dev"]
