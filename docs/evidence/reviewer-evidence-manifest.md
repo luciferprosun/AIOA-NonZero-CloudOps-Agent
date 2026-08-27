@@ -6,7 +6,7 @@ This judge-facing view is generated from the canonical JSON. It is reviewer proo
 - Day 15 local candidate snapshot: `197db56f828b8ab0b9139a1d3708fb8a58ca336a` (`LOCAL_IMPLEMENTATION_CANDIDATE`)
 - Day 15 additive recovery lineage: `aa941a989a8b8cd0e40367bb130472e9f3c082a7` -> `17d5f4637dbd69a33eff1cbb46282c36b19ce6ad` -> `8e4583ac9341cb7b66de47cf0e7b2a442ac67b32` -> `30c2a30cda0ac6d6e2003166daf6c29bf2c764f0` -> `f2ee79c09ba174ba72cb527b70c095f412151758` -> `36fd17df981dfa593d4e63f6a143410317410763` -> `ce35a67f6491ea92aeef534d0dc4f5dc4a8da7ff` -> `5a6127f43a9251a72203c0eb6c7a903d817599f7` -> `3464bc869e7a11acb5aab61ae279cf196a1ebd0f` -> `41ba5586180e9aa3a25fc5469d42815073a0bbf8` -> `858770d5e5c7b59fa883cc56e06f4a9e915d70c1` -> `5e1904408d402c1e6492d6b2e153a7f1a5c56b58` -> `99f70c43a26ce9715e9b57fde81ca265382dd5f2` -> `197db56f828b8ab0b9139a1d3708fb8a58ca336a`
 - Day 15 gates: `D15-G01, D15-G02, D15-G03, D15-G04, D15-G05, D15-G06, D15-G07, D15-G08, D15-G09, D15-G10`
-- Manifest SHA-256: `dd6a4d7d780d00a7274e7b58f982c13b36a4c7d96593abd7013d447ef4421589`
+- Manifest SHA-256: `d447bd58904dfa86c858ecb7a031f7bdd0d2a12f445f763de9a877f5ebb95777`
 - Primary agents: `1`
 - Canonical tools: `inspect_instance, read_utilization_metrics, build_remediation_evidence, stop_sandbox_instance, verify_instance_state`
 - Bedrock model: `eu.amazon.nova-2-lite-v1:0` in `eu-central-1`
@@ -516,14 +516,14 @@ Restart and lost acknowledgement paths reconcile durable evidence and do not bli
 The project dependency declares an exact Strands Agents SDK pin at 1.53.0.
 
 - Status / kind / scope: `PROVEN` / `STATIC` / `Local deterministic`
-- Commit anchor: `1b3e9ba3ac8e0d6bca3e971cde1322b598607b22`
+- Commit anchor: `5ac15d30a604434713490d77edb573d14a8f1dcd`
 - Authority source:
   - `pyproject.toml#strands-agents[otel]==1.53.0`
 - Proof nodes:
   - `P0-01`
   - `P1-06`
 - Limitations: Proves the declared pin and clean install contract, not future package-index availability.
-- Claim SHA-256: `a47e4783057d0d708ab0924dc6a8181d89f741d72bf2978e7cda6c541757dad5`
+- Claim SHA-256: `f372e804acec1e37a665d2aec11b781040ad2b2fbcb8a360357951ed97140357`
 
 ### TOOL-SURFACE-01
 

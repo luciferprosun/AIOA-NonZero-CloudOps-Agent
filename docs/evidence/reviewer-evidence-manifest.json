@@ -541,9 +541,9 @@
       ],
       "claim": "The project dependency declares an exact Strands Agents SDK pin at 1.53.0.",
       "claim_id": "SDK-PIN-01",
-      "commit_anchor": "1b3e9ba3ac8e0d6bca3e971cde1322b598607b22",
+      "commit_anchor": "5ac15d30a604434713490d77edb573d14a8f1dcd",
       "evidence_kind": "STATIC",
-      "hash": "a47e4783057d0d708ab0924dc6a8181d89f741d72bf2978e7cda6c541757dad5",
+      "hash": "f372e804acec1e37a665d2aec11b781040ad2b2fbcb8a360357951ed97140357",
       "limitations": "Proves the declared pin and clean install contract, not future package-index availability.",
       "proof_nodes": [
         "P0-01",
@@ -664,6 +664,6 @@
     "strands_version": "1.53.0"
   },
   "live_receipts": [],
-  "manifest_hash": "dd6a4d7d780d00a7274e7b58f982c13b36a4c7d96593abd7013d447ef4421589",
+  "manifest_hash": "d447bd58904dfa86c858ecb7a031f7bdd0d2a12f445f763de9a877f5ebb95777",
   "schema_version": "2.0"
 }
