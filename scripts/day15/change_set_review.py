@@ -39,6 +39,7 @@ from scripts.day15.g10_candidate import (  # noqa: E402
 from scripts.day15.preflight_region import validate_judge_token_not_after  # noqa: E402
 from scripts.day15.run_day15_gate import (  # noqa: E402
     EXPECTED_ASSUME_ROLE_POLICY,
+    EXPECTED_OWNERSHIP_TAGS,
     EXPECTED_ROLE_POLICIES,
 )
 from scripts.day15.run_g10_closure import (  # noqa: E402
@@ -344,8 +345,9 @@ def _iam_reasons(template: Mapping[str, object]) -> tuple[str, ...]:
     for name, expected_policies in EXPECTED_ROLE_POLICIES.items():
         properties = _properties(roles[name])
         if (
-            set(properties) != {"AssumeRolePolicyDocument", "Policies"}
+            set(properties) != {"AssumeRolePolicyDocument", "Policies", "Tags"}
             or properties.get("AssumeRolePolicyDocument") != EXPECTED_ASSUME_ROLE_POLICY
+            or properties.get("Tags") != EXPECTED_OWNERSHIP_TAGS
         ):
             reasons.append("IAM_ROLE_TRUST_OR_PROPERTIES_INVALID")
             continue

@@ -214,6 +214,28 @@ def test_wildcard_iam_resource_and_trust_principal_are_rejected() -> None:
 
 
 @pytest.mark.parametrize(
+    "tags",
+    (
+        [],
+        [{"Key": "AIOAProject", "Value": "ForeignProject"}],
+        [
+            {"Key": "AIOAStage", "Value": "hackathon"},
+            {"Key": "AIOAProject", "Value": "NonZeroCloudOps"},
+            {"Key": "ManagedBy", "Value": "CloudFormation"},
+        ],
+    ),
+)
+def test_iam_role_ownership_tags_are_exact_and_ordered(tags: list[dict[str, str]]) -> None:
+    template = _rendered_template()
+    template["Resources"]["OrchestratorRole"]["Properties"]["Tags"] = tags
+
+    result = _result(template)
+
+    assert result["status"] == "FAIL"
+    assert "IAM_ROLE_TRUST_OR_PROPERTIES_INVALID" in result["reasons"]
+
+
+@pytest.mark.parametrize(
     ("mutation", "reason"),
     (
         (
