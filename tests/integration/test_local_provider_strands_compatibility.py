@@ -8,6 +8,7 @@ from aioa_cloudops_agent.cloudops import (
     MockAwsAdapter,
     SandboxTarget,
 )
+from aioa_cloudops_agent.config import ModelProviderName
 from aioa_cloudops_agent.domain import (
     AuthorityGate,
     ExecutionBudget,
@@ -84,6 +85,9 @@ def test_local_providers_drive_existing_canonical_strands_path() -> None:
     assert result.value is not None
     assert result.value.final_state is WorkflowState.REMEDIATION_PROPOSED
     assert result.value.proposal.authorizes_execution is False
+    assert runtime.model_settings.provider_name is ModelProviderName.MOCK
+    assert runtime.model_settings.model is model
+    assert runtime.model_settings.aws_calls_allowed is False
     assert model.calls == 4
     assert adapter.sdk_compatible_calls == [
         "ec2:DescribeInstances",

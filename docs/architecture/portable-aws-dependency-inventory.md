@@ -69,3 +69,18 @@ and region configuration; absence or mismatch fails closed and never falls back 
 B1 must route canonical default model construction through one provider factory so the baseline
 `REQUIRED_CORE` Bedrock default becomes `OPTIONAL_INTEGRATION` while Strands remains the agent
 framework.
+
+## B1 closure
+
+The canonical default now resolves through `providers/factory.py::create_model_provider` to the
+deterministic mock Strands model. `create_bedrock_model` moved behind that provider module and imports
+the Bedrock/AWS client implementation only inside the explicitly selected constructor. Therefore the
+application-level operational count after B1 is:
+
+```text
+REQUIRED_CORE AWS integrations = 0
+OPTIONAL_INTEGRATION Bedrock/AWS paths = preserved
+```
+
+The Strands distribution's transitive AWS SDK packages remain installed for the reason documented
+above, but portable startup creates no AWS object and grants no AWS call authority.

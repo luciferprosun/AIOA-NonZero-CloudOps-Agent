@@ -144,27 +144,63 @@ def test_reopened_flow_reconciles_same_pending_proposal(tmp_path: Path) -> None:
 
 
 @pytest.mark.parametrize(
-    ("failure", "failure_kind", "terminal_state"),
+    ("failure", "failure_kind", "terminal_state", "failure_code", "retryable"),
     [
         (
             MockModelFailure.MALFORMED,
             FailureKind.VALIDATION_FAILURE,
             WorkflowState.MODEL_OUTPUT_INVALID,
+            None,
+            False,
+        ),
+        (
+            MockModelFailure.EMPTY,
+            FailureKind.VALIDATION_FAILURE,
+            WorkflowState.MODEL_OUTPUT_INVALID,
+            None,
+            False,
         ),
         (
             MockModelFailure.POLICY_INVALID,
             FailureKind.POLICY_DENIAL,
             WorkflowState.DENIED_BY_POLICY,
+            None,
+            False,
+        ),
+        (
+            MockModelFailure.DENIED_ACTION,
+            FailureKind.VALIDATION_FAILURE,
+            WorkflowState.MODEL_OUTPUT_INVALID,
+            None,
+            False,
         ),
         (
             MockModelFailure.PROVIDER_ERROR,
             FailureKind.PROVIDER_FAILURE,
             WorkflowState.DEPENDENCY_UNAVAILABLE,
+            "MODEL_PROVIDER_FAILED",
+            True,
         ),
         (
             MockModelFailure.TIMEOUT,
             FailureKind.PROVIDER_FAILURE,
             WorkflowState.DEPENDENCY_UNAVAILABLE,
+            "MODEL_PROVIDER_TIMEOUT",
+            False,
+        ),
+        (
+            MockModelFailure.RETRYABLE_ERROR,
+            FailureKind.PROVIDER_FAILURE,
+            WorkflowState.DEPENDENCY_UNAVAILABLE,
+            "MODEL_PROVIDER_RETRYABLE_FAILURE",
+            True,
+        ),
+        (
+            MockModelFailure.NON_RETRYABLE_ERROR,
+            FailureKind.PROVIDER_FAILURE,
+            WorkflowState.DEPENDENCY_UNAVAILABLE,
+            "MODEL_PROVIDER_NON_RETRYABLE_FAILURE",
+            False,
         ),
     ],
 )
@@ -173,10 +209,13 @@ def test_model_failures_are_typed_terminal_and_create_no_proposal(
     failure: MockModelFailure,
     failure_kind: FailureKind,
     terminal_state: WorkflowState,
+    failure_code: str | None,
+    retryable: bool,
 ) -> None:
+    model = MockModelProvider(failure=failure)
     flow, store, adapter = _flow(
         tmp_path / "state.json",
-        model=MockModelProvider(failure=failure),
+        model=model,
     )
 
     result = flow.execute(
@@ -187,11 +226,50 @@ def test_model_failures_are_typed_terminal_and_create_no_proposal(
     assert result.status is ResultStatus.FAILURE
     assert result.failure is not None
     assert result.failure.kind is failure_kind
+    assert result.failure.retryable is retryable
+    if failure_code is not None:
+        assert result.failure.code == failure_code
     assert store.get_run(RUN_ID).state is terminal_state
     checkpoint = store.get_checkpoint(RUN_ID)
     assert checkpoint is not None
     assert checkpoint.remediation_proposal is None
-    assert adapter.mutation_calls == 0
+    assert adapter.mutation_calls == adapter.network_calls == 0
+    assert model.plan_calls == 1
+
+
+def test_unexpected_provider_exception_is_redacted_and_never_retried(tmp_path: Path) -> None:
+    class UnexpectedProvider:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def create_plan(self, _evidence: object) -> str:
+            self.calls += 1
+            raise RuntimeError("private-provider-exception-detail")
+
+    provider = UnexpectedProvider()
+    adapter = MockAwsAdapter()
+    store = LocalFileDurableTruthRepository(tmp_path / "state.json")
+    flow = LocalFirstPhaseOneFlow(
+        query_resource=QueryResource(adapter),
+        plan_remediation=PlanRemediation(),
+        model_provider=provider,
+        repository=store,
+        clock=lambda: NOW,
+        proposal_id_factory=ProposalIdFactory(),
+        event_id_factory=generate_event_id,
+    )
+
+    result = flow.execute(
+        _run(),
+        _query(CloudResourceType.ELASTIC_IP, MOCK_UNATTACHED_EIP_ID),
+    )
+
+    assert result.failure is not None
+    assert result.failure.code == "MODEL_PROVIDER_INVALID_FAILURE"
+    assert result.failure.message == "Model provider failed outside its typed contract"
+    assert "private-provider" not in result.failure.message
+    assert provider.calls == 1
+    assert adapter.mutation_calls == adapter.network_calls == 0
 
 
 def test_missing_resource_never_becomes_empty_success(tmp_path: Path) -> None:
