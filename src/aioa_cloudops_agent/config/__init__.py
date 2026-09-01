@@ -22,6 +22,7 @@ from .investigation import (
 from .local_first import LocalFirstMode, LocalFirstSettings
 from .local_hitl import LocalHitlSettings
 from .remediation import SandboxRemediationSettings
+from .runtime import ModelProviderName, RuntimeMode, RuntimeSettings
 from .settings import AwsSettings, CostGuardrails, DynamoDbBillingMode
 from .verification import VerificationSettings
 
@@ -46,6 +47,9 @@ __all__ = [
     "LocalFirstMode",
     "LocalFirstSettings",
     "LocalHitlSettings",
+    "ModelProviderName",
+    "RuntimeMode",
+    "RuntimeSettings",
     "SandboxRemediationSettings",
     "VerificationSettings",
     "get_bedrock_model_capabilities",

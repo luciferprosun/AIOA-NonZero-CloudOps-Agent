@@ -6,7 +6,7 @@ from pathlib import Path
 
 from aioa_cloudops_agent.agent import create_local_first_runtime
 from aioa_cloudops_agent.cloudops import MOCK_UNATTACHED_EIP_ID
-from aioa_cloudops_agent.config import LocalFirstMode, LocalFirstSettings
+from aioa_cloudops_agent.config import LocalFirstMode, LocalFirstSettings, RuntimeSettings
 from aioa_cloudops_agent.nz import (
     BudgetCounters,
     CloudResourceType,
@@ -38,7 +38,8 @@ def main() -> int:
     args = _arguments()
     now = datetime.now(UTC)
     runtime = create_local_first_runtime(
-        LocalFirstSettings(mode=LocalFirstMode.MOCK, state_path=args.state_path)
+        LocalFirstSettings(mode=LocalFirstMode.MOCK, state_path=args.state_path),
+        runtime_settings=RuntimeSettings.from_environment(),
     )
     run = Run.new(
         run_id=generate_run_id(),

@@ -15,7 +15,7 @@ from aioa_cloudops_agent.cloudops import (
     MOCK_UNATTACHED_EIP_ID,
     MOCK_UNSAFE_SECURITY_GROUP_ID,
 )
-from aioa_cloudops_agent.config import LocalHitlSettings
+from aioa_cloudops_agent.config import LocalHitlSettings, RuntimeSettings
 from aioa_cloudops_agent.nz import (
     ApprovalDecision,
     BudgetCounters,
@@ -72,7 +72,8 @@ def main() -> int:
         state_path=output_dir / "durable-truth.json",
         inventory_path=output_dir / "mock-inventory.json",
     )
-    runtime = create_local_hitl_runtime(settings)
+    runtime_settings = RuntimeSettings.from_environment()
+    runtime = create_local_hitl_runtime(settings, runtime_settings=runtime_settings)
     now = datetime.now(UTC)
     run = Run.new(
         run_id=run_id,
@@ -95,7 +96,7 @@ def main() -> int:
         return _fail("plan", planned)
     if runtime.executor.mutation_calls != 0:
         return _fail("pending_approval_mutation_guard", planned)
-    runtime = create_local_hitl_runtime(settings)
+    runtime = create_local_hitl_runtime(settings, runtime_settings=runtime_settings)
     recovered_pending = runtime.repository.get_run(run_id)
     if recovered_pending is None or recovered_pending.state.value != "AWAITING_APPROVAL":
         return _fail("pending_approval_recovery", planned)
@@ -148,7 +149,7 @@ def main() -> int:
     )
     if not replay_rejected:
         return _fail("replay_protection", replay)
-    restarted = create_local_hitl_runtime(settings)
+    restarted = create_local_hitl_runtime(settings, runtime_settings=runtime_settings)
     recovered = restarted.phase_two.resume(run_id, principal)
     if recovered.status is ResultStatus.FAILURE or recovered.value is None:
         return _fail("recovery", recovered)
@@ -166,6 +167,7 @@ def main() -> int:
         "final_state": completed.value.final_state.value,
         "live_receipts": 0,
         "mode": "MOCK_OFFLINE",
+        "model_provider": runtime.runtime_settings.model_provider.value,
         "mock_mutation_count": runtime.executor.mutation_calls,
         "network_calls": runtime.cloud_provider.network_calls,
         "ok": True,
@@ -180,6 +182,7 @@ def main() -> int:
         "replay_failure_code": replay.failure.code if replay.failure is not None else None,
         "replay_rejected": replay_rejected,
         "run_id": str(run_id),
+        "runtime_mode": runtime.runtime_settings.mode.value,
         "target_under_seconds": 300,
         "verification_hash": (
             verification.verification_hash if verification is not None else None
