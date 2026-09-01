@@ -1,126 +1,129 @@
 # Devpost Draft — AIOA Non-Zero CloudOps Agent
 
-Status: audited `DEPLOYMENT_READY_LOCAL_RC` draft for owner review; not externally submitted.
+Status: audited `DEPLOYMENT_READY_LOCAL_RC` and sanitized B6 candidate for owner review; not externally submitted.
 
 ## One-line pitch
 
-A human-authorized CloudOps agent that cannot turn a model suggestion into success until the exact
-action is approved, executed once, and independently verified with durable evidence.
+A human-authorized Strands CloudOps agent that cannot convert a model suggestion into success until
+the exact action is approved, executed once, and independently verified with durable evidence.
 
 ## The problem
 
-Professional agents are useful only when people can trust what they observed, what they proposed,
-who authorized it, whether it ran more than once, and whether the claimed outcome really happened.
-Cloud automation often collapses those questions into one optimistic “success” response. That is
-especially risky for remediation actions.
+Professional agents become risky when investigation, authority, execution, and success are collapsed
+into one optimistic answer. Operators need automation that makes uncertainty visible and preserves
+the human's control across retries and restarts. Cloud remediation is especially sensitive because
+an unverified acknowledgement or duplicate retry can hide a consequential failure.
 
 ## What we built
 
-AIOA Non-Zero CloudOps is one Strands agent surrounded by a deterministic authority and evidence
-plane. Its bounded AWS deployment design can inspect one allow-listed sandbox EC2 instance, evaluate
-utilization, create remediation evidence, pause for exact human approval, call a separately
-permissioned private stop executor, and verify the observed state independently. In Phase 3 this AWS
-path is a validated SAM/CloudFormation deployment candidate, not a deployed service.
+AIOA Non-Zero CloudOps uses one Strands agent and five bounded tools to investigate an AWS-shaped
+resource, gather evidence, and create an inert remediation proposal. Deterministic Non-Zero code
+binds approve or deny to that exact evidence, proposal, actor session, expiry, and one-time
+challenge. Approval may execute one allow-listed mock action. Denial executes nothing. Independent
+read-back—not the provider's acknowledgement—determines whether the run reaches
+`SUCCESS_WITH_EVIDENCE`.
 
-The credential-free Local-First implementation makes the safety properties reviewable without cloud
-access. Deterministic AWS-shaped fixtures cover an unattached Elastic IP, unsafe Security Group
-ingress, missing tags, and a compliant instance. The runtime creates inert proposals, binds approve
-or deny to exact evidence and a one-time challenge, executes one approved mock action, recovers a
-pending approval after restart, rejects conflicting replay, reconciles after interruption, and
-reaches `SUCCESS_WITH_EVIDENCE` only after independent read-back.
+The credential-free portable implementation proves pending-approval recovery after restart,
+interrupted-execution reconciliation, replay rejection, resource-binding rejection, and five
+fail-closed safety probes. Its default model and cloud adapters are deterministic local mocks, so
+the full judge path requires neither credentials nor network access. The bounded AWS deployment
+design remains a validated future path, not a deployed service.
 
 ## How humans stay in control
 
 - The model can propose; it cannot grant authority.
-- `AUTO`, `PLAN_AND_CONFIRM`, and `NEVER_AUTONOMOUS` are deterministic policy classes.
-- Approval binds the run, proposal ID/hash, evidence hash, version, expiry, actor session, request,
-  nonce hash, and decision hash.
+- Approval binds the run, proposal, evidence, actor session, expiry, and one-time challenge.
 - Denial is terminal and cannot call the executor.
 - Approval and execution are separate gestures and durable states.
-- Execution ownership is persisted before the side effect; identical retries reconcile, while
-  changed replays fail closed.
+- Execution ownership is persisted before the side effect.
+- Identical retries reconcile, while changed replays fail closed.
 - A provider acknowledgement is not success. Independent verification evidence is required.
 
 ## Demo
 
-The primary jury command is entirely local and labels itself `MOCK_OFFLINE_NEVER_LIVE`. In one
-machine-readable receipt it proves the approve, deny, replay, restart recovery, terminal
-reconciliation, and five fail-closed paths. It records one approved mock mutation, zero denied/replay/
-recovery mutations, zero external connections, zero AWS mutations, and zero live receipts. The
-optional operator console binds only to `127.0.0.1`, uses an owner-only token file and same-origin UI,
-and stores no token in browser storage.
+One offline container command produces a deterministic receipt for the complete portable jury flow.
+The approve scenario performs exactly one post-decision mock mutation and then records independent
+evidence. The deny scenario is terminal and performs zero mutation. Recovery restores the bound
+authority and reconciles interrupted execution without a duplicate mutation. Replay and changed
+resource bindings are rejected with zero mutation delta. Five deliberate failure probes demonstrate
+the fail-closed boundary.
+
+The receipt also records zero external network connections, zero AWS calls, and zero AWS mutations.
+The optional browser console makes the same authority and evidence stages visible while remaining
+authenticated and loopback-only. It stores no authentication token in browser storage.
 
 ## Technology
 
 - Python 3.12 and strict Pydantic contracts;
-- Strands Agents SDK with OpenTelemetry support;
-- Amazon Bedrock / Nova 2 as the pinned future model platform;
-- provider-neutral cloud and model adapters;
-- a retained, on-demand DynamoDB design for durable truth;
-- an operator-supplied private S3 bucket contract for future deployment artifacts;
-- atomic local JSON persistence for credential-free execution;
-- one AWS SAM/CloudFormation path with separated orchestrator and private executor IAM; and
-- executable P0/P1 safety gates plus deterministic claim-to-proof evidence.
+- the Strands Agents SDK with a deterministic mock model by default;
+- durable human-in-the-loop state, nonce consumption, and semantic idempotency;
+- provider-neutral model and cloud adapters;
+- atomic local JSON persistence for the credential-free flow;
+- independent verification and hash-bound JSON evidence;
+- an authenticated loopback-only operator console; and
+- a non-root, digest-pinned, hash-locked OCI container.
 
-No sentence above claims that DynamoDB, S3, Bedrock, Lambda, or the API is currently live.
+Amazon Bedrock and bounded AWS adapters remain optional. They are not required by the portable
+critical path and were not invoked for this candidate. No sentence above claims that DynamoDB, S3,
+Bedrock, Lambda, or an API is currently live.
 
 ## What is distinctive
 
-The product is intentionally “Non-Zero”: missing evidence, ambiguous provider results, stale
-approvals, replay conflicts, dependency outages, recovery uncertainty, and verification mismatch are
-explicit states rather than accidental success. Consequential authority stays in deterministic
-application code instead of model output.
+The model can propose but cannot grant authority. A provider response cannot grant success. A retry
+cannot silently become a second effect. Missing evidence, ambiguous recovery, stale approval,
+dependency failure, binding mismatch, and verification mismatch are modeled outcomes that fail
+closed. Consequential authority stays in deterministic application code instead of model output.
 
 ## Accomplishments proven locally
 
-- one canonical run/checkpoint lifecycle from investigation through verified completion;
+- one canonical run and checkpoint lifecycle from investigation through verified completion;
 - an exact five-tool single-agent surface with unknown capability default deny;
-- durable human-in-the-loop approval and restart recovery;
-- private, narrowly scoped future execution boundary with emergency vetoes;
-- protected mock execution for exact EIP release and ingress revocation;
+- durable evidence-bound human approval, terminal denial, and restart recovery;
+- protected mock execution with independent verification;
 - authenticated loopback API and embedded operator console;
-- a classified deployment contract, offline preflight fixtures, 22-resource IaC manifest,
-  ownership-bound cleanup plan, post-deploy verifier contract, and commit-bound RC attestation; and
-- deterministic full-suite, P0/P1, API, replay, recovery, verification, secret-scan, and package
-  proofs.
+- a locally certified non-root OCI runtime with a read-only root filesystem, dropped capabilities,
+  and no-new-privileges;
+- executable P0/P1, reliability, security, privacy, and reproducibility gates; and
+- deterministic public-tree inventory, exclusions, checksums, and claim-to-proof mapping.
 
 ## Challenges and lessons
 
-The hardest part was preserving authority and truth across every crash window. Approval must survive
-a restart without becoming transferable. An execution receipt must survive when a workflow
-checkpoint does not. Verification must be independent of the executor's optimistic response. Those
-constraints shaped the data model and made the agent safer and more explainable.
+The difficult edge is the crash window around a consequential effect. Approval has to survive a
+restart without becoming transferable. An uncertain effect must reconcile before retry. A provider
+receipt must not substitute for independent verification. Those constraints required separate
+authority, execution, and truth planes. They also reinforced a broader lesson: useful agents need
+deterministic safety boundaries around probabilistic reasoning.
 
 ## Evidence map
 
 | Claim | Local evidence |
 |---|---|
 | Exact human authority and default deny | `scripts/run_p0_gate.py`; `scripts/run_p1_gate.py`; policy and HITL tests |
-| Approve = one mock mutation + independent evidence | `scripts/phase3/run_jury_demo.py`; `docs/evidence/release/phase3-offline-verifier-receipt.json` |
-| Deny, replay, and recovery add zero mutation | Same jury/verifier receipt; Phase 3 verifier and demo tests |
-| Offline path opens no socket and makes no AWS mutation | `test_phase3_*` socket guards; hashed local-gate evidence |
-| Deployment surface and IAM separation | `requirements/phase3-deployment-contract.json`; `infra/sam/template.yaml`; 22-resource expected manifest |
-| Cleanup requires proven ownership and fresh approval | `requirements/phase3-cleanup-contract.json`; `docs/operations/phase3-rollback-cleanup.md` |
-| RC bytes and commit are bound fail-closed | `.local/phase3/rc-attestation.json` after final push; attestation schema/tests |
+| Approve = one mock mutation plus independent evidence | `python -m aioa_cloudops_agent.portable`; portable sandbox tests; B5 container-gate receipt |
+| Deny, replay, and recovery add zero mutation | Portable receipt fields; recovery and reconciliation tests |
+| Offline path opens no external socket and makes no AWS call | Portable socket guards; B5 container-gate receipt |
+| One Strands agent exposes five bounded tools | Strands agent tests; provider-neutral compatibility tests |
+| Container runtime is non-root and hardened | `Dockerfile`; B5 non-root and image-privacy receipts |
+| Public export is deterministic and sanitized | `PUBLICATION_MANIFEST.json`; `SHA256SUMS`; B6 clean-room report |
 | Historical product claims remain mock/live typed | `docs/evidence/reviewer-evidence-manifest.json`; its validator |
 
-The `.local` gate and attestation receipts are deliberately untracked operator evidence. The committed
-Phase 3 gate report records their safe hashes and results without publishing host-specific or secret
-material.
+The committed B5 artifacts bind the exact source, dependency inputs, image identity, runtime checks,
+and portable receipt hashes without publishing host-specific or secret material. The public archive
+adds a complete inventory, explicit exclusions, file checksums, a privacy-scan receipt, and the B6
+clean-room report.
 
 ## Current limitations and next steps
 
-No AWS infrastructure or live mutation has been performed by this project. Live deployment remains
-blocked until an authorized operator supplies and validates the intended account/role, region,
-private artifact bucket, pre-existing sandbox binding, judge-secret authority, CloudWatch history,
-Nova 2 access, budget owner, reviewed change set, and explicit deploy approval. The local preflight
-engine represents each unavailable check as `NOT_RUN_EXTERNAL` or `BLOCKED_EXTERNAL`; it never
-converts absence into PASS.
+No AWS infrastructure or live mutation has been performed by this project. This is a locally
+certified offline/mock publication candidate, not a production deployment. No public endpoint,
+registry push, live AWS identity, live Bedrock inference, effective deployed IAM, real cloud
+mutation, video publication, or Devpost submission is claimed. The optional AWS path requires a
+separate authorized live-demo phase and new receipts.
 
-After those prerequisites, the smallest safe sequence is read-only preflight, human review of its
-receipt, explicit approval of the exact change set, deployment, live post-deploy verification, receipt
-review, and owner-controlled Devpost submission. AgentCore remains an optional future evaluation,
-not a dependency of the proven architecture.
+The next safe step is owner review of the sanitized archive and its claim matrix. Any future live
+phase must begin with read-only preflight, explicit scope and account approval, reviewed change set,
+bounded deployment, independent post-deploy verification, and owner-controlled submission. Missing
+external evidence remains blocked or not run; it never becomes a local PASS.
 
 ## Placeholders that require future live evidence
 
@@ -128,7 +131,7 @@ Do not promote these placeholders into submission claims until the named receipt
 
 - `[LIVE_DEPLOYMENT_RECEIPT_REQUIRED: exact stack ID/hash, account/region binding, deployed SHA]`;
 - `[LIVE_IAM_SIMULATION_REQUIRED: effective read/write separation in the authorized account]`;
-- `[LIVE_BEDROCK_RECEIPT_REQUIRED: authorized Nova 2 invocation and model identifier]`;
+- `[LIVE_BEDROCK_RECEIPT_REQUIRED: authorized model invocation and model identifier]`;
 - `[LIVE_REMEDIATION_RECEIPT_REQUIRED: approved sandbox-only mutation plus independent read-back]`;
 - `[LIVE_ROLLBACK_RECEIPT_REQUIRED: ownership-checked residual-resource verification]`; and
 - `[DEVPOST_SUBMISSION_RECEIPT_REQUIRED: owner submission URL/timestamp]`.
@@ -140,8 +143,8 @@ Do not promote these placeholders into submission claims until the named receipt
 .venv/bin/python scripts/run_p0_gate.py
 .venv/bin/python scripts/run_p1_gate.py
 .venv/bin/python scripts/phase3/scan_secrets.py
-.venv/bin/python scripts/phase3/run_post_deploy_verifier.py --check
-.venv/bin/python scripts/phase3/run_jury_demo.py
+python scripts/build_public_submission.py --source-ref HEAD --output-dir <empty-directory>
+python scripts/scan_public_submission.py <candidate-directory>
 ```
 
 This draft makes no claim of external submission, deployed availability, effective live IAM, live
