@@ -112,13 +112,20 @@ Run a standalone approved or denied terminal demonstration:
 Run the same workflow through the loopback-only API and embedded operator console:
 
 ```bash
-.venv/bin/python scripts/run_local_hitl_api.py
+.venv/bin/python scripts/run_local_hitl_api.py --open-browser
 ```
 
-Open `http://127.0.0.1:8765`, then paste the contents of the owner-only
-`.local/aioa-local-api.token` file into the session field. The page keeps the token only in memory;
-the API binds only to `127.0.0.1`, requires an exact Bearer header, rejects ambiguous JSON and query
-authority, and returns `Cache-Control: no-store` plus a strict content-security policy.
+The B3 judge experience opens with a fragment-only credential bootstrap, exchanges it for an
+`HttpOnly` same-site loopback session, and removes the fragment immediately. Choose the approval or
+denial story in one click, then follow the visible evidence, proposal, policy, human decision,
+execution, verification, and receipt stages. Refresh/resume, stale-tab rejection, and duplicate-click
+reconciliation are supported without putting the raw token in browser storage. The API still accepts
+the exact Bearer token for local verification clients and still binds only to `127.0.0.1`.
+
+See [`docs/JUDGE_EXPERIENCE.md`](docs/JUDGE_EXPERIENCE.md) for the three-minute judge path, API
+contract, screenshots, and truthful mode boundaries. The deterministic machine-readable proof
+remains `scripts/run_portable_demo.py`; the browser is the primary human product experience, not a
+replacement for that evidence gate.
 
 The original Phase 1-only entry point remains available:
 
@@ -132,7 +139,10 @@ The original Phase 1-only entry point remains available:
   tests/integration/test_local_first_phase_one.py \
   tests/integration/test_local_hitl_execution.py \
   tests/unit/test_local_hitl_api.py \
-  tests/integration/test_local_hitl_http_server.py
+  tests/unit/test_judge_console_ui.py \
+  tests/unit/test_judge_console_launcher.py \
+  tests/integration/test_local_hitl_http_server.py \
+  tests/integration/test_portable_judge_experience.py
 ```
 
 `AIOA_LOCAL_MODE=mock` is the safe default. An explicit `live` request fails closed; it never falls

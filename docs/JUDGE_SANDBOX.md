@@ -91,5 +91,9 @@ env -u AWS_ACCESS_KEY_ID \
 ```
 
 The loopback-only local API remains available for interactive human approval. It uses the same
-Local-2 authority and persistence contracts and does not require AWS, but it is not a second
-deterministic judge launcher and is not required by the portable evidence command.
+Local-2 authority and persistence contracts and does not require AWS. B3 promotes its same-origin
+console into the primary judge-facing product experience while keeping
+`scripts/run_portable_demo.py` as the single deterministic evidence command. Start the UI with
+`.venv/bin/python scripts/run_local_hitl_api.py --open-browser`; see
+[`JUDGE_EXPERIENCE.md`](JUDGE_EXPERIENCE.md). It is not a second agent runtime or a second evidence
+schema.

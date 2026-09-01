@@ -88,19 +88,24 @@ The server exposes only:
 | Method and path | Authority | Behavior |
 |---|---|---|
 | `GET /health` | public loopback | static liveness only |
+| `GET /ready` | public loopback | truthful portable/provider/sandbox readiness |
 | `GET /` | public loopback | embedded same-origin operator console |
-| `POST /api/runs` | Bearer token | start one server-budgeted Local-1 investigation |
-| `GET /api/runs/{run_id}` | Bearer token | read one durable run/checkpoint |
-| `POST /api/runs/{run_id}/approval-request` | Bearer token | issue an exact approval challenge |
-| `POST /api/runs/{run_id}/decision` | Bearer token | persist approve or deny |
-| `POST /api/runs/{run_id}/resume` | Bearer token | explicitly resume protected execution |
+| `GET/POST/DELETE /api/session` | loopback credential | inspect, exchange, or clear an HttpOnly browser session |
+| `POST /api/runs` | Bearer or protected browser session | start one server-budgeted Local-1 investigation |
+| `GET /api/runs/{run_id}` | Bearer or protected browser session | read a sanitized durable run/evidence/audit view |
+| `POST /api/runs/{run_id}/approval-request` | Bearer or protected browser session | issue an exact approval challenge |
+| `POST /api/runs/{run_id}/decision` | Bearer or protected browser session | persist approve or deny |
+| `POST /api/runs/{run_id}/resume` | Bearer or protected browser session | explicitly resume protected execution |
 
 The server refuses a bind other than `127.0.0.1`. It creates or loads one regular owner-only token
 file, compares token digests in constant time, derives the actor session on the server, suppresses
 request logging, accepts no query authority, caps request bodies, rejects duplicate/non-finite JSON
 and unknown fields, and emits no exception text. Responses are non-cacheable and carry CSP,
-frame-denial, content-type, permissions, and referrer protections. The UI uses no browser storage and
-clears the visible token input after establishing its in-memory session.
+frame-denial, content-type, permissions, and referrer protections. The B3 launcher passes the raw
+token only in a URL fragment, the page removes it immediately and exchanges it for an `HttpOnly`,
+`SameSite=Strict` session cookie, and no credential is written to browser storage. Cookie-authenticated
+state-changing requests require a non-simple fixed intent header. The run view omits nonce material
+and actor-session identifiers and exposes only allow-listed audit metadata.
 
 ## Configuration and operation
 
@@ -116,7 +121,7 @@ explicit `live` mode is unavailable and fails during configuration; there is no 
 
 ```bash
 .venv/bin/python scripts/run_local_hitl_demo.py --scenario elastic-ip --decision approved
-.venv/bin/python scripts/run_local_hitl_api.py
+.venv/bin/python scripts/run_local_hitl_api.py --open-browser
 ```
 
 Every automated demo run receives a new subdirectory under `.local/aioa-local2-demo/`, preserving

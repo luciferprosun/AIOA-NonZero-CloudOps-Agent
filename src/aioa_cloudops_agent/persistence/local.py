@@ -266,6 +266,13 @@ class LocalFileDurableTruthRepository:
     def get_audit_event(self, run_id: UUID, event_id: UUID) -> AuditEvent | None:
         return self._read(lambda repository: repository.get_audit_event(run_id, event_id))
 
+    def list_audit_events(self, run_id: UUID, *, limit: int = 128) -> tuple[AuditEvent, ...]:
+        """Read a bounded audit timeline for one exact run without scanning other state."""
+
+        return self._read(
+            lambda repository: repository.list_audit_events(run_id, limit=limit)
+        )
+
     def create_verification_evidence(
         self,
         evidence: VerificationEvidence,

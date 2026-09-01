@@ -347,6 +347,19 @@ class InMemoryTestDurableTruthRepository:
     def get_audit_event(self, run_id: UUID, event_id: UUID) -> AuditEvent | None:
         return self._audit_events.get((run_id, event_id))
 
+    def list_audit_events(self, run_id: UUID, *, limit: int = 128) -> tuple[AuditEvent, ...]:
+        """Return one run's bounded, deterministic append-only audit timeline."""
+
+        if isinstance(limit, bool) or not isinstance(limit, int) or not 1 <= limit <= 256:
+            raise ValueError("audit event limit must be between 1 and 256")
+        events = (
+            event for (event_run_id, _), event in self._audit_events.items()
+            if event_run_id == run_id
+        )
+        return tuple(
+            sorted(events, key=lambda event: (event.timestamp, str(event.event_id)))[:limit]
+        )
+
     def create_verification_evidence(
         self,
         evidence: VerificationEvidence,

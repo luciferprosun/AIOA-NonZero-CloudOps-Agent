@@ -59,22 +59,22 @@ zero mock mutations, no receipt or verification hash, and the same zero network/
 7. Show the five fail-closed probes and close on the explicit counts: network `0`, AWS mutations `0`,
    live receipts `0`.
 
-## Optional loopback operator console
+## Primary B3 judge experience
 
-1. Start `.venv/bin/python scripts/run_local_hitl_api.py`.
-2. Open `http://127.0.0.1:8765`. The server refuses public binding; its owner-only token is read from
-   `.local/aioa-local-api.token`, is held only in browser memory, and is sent only to the loopback
-   origin.
-3. Choose **Unattached Elastic IP** and start the bounded run. Show the evidence-bound
+1. Start `.venv/bin/python scripts/run_local_hitl_api.py --open-browser`.
+2. Confirm `DEMO SANDBOX`, `PORTABLE / MOCK`, `STRANDS`, zero real-cloud writes, and zero external
+   network calls. The server refuses public binding; the fragment-only token bootstrap is removed
+   immediately after exchange for an `HttpOnly` loopback session.
+3. Choose **Release an unattached Elastic IP**. Show the evidence-bound
    `PLAN_AND_CONFIRM` proposal, expiry, hashes, and `authorizes_execution: false`.
-4. Request and approve its exact challenge, then resume protected execution. Show the independent
+4. Review and approve its exact challenge, then explicitly execute. Show the independent
    verification and `SUCCESS_WITH_EVIDENCE`.
-5. Resume again and show reconciliation rather than a second action.
-6. Start **Public SSH ingress**, request its challenge, deny it, and resume. Show
+5. Select **Test replay protection** and show reconciliation rather than a second action.
+6. Start **Deny a public-ingress change**, request its challenge, and deny it. Show
    `DENIED_BY_HUMAN` without execution evidence.
 
-The UI is optional because the CLI jury receipt is the deterministic, automated proof. Do not use a
-private/public tunnel or change the loopback bind during this phase.
+The UI is the human-facing product demonstration. The CLI jury receipt remains the deterministic,
+automated proof. Do not use a private/public tunnel or change the loopback bind during this phase.
 
 ## Honest narration
 

@@ -1,7 +1,5 @@
 """Loopback-only Local-2 HTTP application with an embedded operator console."""
 
-import base64
-import hashlib
 import json
 import re
 from collections.abc import Callable, Mapping
@@ -29,20 +27,29 @@ from aioa_cloudops_agent.nz import (
 )
 from aioa_cloudops_agent.nz.errors import StorageDependencyError
 
-from .auth import LocalApiTokenAuthorizer
+from .auth import LOCAL_API_SESSION_COOKIE, LocalApiTokenAuthorizer
 from .contracts import (
     LOCAL_API_BODY_MAX_BYTES,
     LocalApiErrorCode,
     LocalApiErrorResponse,
+    LocalBrowserSessionView,
+    LocalReadyView,
     LocalResumeRequest,
-    LocalRunView,
     LocalStartRunRequest,
 )
+from .judge_ui import JUDGE_UI_BODY, judge_ui_headers
+from .views import run_view, runtime_view
 
 _RUN_PATH = re.compile(r"^/api/runs/([^/]+)$")
 _APPROVAL_PATH = re.compile(r"^/api/runs/([^/]+)/approval-request$")
 _DECISION_PATH = re.compile(r"^/api/runs/([^/]+)/decision$")
 _RESUME_PATH = re.compile(r"^/api/runs/([^/]+)/resume$")
+_SESSION_COOKIE = (
+    f"{LOCAL_API_SESSION_COOKIE}={{value}}; HttpOnly; SameSite=Strict; Path=/"
+)
+_CLEAR_SESSION_COOKIE = (
+    f"{LOCAL_API_SESSION_COOKIE}=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0"
+)
 _UUID7_ADAPTER = TypeAdapter(Uuid7Identifier)
 _JSON_HEADERS: Final[dict[str, str]] = {
     "cache-control": "no-store",
@@ -53,53 +60,7 @@ _JSON_HEADERS: Final[dict[str, str]] = {
     "x-content-type-options": "nosniff",
     "x-frame-options": "DENY",
 }
-_UI_STYLE: Final = """
-:root{color-scheme:dark;font-family:Inter,ui-sans-serif,system-ui,sans-serif;background:#071018;color:#eaf6f4}*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at top left,#12353b 0,#071018 42%);min-height:100vh}main{width:min(1080px,calc(100% - 32px));margin:auto;padding:44px 0 64px}.eyebrow{color:#68e1cb;text-transform:uppercase;letter-spacing:.14em;font-weight:700;font-size:.78rem}h1{font-size:clamp(2rem,5vw,4.2rem);line-height:1;margin:.2em 0}.lead{max-width:720px;color:#abc7c3;font-size:1.08rem}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:16px;margin-top:28px}.card{background:#0c1923e6;border:1px solid #24404a;border-radius:18px;padding:20px;box-shadow:0 18px 50px #0006}.card h2{margin-top:0;font-size:1rem;color:#d9fffa}label{display:block;color:#abc7c3;margin:12px 0 6px}input,select,button{width:100%;font:inherit;border-radius:10px;padding:11px 12px}input,select{background:#071018;color:#eaf6f4;border:1px solid #36535c}button{margin-top:10px;border:0;background:#68e1cb;color:#06211d;font-weight:800;cursor:pointer}button.secondary{background:#1d333b;color:#d9fffa}button.danger{background:#ff927e;color:#32100b}button:disabled{opacity:.45;cursor:not-allowed}.actions{display:grid;grid-template-columns:1fr 1fr;gap:9px}.status{display:inline-block;padding:6px 10px;border-radius:999px;background:#18343b;color:#8ff2df;font-weight:700}pre{white-space:pre-wrap;overflow-wrap:anywhere;min-height:330px;max-height:560px;overflow:auto;background:#040a0f;border-radius:12px;padding:14px;color:#bce9e2;font-size:.82rem}.note{font-size:.85rem;color:#8ba9a5}.wide{grid-column:1/-1}
-""".strip()
-_UI_SCRIPT: Final = """
-(()=>{let token='',runId='',challenge=null;const $=id=>document.getElementById(id);const out=$('output'),state=$('state');function show(v){out.textContent=JSON.stringify(v,null,2);const s=v?.result?.run?.state||v?.result?.final_state;state.textContent=s||'READY'}async function api(path,method='GET',body=null){if(!token)throw new Error('Connect with the local token first.');const options={method,headers:{Authorization:'Bearer '+token}};if(body!==null){options.headers['Content-Type']='application/json';options.body=JSON.stringify(body)}const response=await fetch(path,options);const value=await response.json();show(value);if(!response.ok)throw new Error(value.failure_code||value.error||'Request failed');return value.result}$('connect').addEventListener('click',()=>{const input=$('token');token=input.value;input.value='';state.textContent=token?'CONNECTED':'TOKEN REQUIRED'});$('disconnect').addEventListener('click',()=>{token='';runId='';challenge=null;state.textContent='DISCONNECTED';out.textContent='Session cleared from memory.'});$('start').addEventListener('click',async()=>{try{const [resource_type,resource_id]=$('fixture').value.split('|');const result=await api('/api/runs','POST',{resource_type,resource_id});runId=result.run_id;challenge=null}catch(error){out.textContent+='\n'+error.message}});$('statusBtn').addEventListener('click',async()=>{try{if(!runId)throw new Error('Start a run first.');await api('/api/runs/'+runId)}catch(error){out.textContent+='\n'+error.message}});$('challengeBtn').addEventListener('click',async()=>{try{if(!runId)throw new Error('Start a run first.');challenge=await api('/api/runs/'+runId+'/approval-request','POST',{})}catch(error){out.textContent+='\n'+error.message}});async function decide(decision){try{if(!challenge)throw new Error('Request the exact approval challenge first.');const r=challenge.request;await api('/api/runs/'+runId+'/decision','POST',{request_id:r.request_id,run_id:r.run_id,proposal_id:r.proposal_id,request_hash:r.request_hash,proposal_hash:r.proposal_hash,evidence_hash:r.evidence_hash,proposal_version:r.proposal_version,decision,decision_nonce:challenge.decision_nonce})}catch(error){out.textContent+='\n'+error.message}}$('approve').addEventListener('click',()=>decide('APPROVED'));$('deny').addEventListener('click',()=>decide('DENIED'));$('resume').addEventListener('click',async()=>{try{if(!runId)throw new Error('Start a run first.');await api('/api/runs/'+runId+'/resume','POST',{confirm_execution:true})}catch(error){out.textContent+='\n'+error.message}})})();
-""".strip()
-_UI_STYLE_HASH = base64.b64encode(hashlib.sha256(_UI_STYLE.encode()).digest()).decode()
-_UI_SCRIPT_HASH = base64.b64encode(hashlib.sha256(_UI_SCRIPT.encode()).digest()).decode()
-_UI_HEADERS: Final[dict[str, str]] = {
-    **_JSON_HEADERS,
-    "content-security-policy": (
-        "default-src 'none';base-uri 'none';connect-src 'self';frame-ancestors 'none';"
-        "form-action 'self';"
-        f"style-src 'sha256-{_UI_STYLE_HASH}';script-src 'sha256-{_UI_SCRIPT_HASH}'"
-    ),
-    "content-type": "text/html; charset=utf-8",
-}
-_UI_BODY: Final = (
-    "<!doctype html><html lang='en'><head><meta charset='utf-8'>"
-    "<meta name='viewport' content='width=device-width,initial-scale=1'>"
-    "<title>AIOA Agents for Humans — Local HITL</title><style>"
-    + _UI_STYLE
-    + "</style></head><body><main><div class='eyebrow'>AIOA · Agents for Humans</div>"
-    "<h1>Human authority,<br>machine precision.</h1>"
-    "<p class='lead'>Inspect a deterministic AWS-shaped fixture, review the exact "
-    "evidence-bound remediation, approve or deny it, then verify one protected local change.</p>"
-    "<span id='state' class='status'>READY</span><section class='grid'>"
-    "<div class='card'><h2>1 · Local session</h2><label for='token'>Bearer token</label>"
-    "<input id='token' type='password' autocomplete='off' spellcheck='false'>"
-    "<button id='connect'>Connect</button><button id='disconnect' class='secondary'>Clear session</button>"
-    "<p class='note'>Loaded only into page memory; never stored by the browser.</p></div>"
-    "<div class='card'><h2>2 · Investigate</h2><label for='fixture'>Safe fixture</label>"
-    "<select id='fixture'><option value='AWS::EC2::EIP|eipalloc-0123456789abcdef0'>"
-    "Unattached Elastic IP</option><option value='AWS::EC2::SecurityGroup|sg-0123456789abcdef0'>"
-    "Public SSH ingress</option><option value='AWS::EC2::Instance|i-0fedcba9876543210'>"
-    "Missing required tags</option><option value='AWS::EC2::Instance|i-0123456789abcdef0'>"
-    "Clean instance</option></select><button id='start'>Start bounded run</button>"
-    "<button id='statusBtn' class='secondary'>Refresh durable state</button></div>"
-    "<div class='card'><h2>3 · Human decision</h2><button id='challengeBtn'>Review exact proposal</button>"
-    "<div class='actions'><button id='approve'>Approve</button><button id='deny' class='danger'>Deny</button></div>"
-    "<button id='resume' class='secondary'>Resume protected execution</button>"
-    "<p class='note'>Approval and execution are separate, durable transitions.</p></div>"
-    "<div class='card wide'><h2>Durable evidence</h2><pre id='output' aria-live='polite'>"
-    "Connect, choose a fixture, and start a run.</pre></div></section><script>"
-    + _UI_SCRIPT
-    + "</script></main></body></html>"
-)
+_UI_HEADERS: Final[dict[str, str]] = judge_ui_headers(_JSON_HEADERS)
 
 
 def _utc_now() -> datetime:
@@ -144,10 +105,16 @@ def _response(
     }
 
 
-def _ok(status: int, value: BaseModel) -> dict[str, object]:
+def _ok(
+    status: int,
+    value: BaseModel,
+    *,
+    headers: Mapping[str, str] = _JSON_HEADERS,
+) -> dict[str, object]:
     return _response(
         status,
         {"ok": True, "result": value.model_dump(mode="json", exclude_none=True)},
+        headers=headers,
     )
 
 
@@ -263,11 +230,21 @@ class LocalApiApplication:
                 request,
                 _response(200, {"mode": "mock", "service": "aioa-local-hitl", "status": "ok"}),
             )
+        if request.path == "/ready":
+            return self._public_get(
+                request,
+                _response(
+                    200,
+                    LocalReadyView(runtime=runtime_view(self._runtime)),
+                ),
+            )
         if request.path == "/":
             return self._public_get(
                 request,
-                _response(200, _UI_BODY, headers=_UI_HEADERS),
+                _response(200, JUDGE_UI_BODY, headers=_UI_HEADERS),
             )
+        if request.path == "/api/session":
+            return self._session(request)
         if request.path == "/api/runs":
             return self._start(request)
         for pattern, handler in (
@@ -309,7 +286,55 @@ class LocalApiApplication:
         principal = self._principal(request)
         if principal is None:
             return self._error(LocalApiErrorCode.UNAUTHORIZED, 401)
+        if (
+            method != "GET"
+            and "authorization" not in request.headers
+            and request.headers.get("x-aioa-intent") != "judge-console-v1"
+        ):
+            return self._error(LocalApiErrorCode.UNAUTHORIZED, 401)
         return principal
+
+    def _session(self, request: _Request) -> dict[str, object]:
+        if request.method == "GET":
+            if request.query or request.body not in (None, ""):
+                return self._error(LocalApiErrorCode.BAD_REQUEST, 400)
+            if self._principal(request) is None:
+                return self._error(LocalApiErrorCode.UNAUTHORIZED, 401)
+            return _ok(
+                200,
+                LocalBrowserSessionView(
+                    authenticated=True,
+                    storage="http_only_session_cookie",
+                ),
+            )
+        if request.method == "DELETE":
+            if request.query or request.body not in (None, ""):
+                return self._error(LocalApiErrorCode.BAD_REQUEST, 400)
+            return _ok(
+                200,
+                LocalBrowserSessionView(authenticated=False),
+                headers={**_JSON_HEADERS, "set-cookie": _CLEAR_SESSION_COOKIE},
+            )
+        if request.method != "POST":
+            return self._error(LocalApiErrorCode.METHOD_NOT_ALLOWED, 405)
+        session = self._authorizer.issue_browser_session(request.headers)
+        if session is None:
+            return self._error(LocalApiErrorCode.UNAUTHORIZED, 401)
+        try:
+            _json_model(request, _EmptyRequest)
+        except _Rejected as rejection:
+            return self._error(rejection.code, rejection.status)
+        return _ok(
+            200,
+            LocalBrowserSessionView(
+                authenticated=True,
+                storage="http_only_session_cookie",
+            ),
+            headers={
+                **_JSON_HEADERS,
+                "set-cookie": _SESSION_COOKIE.format(value=session),
+            },
+        )
 
     def _start(self, request: _Request) -> dict[str, object]:
         protected = self._protected(request, method="POST")
@@ -352,11 +377,16 @@ class LocalApiApplication:
         try:
             run = self._runtime.repository.get_run(run_id)
             checkpoint = self._runtime.repository.get_checkpoint(run_id)
+            audit_events = self._runtime.repository.list_audit_events(run_id)
         except (StorageDependencyError, TypeError, ValueError):
             return self._error(LocalApiErrorCode.DEPENDENCY_UNAVAILABLE, 503, retryable=True)
         if run is None:
             return self._error(LocalApiErrorCode.NOT_FOUND, 404)
-        return _ok(200, LocalRunView(run=run, checkpoint=checkpoint))
+        try:
+            view = run_view(self._runtime, run, checkpoint, audit_events)
+        except (TypeError, ValueError, ValidationError):
+            return self._error(LocalApiErrorCode.INTERNAL_ERROR, 500)
+        return _ok(200, view)
 
     def _approval_request(
         self,

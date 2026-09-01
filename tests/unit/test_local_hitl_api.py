@@ -13,6 +13,7 @@ from aioa_cloudops_agent.cloudops import (
 from aioa_cloudops_agent.config import LocalHitlSettings
 from aioa_cloudops_agent.local_api import (
     LOCAL_API_BODY_MAX_BYTES,
+    LOCAL_API_SESSION_COOKIE,
     LocalApiApplication,
     LocalApiTokenAuthorizer,
 )
@@ -65,12 +66,14 @@ def _call(
     token: str | None = TOKEN,
     content_type: str | None = "application/json",
     query: str = "",
+    extra_headers: dict[str, str] | None = None,
 ) -> tuple[int, dict[str, object], dict[str, str]]:
     headers: dict[str, str] = {}
     if token is not None:
         headers["Authorization"] = f"Bearer {token}"
     if content_type is not None:
         headers["Content-Type"] = content_type
+    headers.update(extra_headers or {})
     rendered = body if isinstance(body, str) else json.dumps(body) if body is not None else None
     response = application.handle(
         {
@@ -313,8 +316,148 @@ def test_public_console_has_strict_csp_and_no_browser_secret_storage(
     assert "localStorage" not in body
     assert "sessionStorage" not in body
     assert TOKEN not in body
+    assert "Demo sandbox" in body
+    assert "Evidence first" in body
+    assert "data-scenario" in body
+    assert "DENIED_BY_HUMAN" in body
+    assert "authorizes_execution: false" in body
+    assert "style=" not in body
     assert "sha256-" in headers["content-security-policy"]  # type: ignore[index]
+    assert "connect-src 'self'" in headers["content-security-policy"]  # type: ignore[index]
     assert headers["x-frame-options"] == "DENY"  # type: ignore[index]
+
+
+def test_ready_contract_labels_portable_truth_without_cloud_prerequisites(
+    tmp_path: Path,
+) -> None:
+    application, _ = _application(tmp_path)
+
+    ready = application.handle(
+        {"method": "GET", "path": "/ready", "headers": {}, "body": None, "query": ""}
+    )
+    payload = json.loads(str(ready["body"]))
+    runtime = payload["runtime"]
+
+    assert ready["statusCode"] == 200
+    assert payload["status"] == "ready"
+    assert runtime["runtime_mode"] == "portable"
+    assert runtime["experience_mode"] == "DEMO_SANDBOX"
+    assert runtime["model_mode"] == "DETERMINISTIC_MODEL"
+    assert runtime["provider"] == "mock"
+    assert runtime["agent_framework"] == "strands-agents"
+    assert runtime["aws_calls_allowed"] is False
+    assert runtime["external_network_allowed"] is False
+    assert runtime["real_cloud_mutations_enabled"] is False
+
+
+def test_browser_session_exchange_uses_http_only_cookie_and_intent_header(
+    tmp_path: Path,
+) -> None:
+    application, _ = _application(tmp_path)
+
+    session_status, session, session_headers = _call(
+        application,
+        "POST",
+        "/api/session",
+        body={},
+    )
+    cookie = session_headers["set-cookie"]
+    cookie_pair = cookie.split(";", 1)[0]
+    session_get, session_view, _ = _call(
+        application,
+        "GET",
+        "/api/session",
+        token=None,
+        content_type=None,
+        extra_headers={"Cookie": cookie_pair},
+    )
+    missing_intent, missing_intent_body, _ = _call(
+        application,
+        "POST",
+        "/api/runs",
+        body={
+            "resource_type": CloudResourceType.ELASTIC_IP.value,
+            "resource_id": MOCK_UNATTACHED_EIP_ID,
+        },
+        token=None,
+        extra_headers={"Cookie": cookie_pair},
+    )
+    started, started_body, _ = _call(
+        application,
+        "POST",
+        "/api/runs",
+        body={
+            "resource_type": CloudResourceType.ELASTIC_IP.value,
+            "resource_id": MOCK_UNATTACHED_EIP_ID,
+        },
+        token=None,
+        extra_headers={
+            "Cookie": cookie_pair,
+            "X-AIOA-Intent": "judge-console-v1",
+        },
+    )
+    cleared, _, cleared_headers = _call(
+        application,
+        "DELETE",
+        "/api/session",
+        body=None,
+        token=None,
+        content_type=None,
+    )
+
+    assert session_status == session_get == cleared == 200
+    assert started == 201
+    assert session["result"] == session_view["result"]
+    assert session["result"]["storage"] == "http_only_session_cookie"
+    assert cookie.startswith(f"{LOCAL_API_SESSION_COOKIE}=")
+    assert "HttpOnly" in cookie and "SameSite=Strict" in cookie
+    assert TOKEN not in cookie
+    assert missing_intent == 401
+    assert missing_intent_body["error"] == "UNAUTHORIZED"
+    assert started_body["ok"] is True
+    assert "Max-Age=0" in cleared_headers["set-cookie"]
+
+
+def test_run_view_is_sanitized_and_exposes_bounded_audit_evidence(
+    tmp_path: Path,
+) -> None:
+    application, runtime = _application(tmp_path)
+    _start(application)
+    challenge = _challenge(application)
+    _call(
+        application,
+        "POST",
+        f"/api/runs/{RUN_ID}/decision",
+        body=_decision_body(challenge, "APPROVED"),
+    )
+    _call(
+        application,
+        "POST",
+        f"/api/runs/{RUN_ID}/resume",
+        body={"confirm_execution": True},
+    )
+
+    status, payload, _ = _call(
+        application,
+        "GET",
+        f"/api/runs/{RUN_ID}",
+        body=None,
+        content_type=None,
+    )
+    rendered = json.dumps(payload, sort_keys=True)
+    view = payload["result"]
+
+    assert status == 200
+    assert view["run"]["state"] == WorkflowState.SUCCESS_WITH_EVIDENCE.value
+    assert view["run_sandbox_mutations"] == runtime.executor.mutation_calls == 1
+    assert view["runtime"]["process_external_network_calls"] == 0
+    assert view["runtime"]["process_sandbox_mutations"] == 1
+    assert len(view["audit_events"]) >= 8
+    assert view["audit_events"][-1]["type"] == "VERIFICATION_RECORDED"
+    assert view["checkpoint"]["verification"]["verification_hash"]
+    assert "decision_nonce" not in rendered
+    assert "actor_session_id" not in rendered
+    assert NONCE not in rendered
 
 
 def test_token_authorizer_rejects_invalid_constructor_values() -> None:

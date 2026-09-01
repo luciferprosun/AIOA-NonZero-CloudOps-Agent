@@ -1,17 +1,27 @@
 """Strict local-only HTTP contracts for the Local-2 operator surface."""
 
+from datetime import datetime
 from enum import StrEnum
 from typing import Literal, Self
+from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from aioa_cloudops_agent.nz import (
-    Checkpoint,
+    ApprovalDecision,
+    AuditEventType,
     CloudResourceType,
     FailureKind,
+    LocalExecutionReceipt,
+    LocalVerificationEvidence,
+    RemediationOperation,
+    RemediationProposal,
+    ResourceEvidence,
     ResourceQuery,
     Run,
+    Sha256Digest,
     ShortIdentifier,
+    WorkflowState,
 )
 
 LOCAL_API_BODY_MAX_BYTES = 16_384
@@ -78,10 +88,135 @@ class LocalResumeRequest(BaseModel):
     confirm_execution: Literal[True]
 
 
+class LocalBrowserSessionView(BaseModel):
+    """Non-secret acknowledgement of an HttpOnly loopback browser session."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    authenticated: bool
+    storage: Literal["http_only_session_cookie"] | None = None
+
+    @model_validator(mode="after")
+    def validate_session_state(self) -> Self:
+        if self.authenticated != (self.storage == "http_only_session_cookie"):
+            raise ValueError("browser session state and storage must agree")
+        return self
+
+
+class LocalRuntimeView(BaseModel):
+    """Truthful, public-safe runtime facts for labels and judge evidence."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    runtime_mode: Literal["portable"] = "portable"
+    experience_mode: Literal["DEMO_SANDBOX"] = "DEMO_SANDBOX"
+    model_mode: Literal["DETERMINISTIC_MODEL"] = "DETERMINISTIC_MODEL"
+    provider: Literal["mock"] = "mock"
+    model_id: str = Field(min_length=1, max_length=256)
+    agent_framework: Literal["strands-agents"] = "strands-agents"
+    aws_calls_allowed: Literal[False] = False
+    real_cloud_mutations_enabled: Literal[False] = False
+    external_network_allowed: Literal[False] = False
+    process_provider_calls: int = Field(ge=0)
+    process_external_network_calls: int = Field(ge=0)
+    process_sandbox_mutations: int = Field(ge=0)
+
+
+class LocalReadyView(BaseModel):
+    """Readiness distinct from process health and free of cloud prerequisites."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    status: Literal["ready"] = "ready"
+    runtime: LocalRuntimeView
+
+
+class LocalApprovalRequestView(BaseModel):
+    """Human-visible binding with nonce/session material deliberately removed."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    request_id: UUID
+    proposal_id: UUID
+    proposal_hash: Sha256Digest
+    evidence_hash: Sha256Digest
+    proposal_version: int = Field(gt=0)
+    operation_type: RemediationOperation
+    target_resource_type: CloudResourceType
+    target_resource_id: ShortIdentifier
+    requested_at: datetime
+    expires_at: datetime
+    request_hash: Sha256Digest
+
+
+class LocalApprovalDecisionView(BaseModel):
+    """Durable human authority proof without actor-session or nonce hashes."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    request_id: UUID
+    proposal_id: UUID
+    request_hash: Sha256Digest
+    proposal_hash: Sha256Digest
+    evidence_hash: Sha256Digest
+    proposal_version: int = Field(gt=0)
+    decision: ApprovalDecision
+    decided_at: datetime
+    decision_hash: Sha256Digest
+
+
+class LocalExecutionIntentView(BaseModel):
+    """Sanitized write-before-execute proof for one exact approved action."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    proposal_id: UUID
+    proposal_hash: Sha256Digest
+    evidence_hash: Sha256Digest
+    decision_hash: Sha256Digest
+    operation_type: RemediationOperation
+    target_resource_type: CloudResourceType
+    target_resource_id: ShortIdentifier
+    registered_at: datetime
+    intent_hash: Sha256Digest
+
+
+class LocalCheckpointView(BaseModel):
+    """Judge-safe projection of the durable checkpoint and linked evidence chain."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    last_safe_state: WorkflowState
+    version: int = Field(gt=0)
+    resource_evidence: ResourceEvidence | None = None
+    remediation_proposal: RemediationProposal | None = None
+    approval_request: LocalApprovalRequestView | None = None
+    approval: LocalApprovalDecisionView | None = None
+    execution_intent: LocalExecutionIntentView | None = None
+    execution_receipt: LocalExecutionReceipt | None = None
+    verification: LocalVerificationEvidence | None = None
+
+
+class LocalAuditEventView(BaseModel):
+    """Redacted immutable event; only judge-relevant metadata is exposed."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    event_id: UUID
+    type: AuditEventType
+    timestamp: datetime
+    source: ShortIdentifier
+    redacted_payload_hash: Sha256Digest
+    metadata: dict[ShortIdentifier, str] = Field(default_factory=dict)
+
+
 class LocalRunView(BaseModel):
-    """Authenticated durable state view; raw approval nonce is never persisted."""
+    """Authenticated judge projection; secret-adjacent durable fields stay private."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     run: Run
-    checkpoint: Checkpoint | None = None
+    checkpoint: LocalCheckpointView | None = None
+    audit_events: tuple[LocalAuditEventView, ...] = ()
+    runtime: LocalRuntimeView
+    run_sandbox_mutations: int = Field(ge=0, le=1)
