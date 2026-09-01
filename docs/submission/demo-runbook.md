@@ -1,6 +1,7 @@
 # AIOA Non-Zero CloudOps — Portable Local Jury Demo Runbook
 
-Status: `PORTABLE_B4_HARDENED`; `MOCK/OFFLINE`; not deployed or live verified.
+Status: `PORTABLE_B4_HARDENED`; historical Phase 3 status `DEPLOYMENT_READY_LOCAL_RC`;
+`MOCK/OFFLINE`; not deployed or live verified.
 
 ## Fast executable proof
 

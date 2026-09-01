@@ -4,12 +4,18 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import tempfile
 from pathlib import Path
 
+from aioa_cloudops_agent.persistence.local_integrity import (
+    LocalIntegrityError,
+    atomic_write_private_json,
+    read_private_json,
+    validate_local_path,
+)
 from aioa_cloudops_agent.release.deployment_contract import load_deployment_contract
 from aioa_cloudops_agent.release.post_deploy_verifier import (
+    PostDeployVerificationReceipt,
     PostDeployVerifierError,
     VerifierMode,
     load_verifier_fixture,
@@ -25,23 +31,30 @@ DEFAULT_RECEIPT = (
 
 
 def _atomic_write(path: Path, content: str) -> None:
-    if path.is_symlink():
+    if (
+        not isinstance(path, Path)
+        or not str(path).strip()
+        or ".." in path.parts
+        or len(str(path).encode()) > 4_096
+    ):
+        raise PostDeployVerifierError("VERIFIER_OUTPUT_PATH_INVALID")
+    if path.is_symlink() or any(
+        parent.is_symlink() for parent in path.parents if parent.exists()
+    ):
         raise PostDeployVerifierError("VERIFIER_OUTPUT_SYMLINK_FORBIDDEN")
-    path.parent.mkdir(parents=True, exist_ok=True)
-    descriptor, temporary_name = tempfile.mkstemp(
-        prefix=f".{path.name}.", suffix=".tmp", dir=path.parent
-    )
-    temporary = Path(temporary_name)
+    if path.exists():
+        try:
+            PostDeployVerificationReceipt.model_validate(read_private_json(path))
+        except (LocalIntegrityError, OSError, TypeError, ValueError) as error:
+            raise PostDeployVerifierError("VERIFIER_OUTPUT_EXISTING_FILE_UNSAFE") from error
     try:
-        os.fchmod(descriptor, 0o600)
-        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
-            handle.write(content)
-            handle.flush()
-            os.fsync(handle.fileno())
-        os.replace(temporary, path)
-    finally:
-        if temporary.exists():
-            temporary.unlink()
+        value = json.loads(content)
+        validate_local_path(path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        validate_local_path(path)
+        atomic_write_private_json(path, value)
+    except (LocalIntegrityError, OSError, TypeError, ValueError) as error:
+        raise PostDeployVerifierError("VERIFIER_OUTPUT_UNAVAILABLE") from error
 
 
 def main() -> int:

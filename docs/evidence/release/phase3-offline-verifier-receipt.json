@@ -2,7 +2,7 @@
   "approved_path": {
     "correlation_id": "01890f6c-3311-7abc-8f4a-6e4f7f0b9b3c",
     "decision_sha256": "43c574dcefdcfc53c5ffdfb92153965a372e69c9a073f6eef15702a27b819b15",
-    "durable_provenance_sha256": "761f39c6613b7295578c091886268940dcdeb40ff40a451f34d3b946f44d25cc",
+    "durable_provenance_sha256": "ceeb449027c7bdb0bd2e37ff85e971406fd8bfdde174d816bba76aeafc649eac",
     "evidence_sha256": "233bd1fb24b3f2d33502ccadbcd3a31b7608789b977a2ef919c1d41091b16e06",
     "execution_receipt_sha256": "96bbf6bf24d44082b2791b86cbbe5aa980cc640e9e0c2be62f661b22a9855d32",
     "final_state": "SUCCESS_WITH_EVIDENCE",
@@ -26,7 +26,7 @@
   "aws_mutations": 0,
   "deny_path": {
     "decision_sha256": "cf3ce81f3e30fe24a3960c0910e00755cb85cde88d5ce58d71041d87451f0048",
-    "durable_provenance_sha256": "3ca9b9efe78d195152a35663940123f34a0121b06916af195c5d3674e4efcafe",
+    "durable_provenance_sha256": "276f70ce7094767c5fbc9838234a5fb472cc6a74d98cbeeaea4f9363bb978f6c",
     "evidence_sha256": "c2d2a01b56d5307966dd4c575e6b8f1d6c860d4dd9952a9b1b0623278f6cf478",
     "execution_receipt_absent": true,
     "final_state": "DENIED_BY_HUMAN",
@@ -87,7 +87,7 @@
   "mock_mutations": 1,
   "mode": "OFFLINE_LOCAL_FIXTURE",
   "provider_network_calls": 0,
-  "receipt_sha256": "24ee3b4a622f2353ca4b9a277d8d2036c4dcdf091ae99d36d16b7bac923054e1",
+  "receipt_sha256": "e3c2bc6db0ff0b143f38fa3bb229ae43d8f2e727e9d8aca4f6d22839ab8b3aa0",
   "receipt_type": "PHASE3_POST_DEPLOY_VERIFICATION",
   "schema_version": 1,
   "secrets_redacted": true,
@@ -119,7 +119,7 @@
     },
     {
       "evidence_reference": "local:durable-truth/hash",
-      "evidence_sha256": "49d92de2ea731f2319f46520e21b8bc7a5e105bb53264f64b6412a0d5f853b40",
+      "evidence_sha256": "4128684a2b4041eba2177033bdcd2f53b018a0ccb9541e5be69c2518e7c03823",
       "outcome": "PASS_OFFLINE",
       "step_id": "DURABLE_PROVENANCE"
     },
