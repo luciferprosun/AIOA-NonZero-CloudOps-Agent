@@ -1,11 +1,11 @@
-# AIOA Non-Zero CloudOps — Bounded Idle EC2 Remediation Agent
+# AIOA Non-Zero CloudOps — Portable Agents for Humans
 
 Newly authored work for the **AWS Agents for Humans Hackathon 2026**.
 
 - Track: Professional Agents
-- Status: Phase 3 `DEPLOYMENT_READY_LOCAL_RC` candidate with a frozen deployment contract, offline preflight/IaC/cleanup/verifier proofs, hardened jury demo, and commit-bound attestation; no live deployment or AWS mutation has run
+- Status: portable-first local product with deterministic Strands, HITL, evidence, replay and recovery; AWS deployment remains optional and no live deployment or AWS mutation has run
 - Orchestration: one Strands Agent
-- Model platform: Amazon Bedrock
+- Model platform: provider-neutral Strands `Model`; deterministic portable default, Amazon Bedrock optional
 - Current capability: five bounded tools covering investigation, proposal-bound stop, and independent verification
 - Safety boundary: executable P0/P1 matrices, bounded dependency circuits, deterministic reviewer evidence, and an independent fail-closed emergency veto immediately around the private mutation boundary
 
@@ -29,6 +29,7 @@ git clone https://github.com/luciferprosun/AIOA-NonZero-CloudOps-Agent.git
 cd AIOA-NonZero-CloudOps-Agent
 python3.12 -m venv .venv
 .venv/bin/python -m pip install ".[dev]"
+.venv/bin/python scripts/run_portable_demo.py
 .venv/bin/python -m pytest -q
 .venv/bin/python scripts/run_p0_gate.py
 .venv/bin/python scripts/run_p1_gate.py
@@ -43,6 +44,13 @@ The P1 runner includes the clean-clone proof. To run only that reproducibility c
 ```
 
 The harness creates another disposable environment with `python -m venv`. On hosts where the standard-library module lacks `ensurepip`, the declared dev dependency provides the documented `python -m virtualenv` fallback. These checks use mocks and static proof. They do not deploy infrastructure or call live AWS services.
+
+The canonical portable demo invokes the real five-tool Strands Agent, then proves approve, deny,
+binding rejection, replay protection and restart recovery through the existing Non-Zero verifier.
+It writes a hash-bound, owner-only evidence bundle under `.local/portable/` and needs no AWS
+credential, API key, paid provider, local LLM or network service. See
+[`docs/PORTABLE_RUNTIME.md`](docs/PORTABLE_RUNTIME.md) and
+[`docs/JUDGE_SANDBOX.md`](docs/JUDGE_SANDBOX.md).
 
 Phase 3 adds local release validation without requiring AWS credentials:
 

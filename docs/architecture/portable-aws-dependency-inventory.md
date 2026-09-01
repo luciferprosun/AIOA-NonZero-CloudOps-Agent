@@ -17,7 +17,7 @@ version, not evidence that portable execution selects or calls AWS.
 
 | Concern | Canonical implementation |
 | --- | --- |
-| application entrypoints | `scripts/run_local_phase1_demo.py`, `scripts/run_local_hitl_demo.py`, `scripts/run_local_hitl_api.py`, `scripts/phase3/run_jury_demo.py` |
+| application entrypoints | canonical `scripts/run_portable_demo.py`; retained interactive/local phase launchers and historical Phase 3 jury proof |
 | Strands Agent construction | `agent/factory.py::create_primary_agent` |
 | model provider boundary | `providers/model.py::ModelProvider` and `MockModelProvider` |
 | AWS model integration | `agent/factory.py::create_bedrock_model` |
@@ -84,3 +84,11 @@ OPTIONAL_INTEGRATION Bedrock/AWS paths = preserved
 
 The Strands distribution's transitive AWS SDK packages remain installed for the reason documented
 above, but portable startup creates no AWS object and grants no AWS call authority.
+
+## B2 closure
+
+`scripts/run_portable_demo.py` is the canonical deterministic judge command. It invokes the real
+five-tool Strands Agent and embeds the existing approve/deny/fail-closed/replay/recovery verifier
+receipt in one hash-bound portable evidence bundle. The sandbox creates no AWS client, socket, shell
+or external resource. Approved execution changes one isolated local mock resource; denial, binding
+failure, malformed output, provider failure, replay and recovery add zero mutations.

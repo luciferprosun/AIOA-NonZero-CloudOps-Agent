@@ -70,6 +70,12 @@
 - AGENTCORE = NOT_STARTED_DAY16_OPTIONAL
 - DEMO = COMPLETE_LOCAL_APPROVE_DENY_ZERO_NETWORK
 - SUBMISSION = DRAFT_AND_RUNBOOK_PREPARED_NOT_EXTERNALLY_SUBMITTED
+- PORTABLE_FOUNDATION_B0 = COMPLETE_AWS_FREE_RUNTIME_BOUNDARY
+- PORTABLE_FOUNDATION_B1 = COMPLETE_PROVIDER_NEUTRAL_STRANDS_RUNTIME
+- PORTABLE_FOUNDATION_B2 = COMPLETE_JUDGE_SAFE_LOCAL_E2E
+- REQUIRED_CORE_AWS_INTEGRATIONS = 0
+- PORTABLE_ONE_COMMAND_DEMO = scripts/run_portable_demo.py
+- NEXT_MACRO_STEP = B3_PORTABLE_PRODUCT_COMPLETION_API_CONTRACT_HARDENING
 
 ## Known Nonblocking Items
 
@@ -79,7 +85,7 @@
 - The prior NZ integrity-artifact regression remains outside this repository.
 - The historical recording frontend gap remains outside this repository.
 
-## Next-boundary blockers
+## Optional AWS deployment blockers
 
 - No authorized, repository-trusted `aioa-day15-deployer` operator attestation is present.
 - The correct hackathon account and deployment-role ARN are not selected and hash-bound.
@@ -89,5 +95,8 @@
 
 See `docs/evidence/deployment/day15-deployment-blockers.md`. These are external deployment
 prerequisites, not authorization to create resources or mutate the sandbox.
+
+They do not block product completion, the deterministic judge demo, local HITL, evidence, replay,
+recovery or the B3 portable product step. AWS remains an optional later enhancement.
 
 This status file does not authorize deployment, remediation, cloud mutation, or submission.
