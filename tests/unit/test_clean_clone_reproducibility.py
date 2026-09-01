@@ -63,7 +63,11 @@ def test_harness_plan_uses_full_no_local_clone_and_fresh_noneditable_install() -
 
     assert "--no-local" in clone
     assert "--depth" not in clone
+    assert "--branch" not in clone
+    assert "--single-branch" not in clone
     assert "--depth" not in remote
+    assert remote[remote.index("--branch") + 1] == "main"
+    assert "--single-branch" in remote
     assert PUBLIC_REPOSITORY_URL in remote
     assert install[-1] == ".[dev]"
     assert "-e" not in install and "--editable" not in install
