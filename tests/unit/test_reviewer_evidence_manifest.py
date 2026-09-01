@@ -31,12 +31,11 @@ from scripts.build_reviewer_evidence_manifest import (
     EXPECTED_STRANDS_REQUIREMENT,
     JSON_PATH,
     LOCAL_FIRST_PHASE1_COMMIT,
-    LOCAL_FIRST_PHASE2_COMMIT,
     MARKDOWN_PATH,
     PHASE3_IAC_COMMIT,
     PHASE3_RC_COMMIT,
     PORTABLE_B1_COMMIT,
-    PORTABLE_B3_COMMIT,
+    PORTABLE_B4_COMMIT,
     README_PATH,
     build_manifest,
     canonical_manifest_bytes,
@@ -653,11 +652,10 @@ def test_day15_candidate_and_claim_anchors_are_exact_recovery_objects() -> None:
         DAY15_ORIGINAL_M1_COMMIT,
         DAY15_M1_COMMIT,
         LOCAL_FIRST_PHASE1_COMMIT,
-        LOCAL_FIRST_PHASE2_COMMIT,
         PHASE3_IAC_COMMIT,
         PHASE3_RC_COMMIT,
         PORTABLE_B1_COMMIT,
-        PORTABLE_B3_COMMIT,
+        PORTABLE_B4_COMMIT,
     }
     original_m1_claims = {
         "BOUNDED-FAILURES-01",
@@ -687,13 +685,13 @@ def test_day15_candidate_and_claim_anchors_are_exact_recovery_objects() -> None:
         "DEFAULT-DENY-01",
         "VERIFIED-SUCCESS-01",
     }
-    local_first_phase2_claims = {
+    portable_b4_claims = {
         "APPROVAL-BINDING-01",
         "LOCAL2-HITL-EXECUTION-01",
+        "LOCAL2-LOOPBACK-API-01",
         "MODEL-AUTHORITY-01",
         "PROPOSAL-DURABILITY-01",
     }
-    portable_b3_claims = {"LOCAL2-LOOPBACK-API-01"}
     assert all(
         _claim(manifest, claim_id)["commit_anchor"] == DAY15_ORIGINAL_M1_COMMIT
         for claim_id in original_m1_claims
@@ -711,16 +709,12 @@ def test_day15_candidate_and_claim_anchors_are_exact_recovery_objects() -> None:
         for claim_id in local_first_phase1_claims
     )
     assert all(
-        _claim(manifest, claim_id)["commit_anchor"] == LOCAL_FIRST_PHASE2_COMMIT
-        for claim_id in local_first_phase2_claims
-    )
-    assert all(
         _claim(manifest, claim_id)["commit_anchor"] == PORTABLE_B1_COMMIT
         for claim_id in portable_b1_claims
     )
     assert all(
-        _claim(manifest, claim_id)["commit_anchor"] == PORTABLE_B3_COMMIT
-        for claim_id in portable_b3_claims
+        _claim(manifest, claim_id)["commit_anchor"] == PORTABLE_B4_COMMIT
+        for claim_id in portable_b4_claims
     )
     assert _claim(manifest, "LIVE-EC2-01")["commit_anchor"] == EVIDENCE_SNAPSHOT_COMMIT
     assert _claim(manifest, "SDK-PIN-01")["commit_anchor"] == PHASE3_RC_COMMIT
@@ -775,8 +769,8 @@ def test_local2_claims_are_exactly_anchored_to_their_reviewed_implementations() 
     execution = _claim(manifest, "LOCAL2-HITL-EXECUTION-01")
     api = _claim(manifest, "LOCAL2-LOOPBACK-API-01")
 
-    assert execution["commit_anchor"] == LOCAL_FIRST_PHASE2_COMMIT
-    assert api["commit_anchor"] == PORTABLE_B3_COMMIT
+    assert execution["commit_anchor"] == PORTABLE_B4_COMMIT
+    assert api["commit_anchor"] == PORTABLE_B4_COMMIT
     assert execution["authority_source"] == sorted(
         [
             "src/aioa_cloudops_agent/agent/local_hitl.py::LocalHitlExecutionFlow.resume",
