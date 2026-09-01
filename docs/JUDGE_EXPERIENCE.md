@@ -161,5 +161,5 @@ substitute for the contract suite.
   access, production availability, or real infrastructure mutation.
 - B4 local reliability/security/evidence hardening is complete; externally anchored signatures and
   public-host controls are not claimed.
-- Container freezing, the container artifact manifest, and clean-container reproduction belong to
-  B5.
+- B5 container freezing, artifact manifest, and clean-container reproduction are complete and bound
+  to the local-only build-complete attestation. B6 public-package assembly remains pending.
