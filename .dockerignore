@@ -2,6 +2,7 @@
 **
 !Dockerfile
 !.dockerignore
+!MANIFEST.in
 !LICENSE
 !README.md
 !pyproject.toml

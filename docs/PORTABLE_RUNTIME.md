@@ -98,7 +98,8 @@ docker volume rm aioa-portable-state
 ```
 
 The image is local only. These commands do not push, deploy, contact AWS, or expose the service on a
-host interface. The B5 orchestration/certification layer adds the documented judge flows.
+host interface. The B5 two-invocation clean-room gate is documented in
+[`operations/container-judge-certification.md`](operations/container-judge-certification.md).
 
 ## Provider selection
 
@@ -141,6 +142,18 @@ the sandbox state for inspection, pass a new or empty directory:
 
 The command refuses AWS mode even when AWS is otherwise explicitly configured. It never deploys or
 calls a live cloud API.
+
+The same implementation is installed as a package module and is the command used by the container
+gate:
+
+```bash
+.venv/bin/python -m aioa_cloudops_agent.portable \
+  --workspace .local/portable/workspace-002 \
+  --output .local/portable/receipt-002.json
+```
+
+Its reviewed offline contract and synthetic fixture ship as package data, so an installed wheel does
+not depend on the source repository's test tree.
 
 ## Verification
 

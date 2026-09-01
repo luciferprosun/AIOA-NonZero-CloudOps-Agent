@@ -359,19 +359,21 @@
     },
     {
       "authority_source": [
+        "src/aioa_cloudops_agent/config/portable_server.py::PortableServerSettings",
         "src/aioa_cloudops_agent/local_api/application.py::LocalApiApplication",
         "src/aioa_cloudops_agent/local_api/auth.py::LocalApiTokenAuthorizer.authorize",
         "src/aioa_cloudops_agent/local_api/judge_ui.py::judge_ui_headers",
         "src/aioa_cloudops_agent/local_api/server.py::create_local_http_server",
         "src/aioa_cloudops_agent/local_api/server.py::load_or_create_local_token",
-        "src/aioa_cloudops_agent/local_api/views.py::run_view"
+        "src/aioa_cloudops_agent/local_api/views.py::run_view",
+        "src/aioa_cloudops_agent/portable_server.py::main"
       ],
-      "claim": "The Local-2 judge surface is loopback-only, bearer-bootstrapped into an HttpOnly same-site session, schema-bounded, non-cacheable, and exposes only a sanitized durable evidence timeline.",
+      "claim": "The Local-2 judge surface defaults to loopback and rejects non-loopback binding unless the canonical container entrypoint supplies explicit container intent; it remains bearer-bootstrapped into an HttpOnly same-site session, schema-bounded, non-cacheable, and exposes only a sanitized durable evidence timeline.",
       "claim_id": "LOCAL2-LOOPBACK-API-01",
-      "commit_anchor": "a455379eb3de73bf6c1780b3c4726b0778873dd4",
+      "commit_anchor": "d18f945a1484a1255339a3b4bcb1560c58d06d9b",
       "evidence_kind": "TEST",
-      "hash": "5fabc1805109af65a8e80dd5961348325b34b606972d965810b68e69dee6b281",
-      "limitations": "Proves a local single-operator demo boundary and deterministic sandbox behavior; it does not attest to a deployed identity provider, public endpoint, production authorization service, or provider-backed operation.",
+      "hash": "bab38399be11102e4a3291c8c6ae2a93756c7f3bcd6b346fa8fcacede4ea0447",
+      "limitations": "Proves a local single-operator demo boundary and deterministic sandbox behavior. The container binds internally to all interfaces, so safe host publication still depends on the documented loopback or isolated-network launch command. It does not attest to a deployed identity provider, public endpoint, production authorization service, or provider-backed operation.",
       "proof_nodes": [
         "tests/integration/test_local_hitl_http_server.py::test_real_loopback_server_exposes_health_and_authenticated_start",
         "tests/integration/test_local_hitl_http_server.py::test_server_refuses_non_loopback_bind",
@@ -380,7 +382,8 @@
         "tests/unit/test_judge_console_launcher.py::test_browser_bootstrap_keeps_session_credential_in_fragment_only",
         "tests/unit/test_local_hitl_api.py::test_full_approved_http_flow_executes_verifies_and_reconciles",
         "tests/unit/test_local_hitl_api.py::test_public_console_has_strict_csp_and_no_browser_secret_storage",
-        "tests/unit/test_local_hitl_api.py::test_run_view_is_sanitized_and_exposes_bounded_audit_evidence"
+        "tests/unit/test_local_hitl_api.py::test_run_view_is_sanitized_and_exposes_bounded_audit_evidence",
+        "tests/unit/test_portable_container_runtime.py::test_container_binding_requires_explicit_intent"
       ],
       "scope": "Local deterministic",
       "status": "PROVEN"
@@ -669,6 +672,6 @@
     "strands_version": "1.53.0"
   },
   "live_receipts": [],
-  "manifest_hash": "705301d4a94dc096fd3b9ddf81819b715da61c6e4ac54b5b01d8911e647837d0",
+  "manifest_hash": "faf488e3547175af87b6a921d504fd3e1e976cdeb497fe2a2dacd2568d063554",
   "schema_version": "2.0"
 }

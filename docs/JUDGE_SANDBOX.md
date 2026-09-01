@@ -2,7 +2,8 @@
 
 ## Safety boundary
 
-`scripts/run_portable_demo.py` is the one canonical deterministic judge command. It starts in
+`python -m aioa_cloudops_agent.portable` is the packaged canonical deterministic judge command;
+`scripts/run_portable_demo.py` is its source-checkout compatibility launcher. It starts in
 portable/mock mode, exercises the real Strands Agent, and then reuses the existing Local-2 and Phase
 3 Non-Zero verifier contracts. It does not emulate an AWS account. Its bounded inventory contains
 only typed, synthetic EC2/EIP/security-group-shaped resources and permits only allow-listed local
@@ -97,6 +98,9 @@ console into the primary judge-facing product experience while keeping
 `.venv/bin/python scripts/run_local_hitl_api.py --open-browser`; see
 [`JUDGE_EXPERIENCE.md`](JUDGE_EXPERIENCE.md). It is not a second agent runtime or a second evidence
 schema.
+
+For two fresh, network-isolated image invocations and an image-bound machine receipt, follow
+[`operations/container-judge-certification.md`](operations/container-judge-certification.md).
 
 ## B4 hardening
 

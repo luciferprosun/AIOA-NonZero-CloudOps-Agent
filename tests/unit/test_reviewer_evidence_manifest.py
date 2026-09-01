@@ -36,6 +36,7 @@ from scripts.build_reviewer_evidence_manifest import (
     PHASE3_RC_COMMIT,
     PORTABLE_B1_COMMIT,
     PORTABLE_B4_COMMIT,
+    PORTABLE_B5_CONTAINER_COMMIT,
     README_PATH,
     build_manifest,
     canonical_manifest_bytes,
@@ -656,6 +657,7 @@ def test_day15_candidate_and_claim_anchors_are_exact_recovery_objects() -> None:
         PHASE3_RC_COMMIT,
         PORTABLE_B1_COMMIT,
         PORTABLE_B4_COMMIT,
+        PORTABLE_B5_CONTAINER_COMMIT,
     }
     original_m1_claims = {
         "BOUNDED-FAILURES-01",
@@ -688,7 +690,6 @@ def test_day15_candidate_and_claim_anchors_are_exact_recovery_objects() -> None:
     portable_b4_claims = {
         "APPROVAL-BINDING-01",
         "LOCAL2-HITL-EXECUTION-01",
-        "LOCAL2-LOOPBACK-API-01",
         "MODEL-AUTHORITY-01",
         "PROPOSAL-DURABILITY-01",
     }
@@ -715,6 +716,10 @@ def test_day15_candidate_and_claim_anchors_are_exact_recovery_objects() -> None:
     assert all(
         _claim(manifest, claim_id)["commit_anchor"] == PORTABLE_B4_COMMIT
         for claim_id in portable_b4_claims
+    )
+    assert (
+        _claim(manifest, "LOCAL2-LOOPBACK-API-01")["commit_anchor"]
+        == PORTABLE_B5_CONTAINER_COMMIT
     )
     assert _claim(manifest, "LIVE-EC2-01")["commit_anchor"] == EVIDENCE_SNAPSHOT_COMMIT
     assert _claim(manifest, "SDK-PIN-01")["commit_anchor"] == PHASE3_RC_COMMIT
@@ -770,7 +775,7 @@ def test_local2_claims_are_exactly_anchored_to_their_reviewed_implementations() 
     api = _claim(manifest, "LOCAL2-LOOPBACK-API-01")
 
     assert execution["commit_anchor"] == PORTABLE_B4_COMMIT
-    assert api["commit_anchor"] == PORTABLE_B4_COMMIT
+    assert api["commit_anchor"] == PORTABLE_B5_CONTAINER_COMMIT
     assert execution["authority_source"] == sorted(
         [
             "src/aioa_cloudops_agent/agent/local_hitl.py::LocalHitlExecutionFlow.resume",
@@ -780,16 +785,18 @@ def test_local2_claims_are_exactly_anchored_to_their_reviewed_implementations() 
     )
     assert api["authority_source"] == sorted(
         [
+            "src/aioa_cloudops_agent/config/portable_server.py::PortableServerSettings",
             "src/aioa_cloudops_agent/local_api/application.py::LocalApiApplication",
             "src/aioa_cloudops_agent/local_api/auth.py::LocalApiTokenAuthorizer.authorize",
             "src/aioa_cloudops_agent/local_api/judge_ui.py::judge_ui_headers",
             "src/aioa_cloudops_agent/local_api/server.py::create_local_http_server",
             "src/aioa_cloudops_agent/local_api/server.py::load_or_create_local_token",
             "src/aioa_cloudops_agent/local_api/views.py::run_view",
+            "src/aioa_cloudops_agent/portable_server.py::main",
         ]
     )
     assert len(execution["proof_nodes"]) == 4
-    assert len(api["proof_nodes"]) == 8
+    assert len(api["proof_nodes"]) == 9
 
 
 def test_phase3_iac_anchor_preserves_current_g10_authority_proof() -> None:

@@ -79,9 +79,9 @@ _TRACE_ID = UUID("01890f6c-3311-7abc-8f4a-6e4f7f0b9b3b")
 _CORRELATION_ID = UUID("01890f6c-3311-7abc-8f4a-6e4f7f0b9b3c")
 _PROPOSAL_ID = UUID("01890f6c-3311-7abc-8f4a-6e4f7f0b9b3d")
 _NOW = datetime(2026, 9, 1, 0, 0, tzinfo=UTC)
-_ROOT = Path(__file__).resolve().parents[3]
-_DEFAULT_CONTRACT = _ROOT / "requirements" / "phase3-deployment-contract.json"
-_DEFAULT_FIXTURE = _ROOT / "tests" / "fixtures" / "phase3" / "post-deploy-verifier-pass.json"
+_RESOURCE_ROOT = Path(__file__).with_name("resources")
+_DEFAULT_CONTRACT = _RESOURCE_ROOT / "phase3-deployment-contract.json"
+_DEFAULT_FIXTURE = _RESOURCE_ROOT / "post-deploy-verifier-pass.json"
 
 
 class PortableDemoError(RuntimeError):

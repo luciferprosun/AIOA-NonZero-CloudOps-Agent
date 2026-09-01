@@ -7,7 +7,7 @@ RUN python -m pip install --no-cache-dir --require-hashes -r requirements/build.
     && python -m pip install --no-cache-dir --require-hashes --prefix=/runtime -r requirements/portable.lock
 
 ENV SOURCE_DATE_EPOCH=0
-COPY pyproject.toml README.md LICENSE ./
+COPY pyproject.toml README.md LICENSE MANIFEST.in ./
 COPY src ./src
 RUN python -m pip wheel --no-build-isolation --no-deps --wheel-dir /wheels . \
     && python -m pip install --no-cache-dir --no-deps --prefix=/runtime /wheels/aioa_nonzero_cloudops_agent-*.whl \

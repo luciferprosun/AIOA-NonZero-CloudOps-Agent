@@ -67,6 +67,7 @@ from scripts.build_reviewer_evidence_manifest import (  # noqa: E402
     PHASE3_RC_COMMIT,
     PORTABLE_B3_COMMIT,
     PORTABLE_B4_COMMIT,
+    PORTABLE_B5_CONTAINER_COMMIT,
     PRIOR_ARMOR_COMMITS,
     README_PATH,
     SCHEMA_VERSION,
@@ -294,6 +295,7 @@ _FROZEN_PHASE3_RC_COMMIT = "5ac15d30a604434713490d77edb573d14a8f1dcd"
 _FROZEN_PORTABLE_B1_COMMIT = "a2e16d0f1d625b34916440d6740a486f73cf2bb1"
 _FROZEN_PORTABLE_B3_COMMIT = "1882089fbb41a3f7f3cbad821ed9d6d8c6c2e9a5"
 _FROZEN_PORTABLE_B4_COMMIT = "a455379eb3de73bf6c1780b3c4726b0778873dd4"
+_FROZEN_PORTABLE_B5_CONTAINER_COMMIT = "d18f945a1484a1255339a3b4bcb1560c58d06d9b"
 _FROZEN_DAY15_RECOVERY_LINEAGE = (
     _FROZEN_DAY15_START_COMMIT,
     _FROZEN_DAY15_ORIGINAL_M1_COMMIT,
@@ -342,10 +344,10 @@ _PORTABLE_B3_CLAIM_IDS: set[str] = set()
 _PORTABLE_B4_CLAIM_IDS = {
     "APPROVAL-BINDING-01",
     "LOCAL2-HITL-EXECUTION-01",
-    "LOCAL2-LOOPBACK-API-01",
     "MODEL-AUTHORITY-01",
     "PROPOSAL-DURABILITY-01",
 }
+_PORTABLE_B5_CONTAINER_CLAIM_IDS = {"LOCAL2-LOOPBACK-API-01"}
 _LOCAL_FIRST_PHASE1_CLAIM_IDS = {
     "DEFAULT-DENY-01",
     "VERIFIED-SUCCESS-01",
@@ -1241,6 +1243,7 @@ def _validate_day15_candidate_snapshot(
         or PHASE3_RC_COMMIT != _FROZEN_PHASE3_RC_COMMIT
         or PORTABLE_B3_COMMIT != _FROZEN_PORTABLE_B3_COMMIT
         or PORTABLE_B4_COMMIT != _FROZEN_PORTABLE_B4_COMMIT
+        or PORTABLE_B5_CONTAINER_COMMIT != _FROZEN_PORTABLE_B5_CONTAINER_COMMIT
         or DAY15_RECOVERY_LINEAGE != _FROZEN_DAY15_RECOVERY_LINEAGE
         or DAY15_CANDIDATE_STATUS != _FROZEN_DAY15_CANDIDATE_STATUS
     ):
@@ -1282,6 +1285,8 @@ def _expected_claim_anchor(claim_id: str) -> str | None:
         return _FROZEN_PORTABLE_B3_COMMIT
     if claim_id in _PORTABLE_B4_CLAIM_IDS:
         return _FROZEN_PORTABLE_B4_COMMIT
+    if claim_id in _PORTABLE_B5_CONTAINER_CLAIM_IDS:
+        return _FROZEN_PORTABLE_B5_CONTAINER_COMMIT
     return None
 
 
@@ -1312,6 +1317,7 @@ def _validate_claims(
         _PORTABLE_B1_CLAIM_IDS,
         _PORTABLE_B3_CLAIM_IDS,
         _PORTABLE_B4_CLAIM_IDS,
+        _PORTABLE_B5_CONTAINER_CLAIM_IDS,
         _LOCAL_FIRST_PHASE1_CLAIM_IDS,
         _LOCAL_FIRST_PHASE2_CLAIM_IDS,
     )
@@ -1710,11 +1716,18 @@ def _validate_git_anchors(
         _FROZEN_PORTABLE_B3_COMMIT,
         _FROZEN_PORTABLE_B4_COMMIT,
     )
-    portable_b4_to_head = _git(
+    portable_b4_to_portable_b5_container = _git(
         root,
         "merge-base",
         "--is-ancestor",
         _FROZEN_PORTABLE_B4_COMMIT,
+        _FROZEN_PORTABLE_B5_CONTAINER_COMMIT,
+    )
+    portable_b5_container_to_head = _git(
+        root,
+        "merge-base",
+        "--is-ancestor",
+        _FROZEN_PORTABLE_B5_CONTAINER_COMMIT,
         "HEAD",
     )
     parent_results = tuple(
@@ -1734,7 +1747,8 @@ def _validate_git_anchors(
         or phase3_rc_to_portable_b1.returncode != 0
         or portable_b1_to_portable_b3.returncode != 0
         or portable_b3_to_portable_b4.returncode != 0
-        or portable_b4_to_head.returncode != 0
+        or portable_b4_to_portable_b5_container.returncode != 0
+        or portable_b5_container_to_head.returncode != 0
         or any(
             result.returncode != 0 or result.stdout.split() != expected
             for result, expected in parent_results
@@ -1805,6 +1819,7 @@ def _validate_git_anchors(
                     _FROZEN_PORTABLE_B1_COMMIT,
                     _FROZEN_PORTABLE_B3_COMMIT,
                     _FROZEN_PORTABLE_B4_COMMIT,
+                    _FROZEN_PORTABLE_B5_CONTAINER_COMMIT,
                 }
                 or exists.returncode != 0
                 or history.returncode != 0
