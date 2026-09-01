@@ -38,6 +38,7 @@ from .identifiers import (
     ShortIdentifier,
     Uuid7Identifier,
 )
+from .redaction import contains_sensitive_material
 from .transitions import validate_workflow_transition
 
 
@@ -1221,6 +1222,8 @@ class Checkpoint(NonZeroContract):
             self.remediation_proposal.run_id != self.run_id
             or self.resource_evidence is None
             or self.resource_evidence.run_id != self.run_id
+            or self.remediation_proposal.correlation_id
+            != self.resource_evidence.correlation_id
             or self.remediation_proposal.evidence_hash != self.resource_evidence.evidence_hash
         ):
             raise ValueError("checkpoint evidence and proposal identities must match")
@@ -1233,6 +1236,7 @@ class Checkpoint(NonZeroContract):
         if request is not None and (
             proposal is None
             or request.run_id != self.run_id
+            or request.correlation_id != proposal.correlation_id
             or request.proposal_id != proposal.proposal_id
             or request.proposal_hash != proposal.proposal_hash
             or request.evidence_hash != proposal.evidence_hash
@@ -1327,4 +1331,6 @@ class AuditEvent(NonZeroContract):
         sensitive_terms = ("credential", "password", "secret", "token")
         if any(any(term in key.casefold() for term in sensitive_terms) for key in self.metadata):
             raise ValueError("sensitive audit metadata keys are prohibited")
+        if contains_sensitive_material(self.metadata):
+            raise ValueError("sensitive audit metadata values are prohibited")
         return self

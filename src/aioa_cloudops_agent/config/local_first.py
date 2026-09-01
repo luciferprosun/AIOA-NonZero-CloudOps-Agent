@@ -29,6 +29,18 @@ class LocalFirstSettings:
             raise ContractValidationError("local state_path must be a Path")
         if not str(self.state_path).strip():
             raise ContractValidationError("local state_path must not be empty")
+        if ".." in self.state_path.parts or len(os.fsencode(self.state_path)) > 4_096:
+            raise ContractValidationError(
+                "local state_path contains unsafe traversal or length"
+            )
+        if any(
+            parent.is_symlink()
+            for parent in self.state_path.parents
+            if parent.exists()
+        ):
+            raise ContractValidationError("local state_path must not traverse a symlink")
+        if self.state_path.is_symlink():
+            raise ContractValidationError("local state_path must not be a symlink")
 
     @classmethod
     def from_environment(cls) -> "LocalFirstSettings":

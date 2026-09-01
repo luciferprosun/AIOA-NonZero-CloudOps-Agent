@@ -35,6 +35,10 @@ from .durable_logic import (
 )
 from .semantic_idempotency import derive_action_fingerprint, derive_idempotency_key
 
+MAX_DURABLE_RUNS = 2_048
+MAX_AUDIT_EVENTS_PER_RUN = 1_024
+_MAX_SNAPSHOT_RECORDS = 65_536
+
 
 class InMemoryTestDurableTruthRepository:
     """Deterministic test fake; never a production durability fallback."""
@@ -53,6 +57,8 @@ class InMemoryTestDurableTruthRepository:
             raise StorageConflictError("new durable run must start at RECEIVED version 1")
         if run.run_id in self._runs:
             raise StorageConflictError("durable run already exists")
+        if len(self._runs) >= MAX_DURABLE_RUNS:
+            raise StorageConflictError("durable run capacity is exhausted")
         self._runs[run.run_id] = run
         return run
 
@@ -341,6 +347,8 @@ class InMemoryTestDurableTruthRepository:
         key = (event.run_id, event.event_id)
         if key in self._audit_events:
             raise StorageConflictError("audit event already exists")
+        if self.count_audit_events(event.run_id) >= MAX_AUDIT_EVENTS_PER_RUN:
+            raise StorageConflictError("audit event capacity is exhausted for this run")
         self._audit_events[key] = event
         return event
 
@@ -359,6 +367,11 @@ class InMemoryTestDurableTruthRepository:
         return tuple(
             sorted(events, key=lambda event: (event.timestamp, str(event.event_id)))[:limit]
         )
+
+    def count_audit_events(self, run_id: UUID) -> int:
+        """Return one run's bounded event count without exposing a scan API."""
+
+        return sum(event_run_id == run_id for event_run_id, _ in self._audit_events)
 
     def create_verification_evidence(
         self,
@@ -476,7 +489,7 @@ class InMemoryTestDurableTruthRepository:
 
         def records(name: str, model: Any) -> list[Any]:
             values = payload.get(name)
-            if not isinstance(values, list):
+            if not isinstance(values, list) or len(values) > _MAX_SNAPSHOT_RECORDS:
                 raise StorageDependencyError(f"local durable snapshot {name} is invalid")
             try:
                 return [model.model_validate(value) for value in values]
@@ -524,4 +537,11 @@ class InMemoryTestDurableTruthRepository:
             raise StorageDependencyError("local checkpoint references a missing run")
         if any(event.run_id not in repository._runs for event in audit_events):
             raise StorageDependencyError("local audit event references a missing run")
+        if len(runs) > MAX_DURABLE_RUNS:
+            raise StorageDependencyError("local durable snapshot exceeds run capacity")
+        event_counts: dict[UUID, int] = {}
+        for event in audit_events:
+            event_counts[event.run_id] = event_counts.get(event.run_id, 0) + 1
+        if any(count > MAX_AUDIT_EVENTS_PER_RUN for count in event_counts.values()):
+            raise StorageDependencyError("local durable snapshot exceeds audit capacity")
         return repository

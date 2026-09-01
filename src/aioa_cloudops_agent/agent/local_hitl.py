@@ -620,10 +620,10 @@ class LocalHitlExecutionFlow:
                     "Local mock inventory is unavailable",
                 )
             except (StorageConflictError, StorageDependencyError, ValueError):
-                return self._mark_recovery_required(
-                    run,
+                return self._execution_failed(
+                    FailureKind.RECOVERY_REQUIREMENT,
                     "LOCAL_RECEIPT_DURABILITY_FAILED",
-                    "Local execution receipt requires deterministic recovery",
+                    "Local execution receipt requires deterministic retry reconciliation",
                 )
         if run.state is WorkflowState.VERIFYING:
             receipt = checkpoint.local_execution_receipt
@@ -717,7 +717,10 @@ class LocalHitlExecutionFlow:
             evidence is None
             or proposal is None
             or evidence.run_id != run.run_id
+            or evidence.trace_id != run.trace_id
+            or evidence.correlation_id != run.correlation_id
             or proposal.run_id != run.run_id
+            or proposal.correlation_id != run.correlation_id
             or proposal.evidence_hash != evidence.evidence_hash
         ):
             return self._failure(

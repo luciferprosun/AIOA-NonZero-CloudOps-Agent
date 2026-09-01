@@ -1,5 +1,8 @@
+import json
+from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from threading import Barrier
 from uuid import UUID
 
 import pytest
@@ -15,6 +18,7 @@ from aioa_cloudops_agent.cloudops import (
     MOCK_UNSAFE_SECURITY_GROUP_ID,
     CloudAdapterUnavailableError,
     CloudResourceNotFoundError,
+    LocalMockPolicyError,
     LocalMockRemediationExecutor,
     LocalMockStateStore,
     PersistentMockAwsAdapter,
@@ -28,6 +32,7 @@ from aioa_cloudops_agent.nz import (
     CloudResourceType,
     FailureKind,
     LocalApprovalRequestRecord,
+    LocalExecutionIntent,
     LocalExecutionReceipt,
     LocalVerificationEvidence,
     RemediationOperation,
@@ -53,6 +58,9 @@ REQUEST_ID = UUID("01890f6c-3311-7abc-8f4a-6e4f7f0b9b81")
 NOW = datetime(2026, 8, 26, 14, 0, tzinfo=UTC)
 NONCE = "local2-decision-nonce-000000000001"
 PRINCIPAL = LocalOperatorPrincipal(actor_session_id="operator-session-1")
+OTHER_RUN_ID = UUID("01890f6c-3311-7abc-8f4a-6e4f7f0b9b82")
+OTHER_PROPOSAL_ID = UUID("01890f6c-3311-7abc-8f4a-6e4f7f0b9b83")
+OTHER_REQUEST_ID = UUID("01890f6c-3311-7abc-8f4a-6e4f7f0b9b84")
 
 
 class Clock:
@@ -532,3 +540,242 @@ def test_receipt_and_verification_reconstruction_reject_semantic_substitution(
                 "local_verification": substituted_verification,
             }
         )
+
+
+@pytest.mark.parametrize(
+    "update",
+    [
+        {"request_id": OTHER_REQUEST_ID},
+        {"run_id": OTHER_RUN_ID},
+        {"proposal_id": OTHER_PROPOSAL_ID},
+        {"request_hash": "0" * 64},
+        {"proposal_hash": "0" * 64},
+        {"evidence_hash": "0" * 64},
+        {"proposal_version": 3},
+        {"decision_nonce": "different-decision-nonce-000000001"},
+    ],
+)
+def test_every_decision_binding_tamper_fails_closed(
+    tmp_path: Path,
+    update: dict[str, object],
+) -> None:
+    flow, repository, _, executor = _prepare(tmp_path)
+    challenge = flow.request_approval(RUN_ID, PRINCIPAL).value
+    assert challenge is not None
+    tampered = _decision(challenge, ApprovalDecision.APPROVED).model_copy(update=update)
+
+    result = flow.decide(tampered, PRINCIPAL)
+
+    assert result.failure is not None
+    checkpoint = repository.get_checkpoint(RUN_ID)
+    assert checkpoint is not None and checkpoint.local_approval is None
+    assert executor.mutation_calls == 0
+
+
+def test_canonical_binding_is_order_independent_but_content_sensitive(
+    tmp_path: Path,
+) -> None:
+    flow, _, _, _ = _prepare(tmp_path)
+    challenge = flow.request_approval(RUN_ID, PRINCIPAL).value
+    assert challenge is not None
+    request_payload = challenge.request.binding_payload()
+    proposal_payload = challenge.proposal.action_payload()
+
+    assert compute_evidence_digest(dict(reversed(tuple(request_payload.items())))) == (
+        challenge.request.request_hash
+    )
+    assert compute_evidence_digest(dict(reversed(tuple(proposal_payload.items())))) == (
+        challenge.proposal.proposal_hash
+    )
+    changed = dict(proposal_payload)
+    changed["target_resource_id"] = "eipalloc-0fedcba9876543210"
+    assert compute_evidence_digest(changed) != challenge.proposal.proposal_hash
+
+
+def _forged_intent(
+    intent: LocalExecutionIntent,
+    update: dict[str, object],
+) -> LocalExecutionIntent:
+    values = {
+        name: getattr(intent, name)
+        for name in LocalExecutionIntent.model_fields
+        if name != "intent_hash"
+    }
+    values.update(update)
+    provisional = LocalExecutionIntent.model_construct(
+        **values,
+        intent_hash="0" * 64,
+    )
+    return LocalExecutionIntent(
+        **values,
+        intent_hash=compute_evidence_digest(provisional.binding_payload()),
+    )
+
+
+@pytest.mark.parametrize(
+    "update",
+    [
+        {"run_id": OTHER_RUN_ID},
+        {"target_resource_id": "eipalloc-0fedcba9876543210"},
+        {"idempotency_key": "local-exec:" + "0" * 64},
+        {
+            "operation_type": RemediationOperation.REVOKE_PUBLIC_INGRESS,
+            "target_resource_type": CloudResourceType.SECURITY_GROUP,
+            "target_resource_id": MOCK_UNSAFE_SECURITY_GROUP_ID,
+        },
+        {"decision_hash": "0" * 64},
+    ],
+)
+def test_executor_rejects_rehashed_intent_tampering(
+    tmp_path: Path,
+    update: dict[str, object],
+) -> None:
+    flow, repository, _, executor = _prepare(tmp_path)
+    challenge = flow.request_approval(RUN_ID, PRINCIPAL).value
+    assert challenge is not None
+    assert flow.decide(_decision(challenge, ApprovalDecision.APPROVED), PRINCIPAL).value
+    checkpoint = repository.get_checkpoint(RUN_ID)
+    assert checkpoint is not None
+    proposal = checkpoint.remediation_proposal
+    evidence = checkpoint.resource_evidence
+    approval = checkpoint.local_approval
+    assert proposal is not None and evidence is not None and approval is not None
+    intent = LocalExecutionIntent.create(proposal, approval, registered_at=NOW)
+
+    with pytest.raises(LocalMockPolicyError, match="exactly approval-bound"):
+        executor.execute(
+            proposal=proposal,
+            evidence=evidence,
+            approval=approval,
+            intent=_forged_intent(intent, update),
+        )
+    assert executor.mutation_calls == 0
+
+
+def test_concurrent_identical_resume_requests_mutate_at_most_once(
+    tmp_path: Path,
+) -> None:
+    flow, repository, _, executor = _prepare(tmp_path)
+    challenge = flow.request_approval(RUN_ID, PRINCIPAL).value
+    assert challenge is not None
+    assert flow.decide(_decision(challenge, ApprovalDecision.APPROVED), PRINCIPAL).value
+    concurrent_requests = 16
+    barrier = Barrier(concurrent_requests + 1)
+
+    def resume() -> object:
+        barrier.wait()
+        return flow.resume(RUN_ID, PRINCIPAL)
+
+    with ThreadPoolExecutor(max_workers=concurrent_requests) as pool:
+        futures = tuple(pool.submit(resume) for _ in range(concurrent_requests))
+        barrier.wait()
+        results = tuple(future.result(timeout=20) for future in futures)
+
+    assert executor.mutation_calls == 1
+    assert any(getattr(result, "value", None) is not None for result in results)
+    assert repository.get_run(RUN_ID).state is WorkflowState.SUCCESS_WITH_EVIDENCE
+    reconciled = _runtime(tmp_path)[1].resume(RUN_ID, PRINCIPAL)
+    assert reconciled.value is not None and reconciled.value.reconciled is True
+
+
+def test_restart_recovers_after_mutation_before_receipt_checkpoint(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    flow, repository, cloud_state, executor = _prepare(tmp_path)
+    challenge = flow.request_approval(RUN_ID, PRINCIPAL).value
+    assert challenge is not None
+    assert flow.decide(_decision(challenge, ApprovalDecision.APPROVED), PRINCIPAL).value
+    original_save = repository.save_checkpoint
+    failed = False
+
+    def fail_receipt_once(checkpoint: Checkpoint, *, expected_version: int | None):
+        nonlocal failed
+        if checkpoint.local_execution_receipt is not None and not failed:
+            failed = True
+            raise StorageDependencyError("injected post-mutation receipt outage")
+        return original_save(checkpoint, expected_version=expected_version)
+
+    monkeypatch.setattr(repository, "save_checkpoint", fail_receipt_once)
+    interrupted = flow.resume(RUN_ID, PRINCIPAL)
+
+    assert interrupted.failure is not None
+    assert interrupted.failure.code == "LOCAL_RECEIPT_DURABILITY_FAILED"
+    assert repository.get_run(RUN_ID).state is WorkflowState.EXECUTING
+    checkpoint = repository.get_checkpoint(RUN_ID)
+    assert checkpoint is not None and checkpoint.local_execution_intent is not None
+    assert cloud_state.get_receipt(checkpoint.local_execution_intent.idempotency_key) is not None
+    assert executor.mutation_calls == 1
+
+    _, recovered_flow, _, _, recovered_executor = _runtime(tmp_path)
+    recovered = recovered_flow.resume(RUN_ID, PRINCIPAL)
+
+    assert recovered.value is not None
+    assert recovered.value.final_state is WorkflowState.SUCCESS_WITH_EVIDENCE
+    assert repository.get_run(RUN_ID).state is WorkflowState.SUCCESS_WITH_EVIDENCE
+    assert recovered_executor.mutation_calls == 0
+
+
+def test_retry_recovers_approval_persisted_before_state_transition(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    flow, repository, _, executor = _prepare(tmp_path)
+    challenge = flow.request_approval(RUN_ID, PRINCIPAL).value
+    assert challenge is not None
+    decision = _decision(challenge, ApprovalDecision.APPROVED)
+    original_transition = repository.transition_run
+    failed = False
+
+    def fail_approved_once(*args: object, **kwargs: object):
+        nonlocal failed
+        if kwargs.get("expected_state") is WorkflowState.AWAITING_APPROVAL and not failed:
+            failed = True
+            raise StorageDependencyError("injected decision transition outage")
+        return original_transition(*args, **kwargs)
+
+    monkeypatch.setattr(repository, "transition_run", fail_approved_once)
+    interrupted = flow.decide(decision, PRINCIPAL)
+    assert interrupted.failure is not None
+    assert repository.get_checkpoint(RUN_ID).local_approval is not None
+    assert repository.get_run(RUN_ID).state is WorkflowState.AWAITING_APPROVAL
+
+    monkeypatch.setattr(repository, "transition_run", original_transition)
+    recovered = flow.decide(decision, PRINCIPAL)
+
+    assert recovered.value is not None and recovered.value.reconciled is True
+    assert repository.get_run(RUN_ID).state is WorkflowState.APPROVED
+    assert executor.mutation_calls == 0
+
+
+@pytest.mark.parametrize(
+    "tamper",
+    ["edit_resource", "edit_receipt", "delete_receipt", "reorder_resources", "inject_field"],
+)
+def test_sandbox_inventory_tampering_is_detected(
+    tmp_path: Path,
+    tamper: str,
+) -> None:
+    flow, repository, cloud_state, _ = _prepare(tmp_path)
+    challenge = flow.request_approval(RUN_ID, PRINCIPAL).value
+    assert challenge is not None
+    assert flow.decide(_decision(challenge, ApprovalDecision.APPROVED), PRINCIPAL).value
+    completion = flow.resume(RUN_ID, PRINCIPAL).value
+    assert completion is not None and completion.receipt is not None
+    raw = json.loads(cloud_state.path.read_text(encoding="utf-8"))
+    payload = raw["payload"]
+    if tamper == "edit_resource":
+        payload["resources"][0]["region"] = "us-east-1"
+    elif tamper == "edit_receipt":
+        payload["receipts"][0]["decision_hash"] = "0" * 64
+    elif tamper == "delete_receipt":
+        payload["receipts"].clear()
+    elif tamper == "reorder_resources":
+        payload["resources"].reverse()
+    else:
+        payload["unexpected"] = True
+    cloud_state.path.write_text(json.dumps(raw), encoding="utf-8")
+
+    with pytest.raises(CloudAdapterUnavailableError, match="corrupt or unreadable"):
+        cloud_state.get_receipt(completion.receipt.idempotency_key)
+    assert repository.get_run(RUN_ID).state is WorkflowState.SUCCESS_WITH_EVIDENCE

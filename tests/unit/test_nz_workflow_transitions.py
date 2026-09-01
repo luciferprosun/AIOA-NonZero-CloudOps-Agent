@@ -77,6 +77,23 @@ def test_terminal_states_cannot_reenter_active_execution(
         validate_workflow_transition(terminal_state, WorkflowState.INVESTIGATING)
 
 
+@pytest.mark.parametrize(
+    ("current", "next_state"),
+    [
+        (WorkflowState.DENIED_BY_HUMAN, WorkflowState.EXECUTING),
+        (WorkflowState.EXECUTION_FAILED, WorkflowState.SUCCESS_WITH_EVIDENCE),
+        (WorkflowState.VERIFICATION_FAILED, WorkflowState.SUCCESS_WITH_EVIDENCE),
+        (WorkflowState.SUCCESS_WITH_EVIDENCE, WorkflowState.EXECUTING),
+    ],
+)
+def test_b4_illegal_terminal_reentry_matrix_fails_closed(
+    current: WorkflowState,
+    next_state: WorkflowState,
+) -> None:
+    with pytest.raises(WorkflowTransitionError):
+        validate_workflow_transition(current, next_state)
+
+
 def test_unknown_state_fails_closed() -> None:
     with pytest.raises(WorkflowTransitionError, match="unknown workflow state"):
         validate_workflow_transition("RECEIVED", WorkflowState.INVESTIGATING)

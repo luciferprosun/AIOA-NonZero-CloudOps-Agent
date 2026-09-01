@@ -44,8 +44,14 @@ class MockModelFailure(StrEnum):
 
     NONE = "NONE"
     MALFORMED = "MALFORMED"
+    TRUNCATED = "TRUNCATED"
+    INVALID_STRUCTURED = "INVALID_STRUCTURED"
     PROVIDER_ERROR = "PROVIDER_ERROR"
     TIMEOUT = "TIMEOUT"
+    CONNECTION_FAILURE = "CONNECTION_FAILURE"
+    RATE_LIMIT = "RATE_LIMIT"
+    MODEL_UNAVAILABLE = "MODEL_UNAVAILABLE"
+    CONFIGURATION_ERROR = "CONFIGURATION_ERROR"
     POLICY_INVALID = "POLICY_INVALID"
     EMPTY = "EMPTY"
     APPROVAL_REQUIRED = "APPROVAL_REQUIRED"
@@ -103,6 +109,10 @@ class MockModelProvider(Model):
         self._raise_scripted_failure()
         if self.failure is MockModelFailure.MALFORMED:
             return "{not-json"
+        if self.failure is MockModelFailure.TRUNCATED:
+            return '{"disposition":"PROPOSAL"'
+        if self.failure is MockModelFailure.INVALID_STRUCTURED:
+            return json.dumps({"unexpected": "provider-shape"})
         if self.failure is MockModelFailure.EMPTY:
             return ""
         if self.failure is MockModelFailure.POLICY_INVALID:
@@ -249,7 +259,15 @@ class MockModelProvider(Model):
             raise ModelProviderTimeoutError("mock model timeout was injected")
         if self.failure is MockModelFailure.RETRYABLE_ERROR:
             raise ModelProviderRetryableError("mock retryable model failure was injected")
+        if self.failure is MockModelFailure.CONNECTION_FAILURE:
+            raise ModelProviderRetryableError("mock model connection failure was injected")
+        if self.failure is MockModelFailure.RATE_LIMIT:
+            raise ModelProviderRetryableError("mock model rate limit was injected")
         if self.failure is MockModelFailure.NON_RETRYABLE_ERROR:
             raise ModelProviderNonRetryableError(
                 "mock non-retryable model failure was injected"
             )
+        if self.failure is MockModelFailure.MODEL_UNAVAILABLE:
+            raise ModelProviderNonRetryableError("mock selected model is unavailable")
+        if self.failure is MockModelFailure.CONFIGURATION_ERROR:
+            raise ModelProviderNonRetryableError("mock model configuration is invalid")

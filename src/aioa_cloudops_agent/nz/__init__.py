@@ -76,10 +76,12 @@ from .identifiers import (
     generate_run_id,
     generate_trace_id,
 )
+from .redaction import REDACTION_MARKER, contains_sensitive_material, redact_sensitive_text
 from .transitions import ALLOWED_WORKFLOW_TRANSITIONS, validate_workflow_transition
 
 __all__ = [
     "ALLOWED_WORKFLOW_TRANSITIONS",
+    "REDACTION_MARKER",
     "TERMINAL_WORKFLOW_STATES",
     "ActionOutcome",
     "ActionProposal",
@@ -142,10 +144,12 @@ __all__ = [
     "WorkflowState",
     "WorkflowTransitionError",
     "authority_for_capability",
+    "contains_sensitive_material",
     "generate_event_id",
     "generate_proposal_id",
     "generate_run_id",
     "generate_trace_id",
+    "redact_sensitive_text",
     "require_capability_authority",
     "transition_run",
     "validate_workflow_transition",
