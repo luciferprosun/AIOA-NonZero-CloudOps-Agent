@@ -13,6 +13,8 @@ from aioa_cloudops_agent.cloudops import (
 from aioa_cloudops_agent.config import LocalHitlSettings
 from aioa_cloudops_agent.local_api import (
     LOCAL_API_BODY_MAX_BYTES,
+    LOCAL_API_HEADER_MAX_COUNT,
+    LOCAL_API_HEADER_VALUE_MAX_LENGTH,
     LOCAL_API_SESSION_COOKIE,
     LocalApiApplication,
     LocalApiTokenAuthorizer,
@@ -340,6 +342,9 @@ def test_ready_contract_labels_portable_truth_without_cloud_prerequisites(
 
     assert ready["statusCode"] == 200
     assert payload["status"] == "ready"
+    assert payload["process_status"] == "READY"
+    assert payload["provider_status"] == "READY"
+    assert payload["sandbox_status"] == "READY"
     assert runtime["runtime_mode"] == "portable"
     assert runtime["experience_mode"] == "DEMO_SANDBOX"
     assert runtime["model_mode"] == "DETERMINISTIC_MODEL"
@@ -348,6 +353,26 @@ def test_ready_contract_labels_portable_truth_without_cloud_prerequisites(
     assert runtime["aws_calls_allowed"] is False
     assert runtime["external_network_allowed"] is False
     assert runtime["real_cloud_mutations_enabled"] is False
+
+
+def test_ready_fails_closed_when_sandbox_integrity_is_invalid(tmp_path: Path) -> None:
+    application, runtime = _application(tmp_path)
+    _start(application)
+    inventory_path = runtime.cloud_state.path
+    inventory_path.write_text("{truncated", encoding="utf-8")
+    inventory_path.chmod(0o600)
+
+    ready = application.handle(
+        {"method": "GET", "path": "/ready", "headers": {}, "body": None, "query": ""}
+    )
+    payload = json.loads(str(ready["body"]))
+
+    assert ready["statusCode"] == 503
+    assert payload == {
+        "error": "DEPENDENCY_UNAVAILABLE",
+        "ok": False,
+        "retryable": True,
+    }
 
 
 def test_browser_session_exchange_uses_http_only_cookie_and_intent_header(
@@ -452,8 +477,15 @@ def test_run_view_is_sanitized_and_exposes_bounded_audit_evidence(
     assert view["run_sandbox_mutations"] == runtime.executor.mutation_calls == 1
     assert view["runtime"]["process_external_network_calls"] == 0
     assert view["runtime"]["process_sandbox_mutations"] == 1
+    assert view["evidence_schema_version"] == 2
+    assert view["evidence_integrity"] == "VERIFIED"
+    assert len(view["evidence_snapshot_sha256"]) == 64
     assert len(view["audit_events"]) >= 8
+    assert view["audit_event_count"] == len(view["audit_events"])
+    assert view["audit_events_truncated"] is False
     assert view["audit_events"][-1]["type"] == "VERIFICATION_RECORDED"
+    assert view["audit_events"][-1]["category"] == "VERIFICATION"
+    assert view["audit_events"][-1]["summary"] == "Verification Recorded"
     assert view["checkpoint"]["verification"]["verification_hash"]
     assert "decision_nonce" not in rendered
     assert "actor_session_id" not in rendered
@@ -465,3 +497,53 @@ def test_token_authorizer_rejects_invalid_constructor_values() -> None:
         LocalApiTokenAuthorizer("short")
     with pytest.raises(ValueError):
         LocalApiTokenAuthorizer(f"{'x' * 32} ")
+
+
+@pytest.mark.parametrize(
+    "headers",
+    [
+        {f"X-Test-{index}": "value" for index in range(LOCAL_API_HEADER_MAX_COUNT + 1)},
+        {"X-Oversized": "x" * (LOCAL_API_HEADER_VALUE_MAX_LENGTH + 1)},
+        {"X-Non-Text": 123},
+    ],
+)
+def test_header_resource_limits_fail_closed(
+    tmp_path: Path,
+    headers: dict[str, object],
+) -> None:
+    application, _ = _application(tmp_path)
+
+    response = application.handle(
+        {"method": "GET", "path": "/health", "headers": headers, "body": None}
+    )
+    payload = json.loads(str(response["body"]))
+
+    assert response["statusCode"] == 400
+    assert payload == {"error": "BAD_REQUEST", "ok": False, "retryable": False}
+
+
+def test_tampered_durable_evidence_returns_redacted_dependency_failure(
+    tmp_path: Path,
+) -> None:
+    application, runtime = _application(tmp_path)
+    _start(application)
+    path = runtime.repository.path
+    raw = json.loads(path.read_text(encoding="utf-8"))
+    raw["payload"]["runs"][0]["state"] = "EXECUTING"
+    path.write_text(json.dumps(raw), encoding="utf-8")
+
+    status, payload, _ = _call(
+        application,
+        "GET",
+        f"/api/runs/{RUN_ID}",
+        body=None,
+        content_type=None,
+    )
+
+    assert status == 503
+    assert payload == {
+        "error": "DEPENDENCY_UNAVAILABLE",
+        "ok": False,
+        "retryable": True,
+    }
+    assert "digest" not in json.dumps(payload).casefold()

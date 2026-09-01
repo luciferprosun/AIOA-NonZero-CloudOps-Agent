@@ -10,6 +10,8 @@ from aioa_cloudops_agent.agent import create_local_hitl_runtime
 from aioa_cloudops_agent.cloudops import MOCK_UNATTACHED_EIP_ID
 from aioa_cloudops_agent.config import LocalHitlSettings
 from aioa_cloudops_agent.local_api import (
+    LOCAL_API_MAX_CONCURRENT_REQUESTS,
+    LOCAL_API_SOCKET_TIMEOUT_SECONDS,
     LocalApiApplication,
     LocalApiTokenAuthorizer,
     create_local_http_server,
@@ -46,6 +48,13 @@ def test_token_file_rejects_permissive_mode_and_symlink(tmp_path: Path) -> None:
     with pytest.raises(RuntimeError, match="regular file"):
         load_or_create_local_token(link)
 
+    directory = tmp_path / "token-directory"
+    directory.mkdir()
+    directory_link = tmp_path / "token-directory-link"
+    directory_link.symlink_to(directory, target_is_directory=True)
+    with pytest.raises(RuntimeError, match="regular file"):
+        load_or_create_local_token(directory_link / "operator.token")
+
 
 def test_real_loopback_server_exposes_health_and_authenticated_start(
     tmp_path: Path,
@@ -58,6 +67,8 @@ def test_real_loopback_server_exposes_health_and_authenticated_start(
     )
     application = LocalApiApplication(runtime, LocalApiTokenAuthorizer(TOKEN))
     server = create_local_http_server(application, port=0)
+    assert server.max_concurrent_requests == LOCAL_API_MAX_CONCURRENT_REQUESTS
+    assert server.request_queue_size == LOCAL_API_MAX_CONCURRENT_REQUESTS
     thread = Thread(target=server.serve_forever, kwargs={"poll_interval": 0.01})
     thread.start()
     connection = http.client.HTTPConnection("127.0.0.1", server.server_port, timeout=5)
@@ -95,6 +106,7 @@ def test_real_loopback_server_exposes_health_and_authenticated_start(
     assert started_body["ok"] is True
     assert runtime.cloud_provider.network_calls == 0
     assert not thread.is_alive()
+    assert LOCAL_API_SOCKET_TIMEOUT_SECONDS == 10
 
 
 def test_server_refuses_non_loopback_bind(tmp_path: Path) -> None:

@@ -64,7 +64,7 @@ def main() -> int:
     server = create_local_http_server(application, host=args.host, port=args.port)
     address, port = server.server_address
     print(f"AIOA Local-2 ready at http://{address}:{port}")
-    print(f"Token file: {args.token_file.resolve()} (owner-only; manual fallback only)")
+    print("Local API token ready (owner-only; path omitted from judge-facing output).")
     print("DEMO_SANDBOX / portable / mock: no AWS credential discovery or cloud calls.")
     if args.open_browser:
         opened = webbrowser.open(

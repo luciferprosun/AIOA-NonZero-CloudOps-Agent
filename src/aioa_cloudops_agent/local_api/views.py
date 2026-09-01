@@ -2,16 +2,61 @@
 
 from aioa_cloudops_agent.agent.local_composition import LocalHitlRuntime
 from aioa_cloudops_agent.config import ModelProviderName, RuntimeMode
-from aioa_cloudops_agent.nz import AuditEvent, Checkpoint, Run
+from aioa_cloudops_agent.nz import AuditEvent, AuditEventType, Checkpoint, Run
+from aioa_cloudops_agent.persistence.local import LocalRunSnapshot
 
 from .contracts import (
     LocalApprovalDecisionView,
     LocalApprovalRequestView,
     LocalAuditEventView,
     LocalCheckpointView,
+    LocalEvidenceCategory,
     LocalExecutionIntentView,
     LocalRuntimeView,
     LocalRunView,
+)
+
+_AGENT_INFERENCE_EVENTS = frozenset(
+    {
+        AuditEventType.MODEL_OBSERVED,
+        AuditEventType.PROPOSAL_CREATED,
+        AuditEventType.REMEDIATION_PLANNED,
+        AuditEventType.NO_ACTION_RECORDED,
+        AuditEventType.RECOMMENDATION_RECORDED,
+    }
+)
+_POLICY_EVENTS = frozenset(
+    {
+        AuditEventType.POLICY_DENIED,
+        AuditEventType.MODEL_OUTPUT_REJECTED,
+        AuditEventType.BUDGET_EXHAUSTED,
+        AuditEventType.BUDGET_UPDATED,
+    }
+)
+_HUMAN_EVENTS = frozenset(
+    {AuditEventType.APPROVAL_REQUESTED, AuditEventType.APPROVAL_RECORDED}
+)
+_ACTION_EVENTS = frozenset(
+    {
+        AuditEventType.IDEMPOTENCY_REGISTERED,
+        AuditEventType.EXECUTION_REQUESTED,
+        AuditEventType.EXECUTION_ACKNOWLEDGED,
+    }
+)
+_VERIFICATION_EVENTS = frozenset(
+    {
+        AuditEventType.VERIFICATION_STARTED,
+        AuditEventType.VERIFICATION_OBSERVED,
+        AuditEventType.VERIFICATION_RECORDED,
+    }
+)
+_RECOVERY_EVENTS = frozenset(
+    {
+        AuditEventType.RECOVERY_CLASSIFIED,
+        AuditEventType.RECOVERY_OBSERVED,
+        AuditEventType.RECOVERY_COMPLETED,
+        AuditEventType.RECOVERY_DEFERRED,
+    }
 )
 
 _PUBLIC_AUDIT_METADATA = frozenset(
@@ -43,13 +88,14 @@ def runtime_view(runtime: LocalHitlRuntime) -> LocalRuntimeView:
         raise ValueError("judge runtime truth requires the portable deterministic boundary")
     provider_calls = runtime.model_provider.calls + runtime.model_provider.plan_calls
     external_calls = runtime.model_provider.network_calls + runtime.cloud_provider.network_calls
+    _, sandbox_mutations, _ = runtime.executor.counters()
     return LocalRuntimeView(
         runtime_mode=settings.mode.value,
         provider=settings.model_provider.value,
         model_id=runtime.provider_runtime.model_id,
         process_provider_calls=provider_calls,
         process_external_network_calls=external_calls,
-        process_sandbox_mutations=runtime.executor.mutation_calls,
+        process_sandbox_mutations=sandbox_mutations,
     )
 
 
@@ -117,9 +163,25 @@ def _checkpoint_view(checkpoint: Checkpoint | None) -> LocalCheckpointView | Non
 
 
 def _audit_event_view(event: AuditEvent) -> LocalAuditEventView:
+    if event.type in _AGENT_INFERENCE_EVENTS:
+        category = LocalEvidenceCategory.AGENT_INFERENCE
+    elif event.type in _POLICY_EVENTS:
+        category = LocalEvidenceCategory.POLICY_DECISION
+    elif event.type in _HUMAN_EVENTS:
+        category = LocalEvidenceCategory.HUMAN_DECISION
+    elif event.type in _ACTION_EVENTS:
+        category = LocalEvidenceCategory.ACTION
+    elif event.type in _VERIFICATION_EVENTS:
+        category = LocalEvidenceCategory.VERIFICATION
+    elif event.type in _RECOVERY_EVENTS:
+        category = LocalEvidenceCategory.RECOVERY
+    else:
+        category = LocalEvidenceCategory.FACT
     return LocalAuditEventView(
         event_id=event.event_id,
         type=event.type,
+        category=category,
+        summary=event.type.value.replace("_", " ").title(),
         timestamp=event.timestamp,
         source=event.source,
         redacted_payload_hash=event.redacted_payload_hash,
@@ -133,23 +195,31 @@ def _audit_event_view(event: AuditEvent) -> LocalAuditEventView:
 
 def run_view(
     runtime: LocalHitlRuntime,
-    run: Run,
-    checkpoint: Checkpoint | None,
-    audit_events: tuple[AuditEvent, ...],
+    snapshot: LocalRunSnapshot,
 ) -> LocalRunView:
     """Project authoritative state into the sole judge-facing run representation."""
 
-    if not isinstance(runtime, LocalHitlRuntime) or not isinstance(run, Run):
-        raise TypeError("runtime and run must use canonical local contracts")
+    if not isinstance(runtime, LocalHitlRuntime) or not isinstance(
+        snapshot, LocalRunSnapshot
+    ):
+        raise TypeError("runtime and snapshot must use canonical local contracts")
+    run = snapshot.run
+    checkpoint = snapshot.checkpoint
+    audit_events = snapshot.audit_events
+    if not isinstance(run, Run):
+        raise TypeError("snapshot must contain a canonical run")
     if checkpoint is not None and checkpoint.run_id != run.run_id:
         raise ValueError("checkpoint does not belong to the requested run")
     if any(event.run_id != run.run_id for event in audit_events):
         raise ValueError("audit timeline contains another run")
     receipt = None if checkpoint is None else checkpoint.local_execution_receipt
     return LocalRunView(
+        evidence_snapshot_sha256=snapshot.snapshot_sha256,
         run=run,
         checkpoint=_checkpoint_view(checkpoint),
         audit_events=tuple(_audit_event_view(event) for event in audit_events),
         runtime=runtime_view(runtime),
         run_sandbox_mutations=int(receipt is not None),
+        audit_event_count=snapshot.audit_event_count,
+        audit_events_truncated=snapshot.audit_event_count > len(audit_events),
     )

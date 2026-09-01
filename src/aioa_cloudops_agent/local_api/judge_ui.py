@@ -296,6 +296,7 @@ h2 { margin: 5px 0 0; font-size: clamp(1.45rem, 3vw, 2.2rem); letter-spacing: -.
 .timeline li::after { content: ""; position: absolute; left: 9px; top: 18px; bottom: 1px; width: 1px; background: var(--line); }
 .timeline li:last-child::after { display: none; }
 .timeline strong { display: block; font-size: .87rem; }
+.timeline .category { display: inline-block; margin-bottom: 4px; color: var(--mint); font: 750 .62rem ui-monospace, monospace; letter-spacing: .08em; }
 .timeline time { display: block; margin: 3px 0; color: var(--dim); font-size: .72rem; }
 .timeline code { color: var(--violet); font-size: .68rem; overflow-wrap: anywhere; }
 .empty { color: var(--dim); line-height: 1.55; }
@@ -491,15 +492,18 @@ JUDGE_UI_SCRIPT: Final = r"""
     }
     events.forEach((event) => {
       const item = document.createElement('li');
+      const category = document.createElement('span');
       const title = document.createElement('strong');
       const time = document.createElement('time');
       const digest = document.createElement('code');
-      title.textContent = labels[event.type] || event.type;
+      category.className = 'category';
+      category.textContent = event.category || 'FACT';
+      title.textContent = event.summary || labels[event.type] || event.type;
       time.textContent = new Date(event.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
       time.dateTime = event.timestamp;
       digest.textContent = shortHash(event.redacted_payload_hash);
       digest.title = event.redacted_payload_hash;
-      item.append(title, time, digest);
+      item.append(category, title, time, digest);
       list.append(item);
     });
   }
@@ -551,6 +555,7 @@ JUDGE_UI_SCRIPT: Final = r"""
     byId('run-state').className = 'state-badge' + (succeeded ? ' success' : denied ? ' denied' : '');
     setText('run-id', shortHash(view.run.run_id), view.run.run_id);
     setText('trace-id', shortHash(view.run.trace_id), view.run.trace_id);
+    setText('snapshot-hash', shortHash(view.evidence_snapshot_sha256), view.evidence_snapshot_sha256);
     setText('target', proposal.target_resource_id || evidence.resource?.resource_id);
     setText('resource-type', proposal.target_resource_type || evidence.resource?.resource_type);
     setText('finding', Array.isArray(evidence.findings) ? evidence.findings.join(', ') : '—');
@@ -919,6 +924,7 @@ JUDGE_UI_BODY: Final = f"""<!doctype html>
             <dl class="facts">
               <div class="fact wide"><dt>Run ID</dt><dd id="run-id" class="hash">—</dd></div>
               <div class="fact wide"><dt>Trace ID</dt><dd id="trace-id" class="hash">—</dd></div>
+              <div class="fact wide"><dt>Integrity-verified snapshot</dt><dd id="snapshot-hash" class="hash">—</dd></div>
               <div class="fact wide"><dt>Runtime / model</dt><dd><span id="mode-runtime">portable</span> · <span id="model-id">aioa.mock.deterministic-v1</span></dd></div>
             </dl>
           </section>

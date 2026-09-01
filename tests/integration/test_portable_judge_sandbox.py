@@ -171,6 +171,27 @@ def test_portable_receipt_is_hash_bound_private_and_symlink_safe(tmp_path: Path)
         write_portable_receipt(link, receipt)
     assert protected.read_text(encoding="utf-8") == "preserve"
 
+    unsafe = tmp_path / "unsafe.json"
+    unsafe.write_text("preserve", encoding="utf-8")
+    unsafe.chmod(0o644)
+    with pytest.raises(PortableDemoError, match="PORTABLE_OUTPUT_EXISTING_FILE_UNSAFE"):
+        write_portable_receipt(unsafe, receipt)
+    assert unsafe.read_text(encoding="utf-8") == "preserve"
+
+    private_unrelated = tmp_path / "private-unrelated.json"
+    private_unrelated.write_text('{"not":"a receipt"}', encoding="utf-8")
+    private_unrelated.chmod(0o600)
+    with pytest.raises(PortableDemoError, match="PORTABLE_OUTPUT_EXISTING_FILE_UNSAFE"):
+        write_portable_receipt(private_unrelated, receipt)
+    assert private_unrelated.read_text(encoding="utf-8") == '{"not":"a receipt"}'
+
+    directory = tmp_path / "receipt-directory"
+    directory.mkdir()
+    directory_link = tmp_path / "receipt-directory-link"
+    directory_link.symlink_to(directory, target_is_directory=True)
+    with pytest.raises(PortableDemoError, match="PORTABLE_OUTPUT_SYMLINK_FORBIDDEN"):
+        write_portable_receipt(directory_link / "receipt.json", receipt)
+
 
 def test_non_portable_runtime_is_rejected_before_any_sandbox_state(tmp_path: Path) -> None:
     workspace = tmp_path / "forbidden"

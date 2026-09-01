@@ -7,10 +7,17 @@ import stat
 from collections.abc import Callable
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from threading import BoundedSemaphore
 
 from .application import LocalApiApplication
 from .auth import LocalApiTokenAuthorizer
-from .contracts import LOCAL_API_BODY_MAX_BYTES, LocalApiErrorCode
+from .contracts import (
+    LOCAL_API_BODY_MAX_BYTES,
+    LOCAL_API_HEADER_MAX_COUNT,
+    LOCAL_API_MAX_CONCURRENT_REQUESTS,
+    LOCAL_API_SOCKET_TIMEOUT_SECONDS,
+    LocalApiErrorCode,
+)
 
 _LOOPBACK_HOST = "127.0.0.1"
 _ERROR_HEADERS = {
@@ -20,6 +27,38 @@ _ERROR_HEADERS = {
     "x-content-type-options": "nosniff",
     "x-frame-options": "DENY",
 }
+
+
+class _BoundedLocalHttpServer(ThreadingHTTPServer):
+    """Bound handler threads and socket waits for the resource-constrained judge host."""
+
+    daemon_threads = True
+    block_on_close = True
+    request_queue_size = LOCAL_API_MAX_CONCURRENT_REQUESTS
+    max_concurrent_requests = LOCAL_API_MAX_CONCURRENT_REQUESTS
+
+    def __init__(self, *args: object, **kwargs: object) -> None:
+        self._request_slots = BoundedSemaphore(self.max_concurrent_requests)
+        super().__init__(*args, **kwargs)
+
+    def get_request(self) -> tuple[object, object]:
+        connection, address = super().get_request()
+        connection.settimeout(LOCAL_API_SOCKET_TIMEOUT_SECONDS)
+        return connection, address
+
+    def process_request(self, request: object, client_address: object) -> None:
+        self._request_slots.acquire()
+        try:
+            super().process_request(request, client_address)
+        except BaseException:
+            self._request_slots.release()
+            raise
+
+    def process_request_thread(self, request: object, client_address: object) -> None:
+        try:
+            super().process_request_thread(request, client_address)
+        finally:
+            self._request_slots.release()
 
 
 def load_or_create_local_token(
@@ -32,8 +71,14 @@ def load_or_create_local_token(
     resolved = Path(path) if isinstance(path, (str, Path)) else None
     if resolved is None or not str(resolved).strip():
         raise ValueError("local API token path must be a non-empty path")
+    if ".." in resolved.parts or len(os.fsencode(resolved)) > 4_096:
+        raise ValueError("local API token path contains unsafe traversal or length")
     if not callable(token_factory):
         raise TypeError("token_factory must be callable")
+    if resolved.is_symlink() or any(
+        parent.is_symlink() for parent in resolved.parents if parent.exists()
+    ):
+        raise RuntimeError("local API token must be a regular file")
     try:
         resolved.parent.mkdir(parents=True, exist_ok=True)
     except OSError as error:
@@ -144,6 +189,9 @@ def create_local_http_server(
                     self._send(_direct_error(400, LocalApiErrorCode.BAD_REQUEST))
                     return
                 normalized_headers[normalized] = values[0]
+            if len(normalized_headers) > LOCAL_API_HEADER_MAX_COUNT:
+                self._send(_direct_error(400, LocalApiErrorCode.BAD_REQUEST))
+                return
             if "transfer-encoding" in normalized_headers:
                 self.close_connection = True
                 self._send(_direct_error(400, LocalApiErrorCode.BAD_REQUEST))
@@ -169,6 +217,13 @@ def create_local_http_server(
             if length:
                 try:
                     body = self.rfile.read(length).decode("utf-8", errors="strict")
+                except TimeoutError:
+                    self.close_connection = True
+                    self._send(_direct_error(408, LocalApiErrorCode.REQUEST_TIMEOUT))
+                    return
+                except OSError:
+                    self.close_connection = True
+                    return
                 except UnicodeError:
                     self._send(_direct_error(400, LocalApiErrorCode.BAD_REQUEST))
                     return
@@ -216,4 +271,4 @@ def create_local_http_server(
         def log_message(self, _format: str, *args: object) -> None:
             """Suppress default logging so authorization values cannot leak."""
 
-    return ThreadingHTTPServer((host, port), LocalRequestHandler)
+    return _BoundedLocalHttpServer((host, port), LocalRequestHandler)

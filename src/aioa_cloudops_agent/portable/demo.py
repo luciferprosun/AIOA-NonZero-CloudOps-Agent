@@ -5,7 +5,6 @@ from __future__ import annotations
 import hashlib
 import json
 import os
-import tempfile
 from datetime import UTC, datetime, timedelta
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
@@ -42,7 +41,14 @@ from aioa_cloudops_agent.nz import (
     ResultStatus,
     Run,
     WorkflowState,
+    contains_sensitive_material,
     generate_event_id,
+)
+from aioa_cloudops_agent.persistence.local_integrity import (
+    LocalIntegrityError,
+    atomic_write_private_json,
+    read_private_json,
+    validate_local_path,
 )
 from aioa_cloudops_agent.persistence.memory import InMemoryTestDurableTruthRepository
 from aioa_cloudops_agent.providers import MockModelProvider, MockToolCall
@@ -173,6 +179,8 @@ class PortableDemoReceipt(StrictPortableModel):
         digest = hashlib.sha256(canonical_json(material).encode("utf-8")).hexdigest()
         if self.receipt_sha256 != digest:
             raise ValueError("portable receipt hash is invalid")
+        if contains_sensitive_material(self.model_dump(mode="json")):
+            raise ValueError("portable receipt contains sensitive material")
         return self
 
 
@@ -347,28 +355,33 @@ def render_portable_receipt(receipt: PortableDemoReceipt) -> str:
 def write_portable_receipt(path: Path, receipt: PortableDemoReceipt) -> None:
     """Atomically persist owner-only evidence without following an output symlink."""
 
-    if not isinstance(path, Path):
+    if (
+        not isinstance(path, Path)
+        or not str(path).strip()
+        or ".." in path.parts
+        or len(str(path).encode()) > 4_096
+    ):
         raise PortableDemoError("PORTABLE_OUTPUT_PATH_INVALID")
-    if path.is_symlink():
+    if path.is_symlink() or any(
+        parent.is_symlink() for parent in path.parents if parent.exists()
+    ):
         raise PortableDemoError("PORTABLE_OUTPUT_SYMLINK_FORBIDDEN")
-    rendered = render_portable_receipt(receipt)
+    if path.exists():
+        metadata = path.stat()
+        if (
+            not path.is_file()
+            or metadata.st_uid != os.getuid()
+            or metadata.st_mode & 0o077
+        ):
+            raise PortableDemoError("PORTABLE_OUTPUT_EXISTING_FILE_UNSAFE")
+        try:
+            PortableDemoReceipt.model_validate(read_private_json(path))
+        except (LocalIntegrityError, OSError, TypeError, ValueError) as error:
+            raise PortableDemoError("PORTABLE_OUTPUT_EXISTING_FILE_UNSAFE") from error
     try:
+        validate_local_path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
-        descriptor, temporary_name = tempfile.mkstemp(
-            prefix=f".{path.name}.", suffix=".tmp", dir=path.parent
-        )
-    except OSError as error:
+        validate_local_path(path)
+        atomic_write_private_json(path, receipt.model_dump(mode="json"))
+    except (LocalIntegrityError, OSError, TypeError, ValueError) as error:
         raise PortableDemoError("PORTABLE_OUTPUT_UNAVAILABLE") from error
-    temporary = Path(temporary_name)
-    try:
-        os.fchmod(descriptor, 0o600)
-        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
-            handle.write(rendered)
-            handle.flush()
-            os.fsync(handle.fileno())
-        os.replace(temporary, path)
-    except OSError as error:
-        raise PortableDemoError("PORTABLE_OUTPUT_UNAVAILABLE") from error
-    finally:
-        if temporary.exists():
-            temporary.unlink()

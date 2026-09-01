@@ -15,6 +15,7 @@ from aioa_cloudops_agent.agent.local_hitl import (
     LocalDecisionRequest,
     LocalOperatorPrincipal,
 )
+from aioa_cloudops_agent.cloudops import CloudAdapterUnavailableError
 from aioa_cloudops_agent.nz import (
     BudgetCounters,
     FailureDetail,
@@ -30,6 +31,8 @@ from aioa_cloudops_agent.nz.errors import StorageDependencyError
 from .auth import LOCAL_API_SESSION_COOKIE, LocalApiTokenAuthorizer
 from .contracts import (
     LOCAL_API_BODY_MAX_BYTES,
+    LOCAL_API_HEADER_MAX_COUNT,
+    LOCAL_API_HEADER_VALUE_MAX_LENGTH,
     LocalApiErrorCode,
     LocalApiErrorResponse,
     LocalBrowserSessionView,
@@ -123,9 +126,17 @@ def _headers(value: object) -> dict[str, object]:
         return {}
     if not isinstance(value, Mapping):
         raise _Rejected(LocalApiErrorCode.BAD_REQUEST, 400)
+    if len(value) > LOCAL_API_HEADER_MAX_COUNT:
+        raise _Rejected(LocalApiErrorCode.BAD_REQUEST, 400)
     normalized: dict[str, object] = {}
     for raw_name, header_value in value.items():
         if not isinstance(raw_name, str) or not raw_name or raw_name != raw_name.strip():
+            raise _Rejected(LocalApiErrorCode.BAD_REQUEST, 400)
+        if (
+            len(raw_name) > 128
+            or not isinstance(header_value, str)
+            or len(header_value) > LOCAL_API_HEADER_VALUE_MAX_LENGTH
+        ):
             raise _Rejected(LocalApiErrorCode.BAD_REQUEST, 400)
         name = raw_name.casefold()
         if name in normalized:
@@ -231,13 +242,7 @@ class LocalApiApplication:
                 _response(200, {"mode": "mock", "service": "aioa-local-hitl", "status": "ok"}),
             )
         if request.path == "/ready":
-            return self._public_get(
-                request,
-                _response(
-                    200,
-                    LocalReadyView(runtime=runtime_view(self._runtime)),
-                ),
-            )
+            return self._ready(request)
         if request.path == "/":
             return self._public_get(
                 request,
@@ -257,6 +262,28 @@ class LocalApiApplication:
             if match is not None:
                 return handler(request, match.group(1))
         return self._error(LocalApiErrorCode.NOT_FOUND, 404)
+
+    def _ready(self, request: _Request) -> dict[str, object]:
+        if request.method != "GET":
+            return self._error(LocalApiErrorCode.METHOD_NOT_ALLOWED, 405)
+        if request.query or request.body not in (None, ""):
+            return self._error(LocalApiErrorCode.BAD_REQUEST, 400)
+        try:
+            view = runtime_view(self._runtime)
+            self._runtime.repository.assert_ready()
+            self._runtime.cloud_state.assert_ready()
+        except (
+            CloudAdapterUnavailableError,
+            StorageDependencyError,
+            TypeError,
+            ValueError,
+        ):
+            return self._error(
+                LocalApiErrorCode.DEPENDENCY_UNAVAILABLE,
+                503,
+                retryable=True,
+            )
+        return _response(200, LocalReadyView(runtime=view))
 
     def _public_get(
         self,
@@ -375,15 +402,13 @@ class LocalApiApplication:
         if run_id is None:
             return self._error(LocalApiErrorCode.BAD_REQUEST, 400)
         try:
-            run = self._runtime.repository.get_run(run_id)
-            checkpoint = self._runtime.repository.get_checkpoint(run_id)
-            audit_events = self._runtime.repository.list_audit_events(run_id)
+            snapshot = self._runtime.repository.read_run_snapshot(run_id)
         except (StorageDependencyError, TypeError, ValueError):
             return self._error(LocalApiErrorCode.DEPENDENCY_UNAVAILABLE, 503, retryable=True)
-        if run is None:
+        if snapshot.run is None:
             return self._error(LocalApiErrorCode.NOT_FOUND, 404)
         try:
-            view = run_view(self._runtime, run, checkpoint, audit_events)
+            view = run_view(self._runtime, snapshot)
         except (TypeError, ValueError, ValidationError):
             return self._error(LocalApiErrorCode.INTERNAL_ERROR, 500)
         return _ok(200, view)

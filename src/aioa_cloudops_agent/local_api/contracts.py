@@ -22,9 +22,14 @@ from aioa_cloudops_agent.nz import (
     Sha256Digest,
     ShortIdentifier,
     WorkflowState,
+    contains_sensitive_material,
 )
 
 LOCAL_API_BODY_MAX_BYTES = 16_384
+LOCAL_API_HEADER_MAX_COUNT = 64
+LOCAL_API_HEADER_VALUE_MAX_LENGTH = 4_096
+LOCAL_API_MAX_CONCURRENT_REQUESTS = 16
+LOCAL_API_SOCKET_TIMEOUT_SECONDS = 10
 LOCAL_API_TOKEN_MIN_LENGTH = 32
 LOCAL_API_TOKEN_MAX_LENGTH = 256
 
@@ -36,6 +41,7 @@ class LocalApiErrorCode(StrEnum):
     NOT_FOUND = "NOT_FOUND"
     METHOD_NOT_ALLOWED = "METHOD_NOT_ALLOWED"
     PAYLOAD_TOO_LARGE = "PAYLOAD_TOO_LARGE"
+    REQUEST_TIMEOUT = "REQUEST_TIMEOUT"
     UNSUPPORTED_MEDIA_TYPE = "UNSUPPORTED_MEDIA_TYPE"
     UNAUTHORIZED = "UNAUTHORIZED"
     POLICY_DENIED = "POLICY_DENIED"
@@ -43,6 +49,18 @@ class LocalApiErrorCode(StrEnum):
     DEPENDENCY_UNAVAILABLE = "DEPENDENCY_UNAVAILABLE"
     WORKFLOW_FAILED = "WORKFLOW_FAILED"
     INTERNAL_ERROR = "INTERNAL_ERROR"
+
+
+class LocalEvidenceCategory(StrEnum):
+    """Judge-facing provenance classes; model output remains visibly non-authoritative."""
+
+    FACT = "FACT"
+    AGENT_INFERENCE = "AGENT_INFERENCE"
+    POLICY_DECISION = "POLICY_DECISION"
+    HUMAN_DECISION = "HUMAN_DECISION"
+    ACTION = "ACTION"
+    VERIFICATION = "VERIFICATION"
+    RECOVERY = "RECOVERY"
 
 
 class LocalApiErrorResponse(BaseModel):
@@ -128,6 +146,9 @@ class LocalReadyView(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     status: Literal["ready"] = "ready"
+    process_status: Literal["READY"] = "READY"
+    provider_status: Literal["READY"] = "READY"
+    sandbox_status: Literal["READY"] = "READY"
     runtime: LocalRuntimeView
 
 
@@ -204,6 +225,8 @@ class LocalAuditEventView(BaseModel):
 
     event_id: UUID
     type: AuditEventType
+    category: LocalEvidenceCategory
+    summary: str = Field(min_length=1, max_length=160)
     timestamp: datetime
     source: ShortIdentifier
     redacted_payload_hash: Sha256Digest
@@ -215,8 +238,23 @@ class LocalRunView(BaseModel):
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
+    evidence_schema_version: Literal[2] = 2
+    evidence_integrity: Literal["VERIFIED"] = "VERIFIED"
+    evidence_snapshot_sha256: Sha256Digest
     run: Run
     checkpoint: LocalCheckpointView | None = None
     audit_events: tuple[LocalAuditEventView, ...] = ()
     runtime: LocalRuntimeView
     run_sandbox_mutations: int = Field(ge=0, le=1)
+    audit_event_count: int = Field(ge=0, le=1_024)
+    audit_events_truncated: bool
+
+    @model_validator(mode="after")
+    def validate_timeline_bounds(self) -> Self:
+        if self.audit_event_count < len(self.audit_events):
+            raise ValueError("audit event count is smaller than the visible timeline")
+        if self.audit_events_truncated != (self.audit_event_count > len(self.audit_events)):
+            raise ValueError("audit timeline truncation marker is inconsistent")
+        if contains_sensitive_material(self.model_dump(mode="json")):
+            raise ValueError("judge evidence contains sensitive material")
+        return self
