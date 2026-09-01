@@ -4,6 +4,7 @@ Newly authored work for the **AWS Agents for Humans Hackathon 2026**.
 
 - Track: Professional Agents
 - Status: portable-first local product with deterministic Strands, HITL, evidence, replay and recovery; AWS deployment remains optional and no live deployment or AWS mutation has run
+- Historical AWS release contract: Phase 3 `DEPLOYMENT_READY_LOCAL_RC`, retained as an optional integration path rather than the product completion gate
 - Orchestration: one Strands Agent
 - Model platform: provider-neutral Strands `Model`; deterministic portable default, Amazon Bedrock optional
 - Current capability: five bounded tools covering investigation, proposal-bound stop, and independent verification

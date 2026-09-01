@@ -35,6 +35,7 @@ from scripts.build_reviewer_evidence_manifest import (
     MARKDOWN_PATH,
     PHASE3_IAC_COMMIT,
     PHASE3_RC_COMMIT,
+    PORTABLE_B1_COMMIT,
     README_PATH,
     build_manifest,
     canonical_manifest_bytes,
@@ -654,9 +655,9 @@ def test_day15_candidate_and_claim_anchors_are_exact_recovery_objects() -> None:
         LOCAL_FIRST_PHASE2_COMMIT,
         PHASE3_IAC_COMMIT,
         PHASE3_RC_COMMIT,
+        PORTABLE_B1_COMMIT,
     }
     original_m1_claims = {
-        "AGENT-TOPOLOGY-01",
         "BOUNDED-FAILURES-01",
         "DAY15-AWS-CLIENT-BOUNDS-01",
         "DAY15-JUDGE-SURFACE-01",
@@ -666,12 +667,15 @@ def test_day15_candidate_and_claim_anchors_are_exact_recovery_objects() -> None:
         "MODEL-PIN-01",
         "P0-GATE-01",
         "P1-GATE-01",
-        "TOOL-SURFACE-01",
     }
     recovered_m1_claims = {
-        "DAY15-COLD-RESUME-01",
         "DAY15-RUNTIME-GUARDS-01",
         "DAY15-TELEMETRY-01",
+    }
+    portable_b1_claims = {
+        "AGENT-TOPOLOGY-01",
+        "DAY15-COLD-RESUME-01",
+        "TOOL-SURFACE-01",
     }
     phase3_iac_claims = {
         "DAY15-RELEASE-SAFETY-01",
@@ -707,6 +711,10 @@ def test_day15_candidate_and_claim_anchors_are_exact_recovery_objects() -> None:
     assert all(
         _claim(manifest, claim_id)["commit_anchor"] == LOCAL_FIRST_PHASE2_COMMIT
         for claim_id in local_first_phase2_claims
+    )
+    assert all(
+        _claim(manifest, claim_id)["commit_anchor"] == PORTABLE_B1_COMMIT
+        for claim_id in portable_b1_claims
     )
     assert _claim(manifest, "LIVE-EC2-01")["commit_anchor"] == EVIDENCE_SNAPSHOT_COMMIT
     assert _claim(manifest, "SDK-PIN-01")["commit_anchor"] == PHASE3_RC_COMMIT

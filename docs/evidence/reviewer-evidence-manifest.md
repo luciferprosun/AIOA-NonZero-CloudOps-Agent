@@ -6,7 +6,7 @@ This judge-facing view is generated from the canonical JSON. It is reviewer proo
 - Day 15 local candidate snapshot: `197db56f828b8ab0b9139a1d3708fb8a58ca336a` (`LOCAL_IMPLEMENTATION_CANDIDATE`)
 - Day 15 additive recovery lineage: `aa941a989a8b8cd0e40367bb130472e9f3c082a7` -> `17d5f4637dbd69a33eff1cbb46282c36b19ce6ad` -> `8e4583ac9341cb7b66de47cf0e7b2a442ac67b32` -> `30c2a30cda0ac6d6e2003166daf6c29bf2c764f0` -> `f2ee79c09ba174ba72cb527b70c095f412151758` -> `36fd17df981dfa593d4e63f6a143410317410763` -> `ce35a67f6491ea92aeef534d0dc4f5dc4a8da7ff` -> `5a6127f43a9251a72203c0eb6c7a903d817599f7` -> `3464bc869e7a11acb5aab61ae279cf196a1ebd0f` -> `41ba5586180e9aa3a25fc5469d42815073a0bbf8` -> `858770d5e5c7b59fa883cc56e06f4a9e915d70c1` -> `5e1904408d402c1e6492d6b2e153a7f1a5c56b58` -> `99f70c43a26ce9715e9b57fde81ca265382dd5f2` -> `197db56f828b8ab0b9139a1d3708fb8a58ca336a`
 - Day 15 gates: `D15-G01, D15-G02, D15-G03, D15-G04, D15-G05, D15-G06, D15-G07, D15-G08, D15-G09, D15-G10`
-- Manifest SHA-256: `d447bd58904dfa86c858ecb7a031f7bdd0d2a12f445f763de9a877f5ebb95777`
+- Manifest SHA-256: `c7b5843e3fcabfcf8c271e942329525dc90e5f392292763b4ebee6230e639af8`
 - Primary agents: `1`
 - Canonical tools: `inspect_instance, read_utilization_metrics, build_remediation_evidence, stop_sandbox_instance, verify_instance_state`
 - Bedrock model: `eu.amazon.nova-2-lite-v1:0` in `eu-central-1`
@@ -54,14 +54,14 @@ This judge-facing view is generated from the canonical JSON. It is reviewer proo
 The runtime factory creates one primary Strands Agent.
 
 - Status / kind / scope: `PROVEN` / `TEST` / `Local deterministic`
-- Commit anchor: `17d5f4637dbd69a33eff1cbb46282c36b19ce6ad`
+- Commit anchor: `a2e16d0f1d625b34916440d6740a486f73cf2bb1`
 - Authority source:
   - `src/aioa_cloudops_agent/agent/factory.py::PRIMARY_AGENT_COUNT`
 - Proof nodes:
   - `P0-01`
   - `tests/unit/test_strands_agent.py::test_factory_creates_exactly_one_primary_agent_and_five_canonical_tools`
 - Limitations: Proves the repository runtime factory, not the topology of an undeployed AWS stack.
-- Claim SHA-256: `458e4b96b52819343c8d4dcc31708df1b9ee0d3f1d1d7251185e40accbaed51e`
+- Claim SHA-256: `c9d9df98bb3936987a262104cc3b87954fd153e750068208c22ecec440c7e189`
 
 ### APPROVAL-BINDING-01
 
@@ -119,7 +119,7 @@ Critical AWS clients own explicit one-attempt transport configuration, and the b
 A fresh Agent runtime can restore a durable native interrupt using trusted principal identity and a server-issued one-time challenge, while no approval or resume route is public.
 
 - Status / kind / scope: `PROVEN` / `TEST` / `mocked AWS`
-- Commit anchor: `f2ee79c09ba174ba72cb527b70c095f412151758`
+- Commit anchor: `a2e16d0f1d625b34916440d6740a486f73cf2bb1`
 - Authority source:
   - `src/aioa_cloudops_agent/agent/factory.py::create_primary_agent`
   - `src/aioa_cloudops_agent/deployment/resume.py::AuthenticatedApprovalResumeService`
@@ -127,7 +127,7 @@ A fresh Agent runtime can restore a durable native interrupt using trusted princ
   - `tests/integration/test_durable_hitl_approval_flow.py::test_fresh_process_restores_native_interrupt_with_trusted_one_time_freshness`
   - `tests/unit/test_day15_judge_http.py::test_unknown_approval_mutation_and_wrong_method_routes_fail_before_services`
 - Limitations: Proves deterministic restoration and duplicate rejection with local durable fakes; the capability remains absent from the public route table.
-- Claim SHA-256: `dd6c0eadf66bb3add46056f8b303e877bbb0b52b58e33d6bec31bf7c705cbb26`
+- Claim SHA-256: `3898e671f965728c52fe6a7e1159ad2d56ec6be2a469c363f0d1b888d2570191`
 
 ### DAY15-DEPLOYMENT-GATE-01
 
@@ -530,7 +530,7 @@ The project dependency declares an exact Strands Agents SDK pin at 1.53.0.
 The primary agent exposes exactly the five canonical principal tools derived from the runtime factory.
 
 - Status / kind / scope: `PROVEN` / `TEST` / `Local deterministic`
-- Commit anchor: `17d5f4637dbd69a33eff1cbb46282c36b19ce6ad`
+- Commit anchor: `a2e16d0f1d625b34916440d6740a486f73cf2bb1`
 - Authority source:
   - `src/aioa_cloudops_agent/agent/factory.py::CURRENT_TOOL_NAMES`
   - `src/aioa_cloudops_agent/agent/factory.py::FINAL_TOOL_CAP`
@@ -538,7 +538,7 @@ The primary agent exposes exactly the five canonical principal tools derived fro
   - `P0-01`
   - `tests/unit/test_strands_agent.py::test_factory_creates_exactly_one_primary_agent_and_five_canonical_tools`
 - Limitations: Counts principal Strands tools in this repository, not infrastructure endpoints.
-- Claim SHA-256: `3fafc06134c63321841d48097bdfe255048f97ad31a1c0ad339f742aa12ad912`
+- Claim SHA-256: `54522687833457fcc8bea3cdbb6cba8c4d752b79cec2c8d379e853bdf6306bb7`
 
 ### VERIFIED-SUCCESS-01
 

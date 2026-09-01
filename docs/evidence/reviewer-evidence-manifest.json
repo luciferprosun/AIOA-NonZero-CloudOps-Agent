@@ -6,9 +6,9 @@
       ],
       "claim": "The runtime factory creates one primary Strands Agent.",
       "claim_id": "AGENT-TOPOLOGY-01",
-      "commit_anchor": "17d5f4637dbd69a33eff1cbb46282c36b19ce6ad",
+      "commit_anchor": "a2e16d0f1d625b34916440d6740a486f73cf2bb1",
       "evidence_kind": "TEST",
-      "hash": "458e4b96b52819343c8d4dcc31708df1b9ee0d3f1d1d7251185e40accbaed51e",
+      "hash": "c9d9df98bb3936987a262104cc3b87954fd153e750068208c22ecec440c7e189",
       "limitations": "Proves the repository runtime factory, not the topology of an undeployed AWS stack.",
       "proof_nodes": [
         "P0-01",
@@ -84,9 +84,9 @@
       ],
       "claim": "A fresh Agent runtime can restore a durable native interrupt using trusted principal identity and a server-issued one-time challenge, while no approval or resume route is public.",
       "claim_id": "DAY15-COLD-RESUME-01",
-      "commit_anchor": "f2ee79c09ba174ba72cb527b70c095f412151758",
+      "commit_anchor": "a2e16d0f1d625b34916440d6740a486f73cf2bb1",
       "evidence_kind": "TEST",
-      "hash": "dd6c0eadf66bb3add46056f8b303e877bbb0b52b58e33d6bec31bf7c705cbb26",
+      "hash": "3898e671f965728c52fe6a7e1159ad2d56ec6be2a469c363f0d1b888d2570191",
       "limitations": "Proves deterministic restoration and duplicate rejection with local durable fakes; the capability remains absent from the public route table.",
       "proof_nodes": [
         "tests/integration/test_durable_hitl_approval_flow.py::test_fresh_process_restores_native_interrupt_with_trusted_one_time_freshness",
@@ -559,9 +559,9 @@
       ],
       "claim": "The primary agent exposes exactly the five canonical principal tools derived from the runtime factory.",
       "claim_id": "TOOL-SURFACE-01",
-      "commit_anchor": "17d5f4637dbd69a33eff1cbb46282c36b19ce6ad",
+      "commit_anchor": "a2e16d0f1d625b34916440d6740a486f73cf2bb1",
       "evidence_kind": "TEST",
-      "hash": "3fafc06134c63321841d48097bdfe255048f97ad31a1c0ad339f742aa12ad912",
+      "hash": "54522687833457fcc8bea3cdbb6cba8c4d752b79cec2c8d379e853bdf6306bb7",
       "limitations": "Counts principal Strands tools in this repository, not infrastructure endpoints.",
       "proof_nodes": [
         "P0-01",
@@ -664,6 +664,6 @@
     "strands_version": "1.53.0"
   },
   "live_receipts": [],
-  "manifest_hash": "d447bd58904dfa86c858ecb7a031f7bdd0d2a12f445f763de9a877f5ebb95777",
+  "manifest_hash": "c7b5843e3fcabfcf8c271e942329525dc90e5f392292763b4ebee6230e639af8",
   "schema_version": "2.0"
 }
