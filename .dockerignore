@@ -1,0 +1,11 @@
+# Deny by default. The runtime build receives only the explicitly re-included files.
+**
+!Dockerfile
+!.dockerignore
+!LICENSE
+!README.md
+!pyproject.toml
+!requirements/
+!requirements/*.lock
+!src/
+!src/**

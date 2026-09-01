@@ -21,6 +21,7 @@ from .investigation import (
 )
 from .local_first import LocalFirstMode, LocalFirstSettings
 from .local_hitl import LocalHitlSettings
+from .portable_server import PortableServerSettings
 from .remediation import SandboxRemediationSettings
 from .runtime import ModelProviderName, RuntimeMode, RuntimeSettings
 from .settings import AwsSettings, CostGuardrails, DynamoDbBillingMode
@@ -48,6 +49,7 @@ __all__ = [
     "LocalFirstSettings",
     "LocalHitlSettings",
     "ModelProviderName",
+    "PortableServerSettings",
     "RuntimeMode",
     "RuntimeSettings",
     "SandboxRemediationSettings",

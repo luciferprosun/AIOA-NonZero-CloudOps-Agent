@@ -35,6 +35,71 @@ targets. None is required for import, startup, tests, Strands execution, HITL, e
 recovery, the local API, or the judge demo. Historical AWS deployment contracts remain preserved but
 do not grant deployment or mutation authority.
 
+## Portable container contract
+
+The canonical deployable process is `python -m aioa_cloudops_agent.portable_server`. It composes the
+existing Local-2 API, the same provider-neutral Strands Agent, durable truth, mock inventory, human
+approval, execution, verification, recovery and replay controls. It is not a deployment-only agent
+loop. The image is locked to CPython 3.12 on `linux/amd64`; the base image, build backend and complete
+runtime dependency closure are digest/hash pinned.
+
+| Class | Environment variable | Default / required value | Behavior |
+| --- | --- | --- | --- |
+| REQUIRED image identity | `APPLICATION_VERSION` | build argument; `0.2.0rc1` for this candidate | Public non-secret version label. |
+| REQUIRED image identity | `SOURCE_COMMIT` | full candidate SHA; `unknown` only for an uncommitted development build | Public non-secret source binding. |
+| LOCAL_DEFAULT | `AIOA_RUNTIME_MODE` | `portable` | Any container selection other than `portable` fails before serving. |
+| LOCAL_DEFAULT | `AIOA_MODEL_PROVIDER` | `mock` | Ambient AWS variables never select Bedrock. |
+| OPTIONAL portable | `AIOA_MODEL_ID` | `aioa.mock.deterministic-v1` | If supplied, it must equal the deterministic model ID. |
+| LOCAL_DEFAULT | `AIOA_HOST` | image: `0.0.0.0`; source run: `127.0.0.1` | Only these two bind addresses are accepted. Publish the container port on host loopback. |
+| LOCAL_DEFAULT | `AIOA_PORT` | `8765` | Integer `1..65535`; both endpoints use this port. |
+| REQUIRED safety | `AIOA_ALLOWED_ORIGINS` | `same-origin` | No wildcard CORS or reflected origin is supported. |
+| REQUIRED safety | `AIOA_ALLOWED_EGRESS` | `none` | Portable startup accepts no other egress policy. Use an internal/no-network runtime network. |
+| REQUIRED storage | `AIOA_STORAGE_MODE` | `file` | No hidden database or cloud store is selected. |
+| LOCAL_DEFAULT storage | `AIOA_LOCAL_HITL_STATE_PATH` | image: `/var/lib/aioa/durable-truth.json` | Versioned, integrity-protected durable truth. |
+| LOCAL_DEFAULT storage | `AIOA_LOCAL_INVENTORY_PATH` | image: `/var/lib/aioa/mock-inventory.json` | Separate mock resource state. |
+| LOCAL_DEFAULT secret name | `AIOA_LOCAL_API_TOKEN_PATH` | image: `/var/lib/aioa/operator.token` | Owner-only bearer material is generated at runtime; the value is never an image input or log field. |
+| LOCAL_DEFAULT | `AIOA_SESSION_TTL_SECONDS` | `600` | Human approval/session challenge lifetime, bounded to `60..3600`. |
+| REQUIRED fixed limit | `AIOA_REQUEST_TIMEOUT_SECONDS` | `10` | Socket timeout; any other value is rejected because the server limit is application-owned. |
+| REQUIRED fixed limit | `AIOA_REQUEST_SIZE_LIMIT_BYTES` | `16384` | HTTP body ceiling; any other value is rejected. |
+| LOCAL_DEFAULT | `AIOA_PROVIDER_TIMEOUT_SECONDS` | `0` | Deterministic mock makes no provider network call. |
+| LOCAL_DEFAULT | `AIOA_RETRY_BUDGET` | `0` | No provider transport retry exists in portable mode. |
+| OPTIONAL | `AIOA_LOG_LEVEL` | `INFO` | One of `INFO`, `WARNING`, `ERROR`; credentials and request headers are never logged. |
+| REQUIRED truth label | `AIOA_PUBLIC_MODE_LABEL` | `DEMO_SANDBOX` | Prevents a local demo from presenting as live cloud execution. |
+| REQUIRED truth label | `AIOA_SANDBOX_MODE` | `MOCK_OFFLINE` | Exact portable sandbox selection. |
+| REQUIRED authority | `AIOA_AUTHORITY_MODE` | `HUMAN_APPROVAL_REQUIRED` | Model output cannot authorize execution. |
+| LIVE_ONLY | `AIOA_AWS_INTEGRATION_ENABLED`, `BEDROCK_MODEL_ID`, `BEDROCK_REGION` | absent/disabled here | Optional AWS adapter inputs; forbidden by the portable server. |
+
+`GET /health` is zero-dependency liveness. `GET /ready` checks the explicit portable/mock provider
+and both protected local stores; neither endpoint needs credentials. The writable path is
+`/var/lib/aioa`; the application root can remain read-only. PID 1 is the Python application and
+handles `SIGTERM`/`SIGINT` through the server cleanup boundary.
+
+### Build and isolated smoke
+
+```bash
+SOURCE_COMMIT="$(git rev-parse HEAD)"
+docker build --platform linux/amd64 \
+  --build-arg APPLICATION_VERSION=0.2.0rc1 \
+  --build-arg SOURCE_COMMIT="$SOURCE_COMMIT" \
+  --tag aioa-portable:0.2.0rc1 .
+docker volume create aioa-portable-state
+docker run --detach --name aioa-portable \
+  --network none --read-only --tmpfs /tmp:rw,nosuid,nodev,noexec \
+  --cap-drop ALL --security-opt no-new-privileges \
+  --mount type=volume,src=aioa-portable-state,dst=/var/lib/aioa \
+  aioa-portable:0.2.0rc1
+docker exec aioa-portable python -c \
+  "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:8765/health').read().decode())"
+docker exec aioa-portable python -c \
+  "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:8765/ready').read().decode())"
+docker stop aioa-portable
+docker rm aioa-portable
+docker volume rm aioa-portable-state
+```
+
+The image is local only. These commands do not push, deploy, contact AWS, or expose the service on a
+host interface. The B5 orchestration/certification layer adds the documented judge flows.
+
 ## Provider selection
 
 | Mode | Provider | Result |

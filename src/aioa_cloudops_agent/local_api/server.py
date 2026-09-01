@@ -161,12 +161,15 @@ def create_local_http_server(
     *,
     host: str = _LOOPBACK_HOST,
     port: int = 8765,
+    allow_container_binding: bool = False,
 ) -> ThreadingHTTPServer:
-    """Create a server that refuses non-loopback binding."""
+    """Create a bounded server; non-loopback binding requires explicit container intent."""
 
     if not isinstance(application, LocalApiApplication):
         raise TypeError("application must be LocalApiApplication")
-    if host != _LOOPBACK_HOST:
+    if host != _LOOPBACK_HOST and not (
+        allow_container_binding and host == "0.0.0.0"
+    ):
         raise ValueError("local API may bind only to 127.0.0.1")
     if isinstance(port, bool) or not isinstance(port, int) or not 0 <= port <= 65_535:
         raise ValueError("port must be between 0 and 65535")
