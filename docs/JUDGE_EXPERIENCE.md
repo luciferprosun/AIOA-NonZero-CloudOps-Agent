@@ -132,7 +132,7 @@ Reviewed reference captures:
 
 ## Verification
 
-Focused B3 checks:
+Focused B3/B4 checks:
 
 ```bash
 .venv/bin/python -m pytest -q \
@@ -141,6 +141,7 @@ Focused B3 checks:
   tests/unit/test_local_hitl_api.py \
   tests/integration/test_local_hitl_http_server.py \
   tests/integration/test_portable_judge_experience.py
+.venv/bin/python scripts/run_b4_hardening_gate.py
 .venv/bin/python -m ruff check .
 ```
 
@@ -153,8 +154,12 @@ substitute for the contract suite.
 ## Intentional limits
 
 - This is not a public endpoint and has no CORS allowance.
+- The loopback API has bounded body/header sizes, socket waits, and handler concurrency; it does not
+  claim a public multi-user identity or rate-limiting service.
 - The deterministic model path requires no paid key and makes no external request.
 - The browser does not claim live Strands model inference, AWS identity, IAM effectiveness, Bedrock
   access, production availability, or real infrastructure mutation.
-- Public-host hardening, abuse controls, bounded soak evidence, and release manifests belong to B4.
-- Container freezing and clean-container reproduction belong to B5.
+- B4 local reliability/security/evidence hardening is complete; externally anchored signatures and
+  public-host controls are not claimed.
+- Container freezing, the container artifact manifest, and clean-container reproduction belong to
+  B5.

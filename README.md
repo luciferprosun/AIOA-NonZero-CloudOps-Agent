@@ -34,6 +34,7 @@ python3.12 -m venv .venv
 .venv/bin/python -m pytest -q
 .venv/bin/python scripts/run_p0_gate.py
 .venv/bin/python scripts/run_p1_gate.py
+.venv/bin/python scripts/run_b4_hardening_gate.py
 .venv/bin/python scripts/build_reviewer_evidence_manifest.py --check
 .venv/bin/python scripts/validate_reviewer_evidence_manifest.py
 ```
@@ -52,6 +53,8 @@ It writes a hash-bound, owner-only evidence bundle under `.local/portable/` and 
 credential, API key, paid provider, local LLM or network service. See
 [`docs/PORTABLE_RUNTIME.md`](docs/PORTABLE_RUNTIME.md) and
 [`docs/JUDGE_SANDBOX.md`](docs/JUDGE_SANDBOX.md).
+The B4 attack matrix and exact reliability/security limits are documented in
+[`docs/RELIABILITY_SECURITY.md`](docs/RELIABILITY_SECURITY.md).
 
 Phase 3 adds local release validation without requiring AWS credentials:
 
@@ -115,7 +118,7 @@ Run the same workflow through the loopback-only API and embedded operator consol
 .venv/bin/python scripts/run_local_hitl_api.py --open-browser
 ```
 
-The B3 judge experience opens with a fragment-only credential bootstrap, exchanges it for an
+The B3/B4 judge experience opens with a fragment-only credential bootstrap, exchanges it for an
 `HttpOnly` same-site loopback session, and removes the fragment immediately. Choose the approval or
 denial story in one click, then follow the visible evidence, proposal, policy, human decision,
 execution, verification, and receipt stages. Refresh/resume, stale-tab rejection, and duplicate-click

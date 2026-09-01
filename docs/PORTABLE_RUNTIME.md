@@ -99,3 +99,13 @@ calls a live cloud API.
   Strands runtime with a custom loop.
 - `PORTABLE_OUTPUT_SYMLINK_FORBIDDEN`: choose a regular evidence path; the writer will not follow an
   output symlink.
+- `PORTABLE_OUTPUT_EXISTING_FILE_UNSAFE`: the selected existing output is not an owner-only, valid
+  portable receipt. Choose the canonical `.local/portable/` output or a new path; unrelated files
+  are deliberately preserved.
+- `local durable state is corrupt or unreadable`: B4 accepts only the versioned integrity envelope.
+  Preserve an older unsealed file for forensics and choose fresh local truth/inventory paths; no
+  implicit migration or destructive deletion occurs.
+
+The loopback API keeps liveness and readiness separate. `/health` reports process response only.
+`/ready` validates portable/mock provider truth plus readable durable and sandbox snapshots and
+returns a redacted retryable `503` when either protected file is corrupt.

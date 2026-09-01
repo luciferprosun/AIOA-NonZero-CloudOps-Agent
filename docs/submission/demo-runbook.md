@@ -1,6 +1,6 @@
-# AIOA Non-Zero CloudOps — Phase 3 Local Jury Demo Runbook
+# AIOA Non-Zero CloudOps — Portable Local Jury Demo Runbook
 
-Status: `DEPLOYMENT_READY_LOCAL_RC` candidate; `MOCK/OFFLINE`; not deployed or live verified.
+Status: `PORTABLE_B4_HARDENED`; `MOCK/OFFLINE`; not deployed or live verified.
 
 ## Fast executable proof
 
@@ -79,13 +79,20 @@ automated proof. Do not use a private/public tunnel or change the loopback bind 
 ## Honest narration
 
 Say “AWS-shaped deterministic local inventory,” “protected mock mutation,” and
-“deployment-ready local release candidate.” Do not say live AWS deployment, effective IAM proof,
+“reliability-hardened portable local candidate.” Do not say live AWS deployment, effective IAM proof,
 Bedrock invocation, production availability, or real EC2 change. Local tests prove control-flow and
 contract properties; they do not prove an external account or deployed service.
 
 ## Verification before recording
 
 Run only from a clean committed tree. The final all-in-one gate is:
+
+```bash
+.venv/bin/python scripts/run_b4_hardening_gate.py
+```
+
+This B4 gate does not replace the complete project regression. The retained Phase 3 all-in-one gate
+can also be run against the exact clean head:
 
 ```bash
 HEAD_SHA="$(git rev-parse HEAD)"

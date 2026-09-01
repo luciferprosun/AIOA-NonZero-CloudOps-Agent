@@ -100,7 +100,9 @@ The server exposes only:
 The server refuses a bind other than `127.0.0.1`. It creates or loads one regular owner-only token
 file, compares token digests in constant time, derives the actor session on the server, suppresses
 request logging, accepts no query authority, caps request bodies, rejects duplicate/non-finite JSON
-and unknown fields, and emits no exception text. Responses are non-cacheable and carry CSP,
+and unknown fields, and emits no exception text. B4 also caps headers and concurrent handlers, sets
+a socket timeout, and makes `/ready` validate provider plus both local stores. Responses are
+non-cacheable and carry CSP,
 frame-denial, content-type, permissions, and referrer protections. The B3 launcher passes the raw
 token only in a URL fragment, the page removes it immediately and exchanges it for an `HttpOnly`,
 `SameSite=Strict` session cookie, and no credential is written to browser storage. Cookie-authenticated
@@ -116,8 +118,9 @@ AIOA_LOCAL_INVENTORY_PATH=.local/aioa-local-mock-inventory.json
 AIOA_LOCAL_APPROVAL_TTL_SECONDS=600
 ```
 
-The durable-truth and inventory paths must differ, and approval TTL must be 60–3600 seconds. An
-explicit `live` mode is unavailable and fails during configuration; there is no silent fallback.
+The durable-truth and inventory paths must differ, reject traversal/symlinks/hard-link aliasing, and
+approval TTL must be 60–3600 seconds. An explicit `live` mode is unavailable and fails during
+configuration; there is no silent fallback.
 
 ```bash
 .venv/bin/python scripts/run_local_hitl_demo.py --scenario elastic-ip --decision approved
@@ -132,6 +135,9 @@ its durable JSON evidence without overwriting a prior scenario.
 Local tests prove approve, deny, replay, expiry, actor mismatch, exact-rule mutation, crash/restart
 receipt reconciliation, unavailable-state classification, independent verification, HTTP schema and
 authentication controls, token-file permissions, loopback binding, and zero mock network calls.
+B4 additionally proves type-bound whole-snapshot integrity, atomic partial-write protection, exact
+intent binding, 16-request duplicate concurrency, secret sanitization, and explicit readiness. See
+[`../RELIABILITY_SECURITY.md`](../RELIABILITY_SECURITY.md).
 
 They do not prove a live AWS identity, effective IAM policy, deployed endpoint, DynamoDB/S3 state,
 Bedrock/Nova access, CloudWatch evidence, provider receipt, or live mutation. Those claims remain

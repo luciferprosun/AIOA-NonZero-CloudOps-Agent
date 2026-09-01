@@ -97,3 +97,20 @@ console into the primary judge-facing product experience while keeping
 `.venv/bin/python scripts/run_local_hitl_api.py --open-browser`; see
 [`JUDGE_EXPERIENCE.md`](JUDGE_EXPERIENCE.md). It is not a second agent runtime or a second evidence
 schema.
+
+## B4 hardening
+
+Durable truth and mock inventory now use separate versioned, type-bound integrity envelopes and
+atomic owner-only writes. Duplicate keys, malformed/truncated files, permissive modes, unsafe paths,
+and digest mismatch fail closed. The judge API reads run, checkpoint, event count, bounded timeline,
+and snapshot digest under one lock. Its timeline labels facts, agent inference, policy, human
+decision, action, verification, and recovery separately.
+
+Run the complete B4 attack/recovery matrix with:
+
+```bash
+.venv/bin/python scripts/run_b4_hardening_gate.py
+```
+
+See [`RELIABILITY_SECURITY.md`](RELIABILITY_SECURITY.md) for exact limits, failure/recovery semantics,
+network behavior, redaction coverage, and the honest limits of the adjacent local SHA-256.
