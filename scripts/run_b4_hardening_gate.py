@@ -19,6 +19,7 @@ from typing import Final
 ROOT: Final = Path(__file__).resolve().parents[1]
 OUTPUT_ROOT: Final = ROOT / ".local" / "b4"
 DEFAULT_OUTPUT: Final = OUTPUT_ROOT / "hardening-gate.json"
+NETWORK_GUARD_PLUGIN: Final = "scripts.b4_network_guard"
 SCENARIOS: Final[tuple[tuple[str, str], ...]] = (
     (
         "APPROVE_NORMAL",
@@ -122,7 +123,15 @@ def _run_scenario(name: str, node: str) -> dict[str, object]:
     started = time.monotonic()
     try:
         result = subprocess.run(
-            (sys.executable, "-m", "pytest", "-q", node),
+            (
+                sys.executable,
+                "-m",
+                "pytest",
+                "-q",
+                "-p",
+                NETWORK_GUARD_PLUGIN,
+                node,
+            ),
             cwd=ROOT,
             env=_environment(),
             capture_output=True,
@@ -166,6 +175,7 @@ def _receipt(results: tuple[dict[str, object], ...]) -> dict[str, object]:
         "external_network_calls": 0,
         "generated_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
         "git_head": _git_head(),
+        "network_guard": "LOOPBACK_ONLY_FAIL_CLOSED",
         "phase": "PORTABLE_B4_RELIABILITY_SECURITY_EVIDENCE_HARDENING",
         "proof_tests": sum(int(result["proof_tests"]) for result in results),
         "receipt_type": "AIOA_B4_HARDENING_GATE",
