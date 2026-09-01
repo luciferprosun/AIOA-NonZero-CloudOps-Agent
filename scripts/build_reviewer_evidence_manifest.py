@@ -61,6 +61,7 @@ LOCAL_FIRST_PHASE2_COMMIT = "7ffe0cf7c9ca4a5c7c311fd5394a245e80bb78e0"
 PHASE3_IAC_COMMIT = "c16f6829e8b258af86523b0b1d61e34586702b63"
 PHASE3_RC_COMMIT = "5ac15d30a604434713490d77edb573d14a8f1dcd"
 PORTABLE_B1_COMMIT = "a2e16d0f1d625b34916440d6740a486f73cf2bb1"
+PORTABLE_B3_COMMIT = "1882089fbb41a3f7f3cbad821ed9d6d8c6c2e9a5"
 DAY15_RECOVERY_LINEAGE = (
     DAY15_START_COMMIT,
     DAY15_ORIGINAL_M1_COMMIT,
@@ -328,13 +329,15 @@ def build_claims() -> list[dict[str, Any]]:
         ),
         _claim(
             "LOCAL2-LOOPBACK-API-01",
-            "The Local-2 operator surface is loopback-only, bearer-authenticated, schema-bounded, non-cacheable, and keeps its credential out of browser storage.",
+            "The Local-2 judge surface is loopback-only, bearer-bootstrapped into an HttpOnly same-site session, schema-bounded, non-cacheable, and exposes only a sanitized durable evidence timeline.",
             "TEST",
             (
                 "src/aioa_cloudops_agent/local_api/application.py::LocalApiApplication",
                 "src/aioa_cloudops_agent/local_api/auth.py::LocalApiTokenAuthorizer.authorize",
+                "src/aioa_cloudops_agent/local_api/judge_ui.py::judge_ui_headers",
                 "src/aioa_cloudops_agent/local_api/server.py::create_local_http_server",
                 "src/aioa_cloudops_agent/local_api/server.py::load_or_create_local_token",
+                "src/aioa_cloudops_agent/local_api/views.py::run_view",
             ),
             (
                 "tests/integration/test_local_hitl_http_server.py::"
@@ -343,13 +346,19 @@ def build_claims() -> list[dict[str, Any]]:
                 "test_server_refuses_non_loopback_bind",
                 "tests/integration/test_local_hitl_http_server.py::"
                 "test_token_file_is_created_once_with_owner_only_permissions",
+                "tests/integration/test_portable_judge_experience.py::"
+                "test_judge_http_experience_survives_stale_tab_duplicate_click_and_restart",
+                "tests/unit/test_judge_console_launcher.py::"
+                "test_browser_bootstrap_keeps_session_credential_in_fragment_only",
                 "tests/unit/test_local_hitl_api.py::"
                 "test_full_approved_http_flow_executes_verifies_and_reconciles",
                 "tests/unit/test_local_hitl_api.py::"
                 "test_public_console_has_strict_csp_and_no_browser_secret_storage",
+                "tests/unit/test_local_hitl_api.py::"
+                "test_run_view_is_sanitized_and_exposes_bounded_audit_evidence",
             ),
-            commit_anchor=LOCAL_FIRST_PHASE2_COMMIT,
-            limitations="Proves a local single-operator demonstration boundary, not a deployed identity provider, public endpoint, or production authorization service.",
+            commit_anchor=PORTABLE_B3_COMMIT,
+            limitations="Proves a local single-operator demo boundary and deterministic sandbox behavior; it does not attest to a deployed identity provider, public endpoint, production authorization service, or provider-backed operation.",
         ),
         _claim(
             "MODEL-AUTHORITY-01",
@@ -915,7 +924,7 @@ From the repository root in the documented development environment:
 .venv/bin/python scripts/validate_reviewer_evidence_manifest.py
 ```
 
-The immutable Phase 1 / Day 14 baseline remains anchored to `{EVIDENCE_SNAPSHOT_COMMIT}`. Unchanged Day 15 M1 claims remain at their original reviewed commit `{DAY15_ORIGINAL_M1_COMMIT}`; recovered telemetry and runtime-guard claims use `{DAY15_M1_COMMIT}`. Credential-free Local-First authority is split between the reviewed Phase 1 foundation `{LOCAL_FIRST_PHASE1_COMMIT}` and the reviewed Phase 2 human-authorization/execution implementation `{LOCAL_FIRST_PHASE2_COMMIT}`. The provider-neutral primary-agent topology, tool surface, and cold-resume factory authority are re-anchored to portable B1 commit `{PORTABLE_B1_COMMIT}`. The three authority sources changed during Phase 3 are explicitly re-anchored: current Day 15 gate plus SAM release safety at `{PHASE3_IAC_COMMIT}`, and the RC package/SDK pin at `{PHASE3_RC_COMMIT}`. The preserved Day 15 recovery lineage, in order, is `{DAY15_START_COMMIT}`, then `{DAY15_ORIGINAL_M1_COMMIT}`, `{DAY15_ORIGINAL_M2_COMMIT}`, `{DAY15_ORIGINAL_M3_COMMIT}`, `{DAY15_M1_COMMIT}`, `{DAY15_M2_COMMIT}`, `{DAY15_FINAL_BLOCKER_COMMIT}`, `{DAY15_SECRET_FIX_COMMIT}`, `{DAY15_G10_IMPLEMENTATION_COMMIT}`, `{DAY15_G10_EVIDENCE_COMMIT}`, `{DAY15_G10_BLOCKER_COMMIT}`, `{DAY15_NOVA_PROBE_FIX_COMMIT}`, `{DAY15_G10_REANCHOR_COMMIT}`, and `{DAY15_G10_COMMIT}`. The candidate snapshot is deliberately `LOCAL_IMPLEMENTATION_CANDIDATE`; it records no live AWS observation, change set, or deployment. The builder never derives an anchor from changing `HEAD`; every claim anchor names a prior immutable implementation commit, avoiding a self-referential commit hash.
+The immutable Phase 1 / Day 14 baseline remains anchored to `{EVIDENCE_SNAPSHOT_COMMIT}`. Unchanged Day 15 M1 claims remain at their original reviewed commit `{DAY15_ORIGINAL_M1_COMMIT}`; recovered telemetry and runtime-guard claims use `{DAY15_M1_COMMIT}`. Credential-free Local-First authority is split between the reviewed Phase 1 foundation `{LOCAL_FIRST_PHASE1_COMMIT}` and the reviewed Phase 2 human-authorization/execution implementation `{LOCAL_FIRST_PHASE2_COMMIT}`. The provider-neutral primary-agent topology, tool surface, and cold-resume factory authority are re-anchored to portable B1 commit `{PORTABLE_B1_COMMIT}`. The judge-facing loopback API, browser session bridge, sanitized timeline, and portable experience tests are anchored to portable B3 commit `{PORTABLE_B3_COMMIT}`. The three authority sources changed during Phase 3 are explicitly re-anchored: current Day 15 gate plus SAM release safety at `{PHASE3_IAC_COMMIT}`, and the RC package/SDK pin at `{PHASE3_RC_COMMIT}`. The preserved Day 15 recovery lineage, in order, is `{DAY15_START_COMMIT}`, then `{DAY15_ORIGINAL_M1_COMMIT}`, `{DAY15_ORIGINAL_M2_COMMIT}`, `{DAY15_ORIGINAL_M3_COMMIT}`, `{DAY15_M1_COMMIT}`, `{DAY15_M2_COMMIT}`, `{DAY15_FINAL_BLOCKER_COMMIT}`, `{DAY15_SECRET_FIX_COMMIT}`, `{DAY15_G10_IMPLEMENTATION_COMMIT}`, `{DAY15_G10_EVIDENCE_COMMIT}`, `{DAY15_G10_BLOCKER_COMMIT}`, `{DAY15_NOVA_PROBE_FIX_COMMIT}`, `{DAY15_G10_REANCHOR_COMMIT}`, and `{DAY15_G10_COMMIT}`. The candidate snapshot is deliberately `LOCAL_IMPLEMENTATION_CANDIDATE`; it records no live AWS observation, change set, or deployment. The builder never derives an anchor from changing `HEAD`; every claim anchor names a prior immutable implementation commit, avoiding a self-referential commit hash.
 
 ## Canonical model
 

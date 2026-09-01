@@ -361,21 +361,26 @@
       "authority_source": [
         "src/aioa_cloudops_agent/local_api/application.py::LocalApiApplication",
         "src/aioa_cloudops_agent/local_api/auth.py::LocalApiTokenAuthorizer.authorize",
+        "src/aioa_cloudops_agent/local_api/judge_ui.py::judge_ui_headers",
         "src/aioa_cloudops_agent/local_api/server.py::create_local_http_server",
-        "src/aioa_cloudops_agent/local_api/server.py::load_or_create_local_token"
+        "src/aioa_cloudops_agent/local_api/server.py::load_or_create_local_token",
+        "src/aioa_cloudops_agent/local_api/views.py::run_view"
       ],
-      "claim": "The Local-2 operator surface is loopback-only, bearer-authenticated, schema-bounded, non-cacheable, and keeps its credential out of browser storage.",
+      "claim": "The Local-2 judge surface is loopback-only, bearer-bootstrapped into an HttpOnly same-site session, schema-bounded, non-cacheable, and exposes only a sanitized durable evidence timeline.",
       "claim_id": "LOCAL2-LOOPBACK-API-01",
-      "commit_anchor": "7ffe0cf7c9ca4a5c7c311fd5394a245e80bb78e0",
+      "commit_anchor": "1882089fbb41a3f7f3cbad821ed9d6d8c6c2e9a5",
       "evidence_kind": "TEST",
-      "hash": "22b9a0c032cc5fe505934fb5c8c2064e59c5bbc5707d6087b6eeef3825d6de5e",
-      "limitations": "Proves a local single-operator demonstration boundary, not a deployed identity provider, public endpoint, or production authorization service.",
+      "hash": "838cdfe4aef7439af95dd3ffe2ef5b4aab47cab7d41ba9c4f1a26a75184dcc3d",
+      "limitations": "Proves a local single-operator demo boundary and deterministic sandbox behavior; it does not attest to a deployed identity provider, public endpoint, production authorization service, or provider-backed operation.",
       "proof_nodes": [
         "tests/integration/test_local_hitl_http_server.py::test_real_loopback_server_exposes_health_and_authenticated_start",
         "tests/integration/test_local_hitl_http_server.py::test_server_refuses_non_loopback_bind",
         "tests/integration/test_local_hitl_http_server.py::test_token_file_is_created_once_with_owner_only_permissions",
+        "tests/integration/test_portable_judge_experience.py::test_judge_http_experience_survives_stale_tab_duplicate_click_and_restart",
+        "tests/unit/test_judge_console_launcher.py::test_browser_bootstrap_keeps_session_credential_in_fragment_only",
         "tests/unit/test_local_hitl_api.py::test_full_approved_http_flow_executes_verifies_and_reconciles",
-        "tests/unit/test_local_hitl_api.py::test_public_console_has_strict_csp_and_no_browser_secret_storage"
+        "tests/unit/test_local_hitl_api.py::test_public_console_has_strict_csp_and_no_browser_secret_storage",
+        "tests/unit/test_local_hitl_api.py::test_run_view_is_sanitized_and_exposes_bounded_audit_evidence"
       ],
       "scope": "Local deterministic",
       "status": "PROVEN"
@@ -664,6 +669,6 @@
     "strands_version": "1.53.0"
   },
   "live_receipts": [],
-  "manifest_hash": "c7b5843e3fcabfcf8c271e942329525dc90e5f392292763b4ebee6230e639af8",
+  "manifest_hash": "71d49ae39ef3b25512036f770a86f58c029c4314e532c1dedd7eb87c3a329d8a",
   "schema_version": "2.0"
 }

@@ -65,6 +65,7 @@ from scripts.build_reviewer_evidence_manifest import (  # noqa: E402
     P1_PROOF_CASES,
     PHASE3_IAC_COMMIT,
     PHASE3_RC_COMMIT,
+    PORTABLE_B3_COMMIT,
     PRIOR_ARMOR_COMMITS,
     README_PATH,
     SCHEMA_VERSION,
@@ -290,6 +291,7 @@ _FROZEN_LOCAL_FIRST_PHASE2_COMMIT = "7ffe0cf7c9ca4a5c7c311fd5394a245e80bb78e0"
 _FROZEN_PHASE3_IAC_COMMIT = "c16f6829e8b258af86523b0b1d61e34586702b63"
 _FROZEN_PHASE3_RC_COMMIT = "5ac15d30a604434713490d77edb573d14a8f1dcd"
 _FROZEN_PORTABLE_B1_COMMIT = "a2e16d0f1d625b34916440d6740a486f73cf2bb1"
+_FROZEN_PORTABLE_B3_COMMIT = "1882089fbb41a3f7f3cbad821ed9d6d8c6c2e9a5"
 _FROZEN_DAY15_RECOVERY_LINEAGE = (
     _FROZEN_DAY15_START_COMMIT,
     _FROZEN_DAY15_ORIGINAL_M1_COMMIT,
@@ -334,6 +336,7 @@ _PORTABLE_B1_CLAIM_IDS = {
     "DAY15-COLD-RESUME-01",
     "TOOL-SURFACE-01",
 }
+_PORTABLE_B3_CLAIM_IDS = {"LOCAL2-LOOPBACK-API-01"}
 _LOCAL_FIRST_PHASE1_CLAIM_IDS = {
     "DEFAULT-DENY-01",
     "VERIFIED-SUCCESS-01",
@@ -341,7 +344,6 @@ _LOCAL_FIRST_PHASE1_CLAIM_IDS = {
 _LOCAL_FIRST_PHASE2_CLAIM_IDS = {
     "APPROVAL-BINDING-01",
     "LOCAL2-HITL-EXECUTION-01",
-    "LOCAL2-LOOPBACK-API-01",
     "MODEL-AUTHORITY-01",
     "PROPOSAL-DURABILITY-01",
 }
@@ -1233,6 +1235,7 @@ def _validate_day15_candidate_snapshot(
         or LOCAL_FIRST_PHASE2_COMMIT != _FROZEN_LOCAL_FIRST_PHASE2_COMMIT
         or PHASE3_IAC_COMMIT != _FROZEN_PHASE3_IAC_COMMIT
         or PHASE3_RC_COMMIT != _FROZEN_PHASE3_RC_COMMIT
+        or PORTABLE_B3_COMMIT != _FROZEN_PORTABLE_B3_COMMIT
         or DAY15_RECOVERY_LINEAGE != _FROZEN_DAY15_RECOVERY_LINEAGE
         or DAY15_CANDIDATE_STATUS != _FROZEN_DAY15_CANDIDATE_STATUS
     ):
@@ -1270,6 +1273,8 @@ def _expected_claim_anchor(claim_id: str) -> str | None:
         return _FROZEN_PHASE3_RC_COMMIT
     if claim_id in _PORTABLE_B1_CLAIM_IDS:
         return _FROZEN_PORTABLE_B1_COMMIT
+    if claim_id in _PORTABLE_B3_CLAIM_IDS:
+        return _FROZEN_PORTABLE_B3_COMMIT
     return None
 
 
@@ -1298,6 +1303,7 @@ def _validate_claims(
         _PHASE3_IAC_CLAIM_IDS,
         _PHASE3_RC_CLAIM_IDS,
         _PORTABLE_B1_CLAIM_IDS,
+        _PORTABLE_B3_CLAIM_IDS,
         _LOCAL_FIRST_PHASE1_CLAIM_IDS,
         _LOCAL_FIRST_PHASE2_CLAIM_IDS,
     )
@@ -1682,6 +1688,20 @@ def _validate_git_anchors(
         _FROZEN_PHASE3_RC_COMMIT,
         _FROZEN_PORTABLE_B1_COMMIT,
     )
+    portable_b1_to_portable_b3 = _git(
+        root,
+        "merge-base",
+        "--is-ancestor",
+        _FROZEN_PORTABLE_B1_COMMIT,
+        _FROZEN_PORTABLE_B3_COMMIT,
+    )
+    portable_b3_to_head = _git(
+        root,
+        "merge-base",
+        "--is-ancestor",
+        _FROZEN_PORTABLE_B3_COMMIT,
+        "HEAD",
+    )
     parent_results = tuple(
         (
             _git(root, "rev-list", "--parents", "-n", "1", child),
@@ -1697,6 +1717,8 @@ def _validate_git_anchors(
         or local_phase2_to_phase3_iac.returncode != 0
         or phase3_iac_to_rc.returncode != 0
         or phase3_rc_to_portable_b1.returncode != 0
+        or portable_b1_to_portable_b3.returncode != 0
+        or portable_b3_to_head.returncode != 0
         or any(
             result.returncode != 0 or result.stdout.split() != expected
             for result, expected in parent_results
@@ -1765,6 +1787,7 @@ def _validate_git_anchors(
                     _FROZEN_PHASE3_IAC_COMMIT,
                     _FROZEN_PHASE3_RC_COMMIT,
                     _FROZEN_PORTABLE_B1_COMMIT,
+                    _FROZEN_PORTABLE_B3_COMMIT,
                 }
                 or exists.returncode != 0
                 or history.returncode != 0

@@ -6,7 +6,7 @@ This judge-facing view is generated from the canonical JSON. It is reviewer proo
 - Day 15 local candidate snapshot: `197db56f828b8ab0b9139a1d3708fb8a58ca336a` (`LOCAL_IMPLEMENTATION_CANDIDATE`)
 - Day 15 additive recovery lineage: `aa941a989a8b8cd0e40367bb130472e9f3c082a7` -> `17d5f4637dbd69a33eff1cbb46282c36b19ce6ad` -> `8e4583ac9341cb7b66de47cf0e7b2a442ac67b32` -> `30c2a30cda0ac6d6e2003166daf6c29bf2c764f0` -> `f2ee79c09ba174ba72cb527b70c095f412151758` -> `36fd17df981dfa593d4e63f6a143410317410763` -> `ce35a67f6491ea92aeef534d0dc4f5dc4a8da7ff` -> `5a6127f43a9251a72203c0eb6c7a903d817599f7` -> `3464bc869e7a11acb5aab61ae279cf196a1ebd0f` -> `41ba5586180e9aa3a25fc5469d42815073a0bbf8` -> `858770d5e5c7b59fa883cc56e06f4a9e915d70c1` -> `5e1904408d402c1e6492d6b2e153a7f1a5c56b58` -> `99f70c43a26ce9715e9b57fde81ca265382dd5f2` -> `197db56f828b8ab0b9139a1d3708fb8a58ca336a`
 - Day 15 gates: `D15-G01, D15-G02, D15-G03, D15-G04, D15-G05, D15-G06, D15-G07, D15-G08, D15-G09, D15-G10`
-- Manifest SHA-256: `c7b5843e3fcabfcf8c271e942329525dc90e5f392292763b4ebee6230e639af8`
+- Manifest SHA-256: `71d49ae39ef3b25512036f770a86f58c029c4314e532c1dedd7eb87c3a329d8a`
 - Primary agents: `1`
 - Canonical tools: `inspect_instance, read_utilization_metrics, build_remediation_evidence, stop_sandbox_instance, verify_instance_state`
 - Bedrock model: `eu.amazon.nova-2-lite-v1:0` in `eu-central-1`
@@ -34,7 +34,7 @@ This judge-facing view is generated from the canonical JSON. It is reviewer proo
 | IDEMPOTENCY-01 | PROVEN | TEST | mocked AWS | A duplicate logical action cannot silently execute twice while durable idempotency state is acknowledged or unresolved. |
 | LIVE-EC2-01 | NOT_YET_PROVEN | DOC | live AWS | A live EC2 StopInstances event is not yet proven by this repository. |
 | LOCAL2-HITL-EXECUTION-01 | PROVEN | TEST | Local deterministic | Local mock execution requires an exact authenticated approval, durable idempotency ownership, one atomic receipt, and independent verification before evidenced success. |
-| LOCAL2-LOOPBACK-API-01 | PROVEN | TEST | Local deterministic | The Local-2 operator surface is loopback-only, bearer-authenticated, schema-bounded, non-cacheable, and keeps its credential out of browser storage. |
+| LOCAL2-LOOPBACK-API-01 | PROVEN | TEST | Local deterministic | The Local-2 judge surface is loopback-only, bearer-bootstrapped into an HttpOnly same-site session, schema-bounded, non-cacheable, and exposes only a sanitized durable evidence timeline. |
 | MODEL-AUTHORITY-01 | PROVEN | TEST | Local deterministic | Model output cannot itself authorize mutation; execution requires deterministic policy and durable human authority. |
 | MODEL-PIN-01 | PROVEN | STATIC | Local deterministic | The default Bedrock model configuration selects Amazon Nova 2 Lite in eu-central-1. |
 | P0-GATE-01 | PROVEN | TEST | Local deterministic | The canonical P0 matrix passed all 15 gates with 136 proof cases at its reviewed commit anchor. |
@@ -362,23 +362,28 @@ Local mock execution requires an exact authenticated approval, durable idempoten
 
 ### LOCAL2-LOOPBACK-API-01
 
-The Local-2 operator surface is loopback-only, bearer-authenticated, schema-bounded, non-cacheable, and keeps its credential out of browser storage.
+The Local-2 judge surface is loopback-only, bearer-bootstrapped into an HttpOnly same-site session, schema-bounded, non-cacheable, and exposes only a sanitized durable evidence timeline.
 
 - Status / kind / scope: `PROVEN` / `TEST` / `Local deterministic`
-- Commit anchor: `7ffe0cf7c9ca4a5c7c311fd5394a245e80bb78e0`
+- Commit anchor: `1882089fbb41a3f7f3cbad821ed9d6d8c6c2e9a5`
 - Authority source:
   - `src/aioa_cloudops_agent/local_api/application.py::LocalApiApplication`
   - `src/aioa_cloudops_agent/local_api/auth.py::LocalApiTokenAuthorizer.authorize`
+  - `src/aioa_cloudops_agent/local_api/judge_ui.py::judge_ui_headers`
   - `src/aioa_cloudops_agent/local_api/server.py::create_local_http_server`
   - `src/aioa_cloudops_agent/local_api/server.py::load_or_create_local_token`
+  - `src/aioa_cloudops_agent/local_api/views.py::run_view`
 - Proof nodes:
   - `tests/integration/test_local_hitl_http_server.py::test_real_loopback_server_exposes_health_and_authenticated_start`
   - `tests/integration/test_local_hitl_http_server.py::test_server_refuses_non_loopback_bind`
   - `tests/integration/test_local_hitl_http_server.py::test_token_file_is_created_once_with_owner_only_permissions`
+  - `tests/integration/test_portable_judge_experience.py::test_judge_http_experience_survives_stale_tab_duplicate_click_and_restart`
+  - `tests/unit/test_judge_console_launcher.py::test_browser_bootstrap_keeps_session_credential_in_fragment_only`
   - `tests/unit/test_local_hitl_api.py::test_full_approved_http_flow_executes_verifies_and_reconciles`
   - `tests/unit/test_local_hitl_api.py::test_public_console_has_strict_csp_and_no_browser_secret_storage`
-- Limitations: Proves a local single-operator demonstration boundary, not a deployed identity provider, public endpoint, or production authorization service.
-- Claim SHA-256: `22b9a0c032cc5fe505934fb5c8c2064e59c5bbc5707d6087b6eeef3825d6de5e`
+  - `tests/unit/test_local_hitl_api.py::test_run_view_is_sanitized_and_exposes_bounded_audit_evidence`
+- Limitations: Proves a local single-operator demo boundary and deterministic sandbox behavior; it does not attest to a deployed identity provider, public endpoint, production authorization service, or provider-backed operation.
+- Claim SHA-256: `838cdfe4aef7439af95dd3ffe2ef5b4aab47cab7d41ba9c4f1a26a75184dcc3d`
 
 ### MODEL-AUTHORITY-01
 
