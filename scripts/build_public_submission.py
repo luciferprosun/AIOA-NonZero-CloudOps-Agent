@@ -326,7 +326,7 @@ def _b5_reference(attestation: Mapping[str, object]) -> dict[str, object]:
         "container_id": attestation["container_id"],
         "document_type": "AIOA_B5_PUBLIC_BUILD_COMPLETE_REFERENCE",
         "limitations": attestation["limitations"],
-        "local_image_reference": "localhost/aioa-portable:b5-cmd-c262c9f25bbe",
+        "local_image_reference": "localhost/aioa-portable:b5-render-797c94e72151",
         "publications": attestation.get("publications"),
         "schema_version": 1,
         "source_commit": attestation["source_commit"],

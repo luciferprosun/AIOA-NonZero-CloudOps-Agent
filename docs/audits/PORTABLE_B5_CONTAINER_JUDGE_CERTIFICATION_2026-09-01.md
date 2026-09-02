@@ -8,7 +8,7 @@ Render startup-script implementation commit: `af44999efe4bda7aa8b35931377af5eee0
 
 Frozen image-source commit: `797c94e72151c46504b9ae81412738aa6b253e8a`
 
-B5 evidence-freeze commit: `PENDING_CURRENT_RECERTIFICATION_COMMIT`
+B5 evidence-freeze commit: `bafe664295ebcf2f67735854fcc36de156abc225`
 
 ## Outcome
 

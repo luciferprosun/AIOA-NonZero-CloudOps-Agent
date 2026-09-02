@@ -121,7 +121,7 @@ def test_bundle_is_deterministic_and_inventories_every_index_blob(tmp_path: Path
     )
     assert (
         b5_reference["local_image_reference"]
-        == "localhost/aioa-portable:b5-cmd-c262c9f25bbe"
+        == "localhost/aioa-portable:b5-render-797c94e72151"
     )
 
     listed_sums = (candidate / "SHA256SUMS").read_text().splitlines()
@@ -167,11 +167,12 @@ def test_public_docs_cover_required_judge_contract() -> None:
         "## License and hackathon disclosure",
     )
     assert all(fragment in readme for fragment in required_fragments)
-    assert "localhost/aioa-portable:b5-cmd-c262c9f25bbe" in readme
-    assert "d5eca6b273309ba0fda6e143af47ea0c9c160a7605b29dd6f1fa8262c8d720e9" in readme
-    assert "sha256:371b7c5b3bc9d88fe07aba54a5bd4b3e69a526ea1ff313b09253b75983e5856a" in readme
+    assert "localhost/aioa-portable:b5-render-797c94e72151" in readme
+    assert "2f4b9a0d2708ae82aeda558e45271b59b192894a3b09a1831723ad42e8fe78b4" in readme
+    assert "sha256:bdf35995e5588ccb93348f0784411d32d0aeb480483b1f34d530c4e3f34edbc3" in readme
     assert "default `CMD`" in readme
     assert "no fixed `ENTRYPOINT`" in readme
+    assert "dockerCommand` `/usr/local/bin/aioa-render-start" in readme
     for path in (
         "docs/submission/ARCHITECTURE.md",
         "docs/submission/DEMO_SCRIPT_DRAFT.md",

@@ -36,7 +36,7 @@ image identity and every B6 bundle/image hash.
 | --- | --- | --- |
 | fixed Render startup executable and focused proof | `af44999efe4bda7aa8b35931377af5eee0b49bbc` | PASS |
 | frozen B5 image source and re-anchored reviewer evidence | `797c94e72151c46504b9ae81412738aa6b253e8a` | PASS |
-| regenerated B5 machine evidence | pending current recertification commit | PASS pending commit |
+| regenerated B5 machine evidence | `bafe664295ebcf2f67735854fcc36de156abc225` | PASS |
 | sanitized B6 source and clean-room certification | pending | INVALIDATED_PENDING_RECERTIFICATION |
 
 ## Current B5 outcome

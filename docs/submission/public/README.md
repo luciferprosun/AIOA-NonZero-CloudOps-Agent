@@ -90,9 +90,9 @@ Expected top-level result: `status=PASS`, `runtime_mode=portable`, `provider=moc
 
 The frozen B5 local artifact is referenced—not republished—by
 [`B5_BUILD_COMPLETE_REFERENCE.json`](B5_BUILD_COMPLETE_REFERENCE.json). Its local-only identity is
-`localhost/aioa-portable:b5-cmd-c262c9f25bbe`, image ID
-`d5eca6b273309ba0fda6e143af47ea0c9c160a7605b29dd6f1fa8262c8d720e9`, and local manifest digest
-`sha256:371b7c5b3bc9d88fe07aba54a5bd4b3e69a526ea1ff313b09253b75983e5856a`. That tag was never pushed;
+`localhost/aioa-portable:b5-render-797c94e72151`, image ID
+`2f4b9a0d2708ae82aeda558e45271b59b192894a3b09a1831723ad42e8fe78b4`, and local manifest digest
+`sha256:bdf35995e5588ccb93348f0784411d32d0aeb480483b1f34d530c4e3f34edbc3`. That tag was never pushed;
 the public-candidate rebuild receives its own local identity and is not claimed byte-identical to
 the frozen B5 image because this judge-facing README is an export overlay.
 
@@ -101,6 +101,11 @@ the frozen B5 image because this judge-facing README is an export overlay.
 The canonical server is `python -m aioa_cloudops_agent.portable_server`, configured as the image's
 default `CMD` with no fixed `ENTRYPOINT`, and runs as a non-root user. Start it without host
 networking and probe from inside the container:
+
+Render uses the fixed `dockerCommand` `/usr/local/bin/aioa-render-start`. The checked-in
+`scripts/render_start.sh` fails closed without `AIOA_OPERATOR_TOKEN`, writes it only to the
+configured token path with mode `0600`, removes it from the child environment, and `exec`s the same
+canonical server. No multi-command shell string is part of the Render startup contract.
 
 ```bash
 docker run --detach --name aioa-public-check \
