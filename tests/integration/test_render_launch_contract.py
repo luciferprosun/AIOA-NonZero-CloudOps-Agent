@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 import os
-import shlex
 import signal
 import socket
 import stat
@@ -19,6 +18,7 @@ import yaml
 ROOT = Path(__file__).resolve().parents[2]
 BLUEPRINT_PATH = ROOT / "render.yaml"
 DOCKERFILE_PATH = ROOT / "Dockerfile"
+START_SCRIPT_PATH = ROOT / "scripts" / "render_start.sh"
 
 
 def _service() -> dict[str, Any]:
@@ -102,17 +102,22 @@ def test_render_docker_command_securely_bootstraps_canonical_server(
 ) -> None:
     service = _service()
     command = service.get("dockerCommand")
-    assert isinstance(command, str)
+    assert command == "/usr/local/bin/aioa-render-start"
     dockerfile = DOCKERFILE_PATH.read_text(encoding="utf-8")
     assert 'CMD ["python", "-m", "aioa_cloudops_agent.portable_server"]' in dockerfile
     assert "ENTRYPOINT" not in dockerfile
+    assert (
+        "COPY scripts/render_start.sh /usr/local/bin/aioa-render-start" in dockerfile
+    )
+    assert "chmod 0555 /usr/local/bin/aioa-render-start" in dockerfile
+    assert START_SCRIPT_PATH.stat().st_mode & stat.S_IXUSR
 
     port = _free_loopback_port()
     environment = _environment(service, tmp_path, port)
     token = "render-" + "bootstrap-" + ("t" * 48)
     environment["AIOA_OPERATOR_TOKEN"] = token
     process = subprocess.Popen(
-        shlex.split(command),
+        [str(START_SCRIPT_PATH)],
         cwd=ROOT,
         env=environment,
         stdout=subprocess.PIPE,
@@ -159,12 +164,12 @@ def test_render_docker_command_fails_closed_without_operator_token(
 ) -> None:
     service = _service()
     command = service.get("dockerCommand")
-    assert isinstance(command, str)
+    assert command == "/usr/local/bin/aioa-render-start"
     environment = _environment(service, tmp_path, _free_loopback_port())
     environment.pop("AIOA_OPERATOR_TOKEN", None)
 
     result = subprocess.run(
-        shlex.split(command),
+        [str(START_SCRIPT_PATH)],
         cwd=ROOT,
         env=environment,
         capture_output=True,

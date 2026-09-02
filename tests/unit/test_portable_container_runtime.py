@@ -106,8 +106,12 @@ def test_docker_build_context_is_deny_by_default_and_runtime_is_non_root() -> No
 
     assert dockerignore.splitlines()[1] == "**"
     assert "!src/**" in dockerignore
+    assert "!scripts/" in dockerignore
+    assert "!scripts/render_start.sh" in dockerignore
     assert "USER aioa" in dockerfile
     assert "chmod 2770 /var/lib/aioa" in dockerfile
+    assert "COPY scripts/render_start.sh /usr/local/bin/aioa-render-start" in dockerfile
+    assert "chmod 0555 /usr/local/bin/aioa-render-start" in dockerfile
     assert "CMD [\"python\", \"-m\", \"aioa_cloudops_agent.portable_server\"]" in dockerfile
     assert "ENTRYPOINT" not in dockerfile
     assert "AIOA_LOCAL_HITL_STATE_PATH=/var/lib/aioa/durable-truth.json" in dockerfile

@@ -50,11 +50,13 @@ ENV APPLICATION_VERSION="${APPLICATION_VERSION}" \
     AIOA_AUTHORITY_MODE=HUMAN_APPROVAL_REQUIRED
 
 COPY --from=builder /runtime/ /usr/local/
+COPY scripts/render_start.sh /usr/local/bin/aioa-render-start
 RUN groupadd --gid 65532 aioa \
     && useradd --uid 65532 --gid 65532 --home-dir /nonexistent --no-create-home --shell /usr/sbin/nologin aioa \
     && usermod --append --groups root aioa \
     && mkdir -p /app /var/lib/aioa \
-    && chmod 2770 /var/lib/aioa
+    && chmod 2770 /var/lib/aioa \
+    && chmod 0555 /usr/local/bin/aioa-render-start
 
 WORKDIR /app
 USER aioa

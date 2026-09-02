@@ -7,12 +7,7 @@ services:
     region: frankfurt
     plan: free
     dockerfilePath: ./Dockerfile
-    dockerCommand: >-
-      /bin/sh -c 'set -eu; umask 077; test -n "${AIOA_OPERATOR_TOKEN:-}" ||
-      { printf "%s\n" "AIOA operator token missing" >&2; exit 2; };
-      printf "%s\n" "$AIOA_OPERATOR_TOKEN" > "$AIOA_LOCAL_API_TOKEN_PATH";
-      unset AIOA_OPERATOR_TOKEN;
-      exec python -m aioa_cloudops_agent.portable_server'
+    dockerCommand: /usr/local/bin/aioa-render-start
     healthCheckPath: /ready
     autoDeployTrigger: "off"
     renderSubdomainPolicy: enabled

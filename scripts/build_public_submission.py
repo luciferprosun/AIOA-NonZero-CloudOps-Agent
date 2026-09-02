@@ -59,6 +59,7 @@ _REQUIRED_EXACT: Final = frozenset(
         "requirements/build.lock",
         "requirements/portable.lock",
         "scripts/build_public_submission.py",
+        "scripts/render_start.sh",
         "scripts/run_b5_container_gate.py",
         "scripts/run_portable_demo.py",
         "scripts/scan_public_submission.py",

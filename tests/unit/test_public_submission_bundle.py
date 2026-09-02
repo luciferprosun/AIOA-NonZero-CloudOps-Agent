@@ -70,6 +70,7 @@ def _fixture_repository(root: Path) -> None:
 
 def test_policy_classifies_public_private_generated_secret_and_legal_paths() -> None:
     assert classify_path("src/example.py").name == "PUBLIC_REQUIRED"
+    assert classify_path("scripts/render_start.sh").name == "PUBLIC_REQUIRED"
     assert classify_path("tests/unit/test_example.py").name == "PUBLIC_ALLOWED"
     assert classify_path("docs/audits/private.md").name == "PRIVATE_INTERNAL"
     assert classify_path("README.md").name == "GENERATED"

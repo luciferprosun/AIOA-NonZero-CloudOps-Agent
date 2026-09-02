@@ -8,5 +8,7 @@
 !pyproject.toml
 !requirements/
 !requirements/*.lock
+!scripts/
+!scripts/render_start.sh
 !src/
 !src/**
