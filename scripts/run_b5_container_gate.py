@@ -36,7 +36,7 @@ DEFAULT_OUTPUT: Final = ROOT / ".local" / "b5-b6" / "container-judge-gate.json"
 _COMMIT: Final = re.compile(r"^[0-9a-f]{40}$")
 _IMAGE: Final = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/@:+-]{0,255}$")
 _SHA256: Final = re.compile(r"^sha256:[0-9a-f]{64}$")
-_ENTRYPOINT: Final = ["python", "-m", "aioa_cloudops_agent.portable_server"]
+_COMMAND: Final = ["python", "-m", "aioa_cloudops_agent.portable_server"]
 _SAFE_ENGINE_RUN_ARGS: Final = frozenset(
     {
         "--cgroups=disabled",
@@ -183,10 +183,12 @@ def inspect_image(
         raise ContainerGateError("CONTAINER_IMAGE_CONFIG_INVALID")
     image_id = _normalize_image_id(document.get("Id"))
     user = config.get("User", document.get("User"))
+    command = config.get("Cmd")
     entrypoint = config.get("Entrypoint")
     if (
         user != "aioa"
-        or entrypoint != _ENTRYPOINT
+        or command != _COMMAND
+        or entrypoint not in (None, [])
         or labels.get("org.opencontainers.image.revision") != expected_source_commit
         or labels.get("org.opencontainers.image.licenses") != "MIT"
         or document.get("Architecture") != "amd64"
@@ -214,7 +216,7 @@ def inspect_image(
         "configured_user": "aioa",
         "content_identity": content_identity,
         "digest": digest,
-        "entrypoint": _ENTRYPOINT,
+        "cmd": _COMMAND,
         "id": image_id,
         "license": "MIT",
         "os": "linux",

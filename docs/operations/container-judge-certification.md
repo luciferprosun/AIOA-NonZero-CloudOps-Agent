@@ -20,7 +20,9 @@ python scripts/run_b5_container_gate.py \
 ```
 
 The gate first inspects the image identity and requires Linux/amd64, the exact source label, MIT
-license label, non-root `aioa` user, and canonical server entrypoint. It then checks the configured
+license label, non-root `aioa` user, the canonical server default command, and no fixed entrypoint.
+Keeping the default in `CMD` preserves direct container startup while allowing a deployment
+platform to replace that command with a secret bootstrap. The gate then checks the configured
 image user under `--cap-drop ALL`, `--security-opt no-new-privileges`, a read-only root filesystem,
 a no-exec `/tmp` tmpfs, and `--network none`.
 

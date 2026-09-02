@@ -21,7 +21,8 @@ def _image_document() -> dict[str, object]:
     return {
         "Architecture": "amd64",
         "Config": {
-            "Entrypoint": ["python", "-m", "aioa_cloudops_agent.portable_server"],
+            "Cmd": ["python", "-m", "aioa_cloudops_agent.portable_server"],
+            "Entrypoint": None,
             "Labels": {
                 "org.opencontainers.image.licenses": "MIT",
                 "org.opencontainers.image.revision": COMMIT,
@@ -39,10 +40,10 @@ def _image_document() -> dict[str, object]:
 def _image_contract() -> dict[str, object]:
     return {
         "architecture": "amd64",
+        "cmd": ["python", "-m", "aioa_cloudops_agent.portable_server"],
         "configured_user": "aioa",
         "content_identity": DIGEST,
         "digest": DIGEST,
-        "entrypoint": ["python", "-m", "aioa_cloudops_agent.portable_server"],
         "id": IMAGE_ID,
         "license": "MIT",
         "os": "linux",

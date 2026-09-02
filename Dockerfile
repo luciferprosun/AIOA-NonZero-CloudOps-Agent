@@ -60,4 +60,4 @@ WORKDIR /app
 USER aioa
 EXPOSE 8765
 HEALTHCHECK --interval=10s --timeout=3s --start-period=10s --retries=3 CMD ["python", "-c", "import os,urllib.request; response=urllib.request.urlopen(f'http://127.0.0.1:{os.environ[\"AIOA_PORT\"]}/health',timeout=2); raise SystemExit(0 if response.status==200 else 1)"]
-ENTRYPOINT ["python", "-m", "aioa_cloudops_agent.portable_server"]
+CMD ["python", "-m", "aioa_cloudops_agent.portable_server"]

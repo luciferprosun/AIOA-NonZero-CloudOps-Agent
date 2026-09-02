@@ -108,7 +108,8 @@ def test_docker_build_context_is_deny_by_default_and_runtime_is_non_root() -> No
     assert "!src/**" in dockerignore
     assert "USER aioa" in dockerfile
     assert "chmod 2770 /var/lib/aioa" in dockerfile
-    assert "ENTRYPOINT [\"python\", \"-m\", \"aioa_cloudops_agent.portable_server\"]" in dockerfile
+    assert "CMD [\"python\", \"-m\", \"aioa_cloudops_agent.portable_server\"]" in dockerfile
+    assert "ENTRYPOINT" not in dockerfile
     assert "AIOA_LOCAL_HITL_STATE_PATH=/var/lib/aioa/durable-truth.json" in dockerfile
     assert "HEALTHCHECK" in dockerfile
     assert "chmod 777" not in dockerfile
