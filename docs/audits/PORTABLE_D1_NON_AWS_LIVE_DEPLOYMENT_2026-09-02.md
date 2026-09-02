@@ -67,8 +67,45 @@ deferred the actual deployment until morning; subsequent work is CLI-only.
 
 ## D1.2 live launch
 
-Status: `NOT_STARTED`.
+Status: `CLI_ACCEPTANCE_HARNESS_PASS`; `LIVE_BLOCKED_BY_HUMAN_DEPLOY`.
+
+The provider-agnostic acceptance harness is committed at
+`scripts/operations/run_live_acceptance.py`. It accepts its URL only through `AIOA_PUBLIC_URL` and
+its operator credential only through `AIOA_OPERATOR_TOKEN_FILE` or an inherited environment value;
+there is no token CLI option. File input is opened without following symlinks and requires a regular,
+single-link, owner-only file. Non-loopback HTTP and non-HTTPS live mode fail closed. HTTPS uses the
+standard verifying TLS context with bounded timeouts and response capture.
+
+The harness was exercised against a separately launched canonical
+`python -m aioa_cloudops_agent.portable_server` process. All seven checks passed: safe health,
+readiness, unknown-route rejection, unsupported-method rejection, unauthenticated session denial,
+Bearer-to-session bootstrap, and authenticated cookie-session lookup. The focused regression was
+`16 passed`; Ruff, `pip check`, and `git diff --check` passed. The tracked receipt is
+`docs/evidence/deployment/portable-d1-cli-acceptance.json`; it contains status codes and content
+hashes but no operator token, session cookie, raw header, private state path, or provider secret.
+
+```text
+D1_2_CLI_HARNESS=PASS
+D1_2_LIVE=BLOCKED_BY_HUMAN_DEPLOY
+LOCAL_CANONICAL_PROCESS=PASS
+LOCAL_ACCEPTANCE_CHECKS=7/7
+LOCAL_FOCUSED_TESTS=16/16
+LIVE_PUBLIC_URL=NOT_CREATED
+LIVE_HTTPS_REQUESTS=0
+AWS_CALLS=0
+AWS_MUTATIONS=0
+BROWSER_ACTIONS=0
+PROVIDER_RESOURCE_CREATION=0
+```
+
+Cookie `Secure` is deliberately not promoted from this local HTTP proof. The D2 public-HTTPS probe
+must require and measure it after deployment. The currently frozen application emits `HttpOnly` and
+`SameSite=Strict`; no claim of a live `Secure` attribute is made here.
 
 ## D1.3 live certification and freeze
 
-Status: `NOT_STARTED`.
+Status: `BLOCKED_BY_HUMAN_DEPLOY`.
+
+Approve, deny, replay, binding-tamper, cold-start, and deployed-source checks have not been run
+against a public service because no service or public URL exists. This is a human deployment
+dependency, not a failure of the local CLI harness.

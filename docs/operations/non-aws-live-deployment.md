@@ -57,6 +57,25 @@ Evidence needed for the final submission is captured outside the provider after 
 restart drill must verify both sides of this contract: restart recovery to healthy/ready service and
 expected reset of instance-local demo state.
 
+## CLI acceptance after the human deploys
+
+The provider control plane is not used by the acceptance harness. After the human has created the
+reviewed Blueprint, provide only the public origin and an owner-only regular token file:
+
+```bash
+export AIOA_PUBLIC_URL="https://<service>.onrender.com"
+export AIOA_OPERATOR_TOKEN_FILE="/absolute/path/to/owner-only/operator.token"
+.venv/bin/python scripts/operations/run_live_acceptance.py --mode live \
+  --receipt .local/live-acceptance/acceptance-receipt.json
+```
+
+The token is intentionally unavailable as a CLI argument. The harness rejects non-HTTPS live
+origins, loopback confusion, symlinked or group/world-accessible token files, unbounded timeouts,
+and non-verifying TLS. Its receipt contains the origin, tested source revision, timestamps, HTTP
+status codes, and response hashes; it never contains the token, session cookie, raw request headers,
+or raw response headers. `--mode local` applies the same contract to an explicit loopback HTTP
+origin for deterministic pre-deployment proof.
+
 ## Launch and rollback controls
 
 1. Authenticate to Render; stop for CAPTCHA, 2FA, payment, or legal declarations.
