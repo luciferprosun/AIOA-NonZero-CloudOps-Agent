@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: synthetic-aioa-workspace-incident
+    runtime: docker
+    plan: free
+    region: frankfurt
+    healthCheckPath: /ready
+    dockerCommand: >-
+      /bin/sh -eu -c 'umask 077; test -n "${AIOA_OPERATOR_TOKEN:-}" || { printf "%s\n" "operator bootstrap missing" >&2; exit 2; }; printf "%s\n" "$AIOA_OPERATOR_TOKEN" > "$AIOA_LOCAL_API_TOKEN_PATH"; chmod 0600 "$AIOA_LOCAL_API_TOKEN_PATH"; unset AIOA_OPERATOR_TOKEN; exec python -m aioa_cloudops_agent.portable_server'
+    envVars:
+      - key: AIOA_RUNTIME_MODE
+        value: portable
+      - key: AIOA_MODEL_PROVIDER
+        value: mock
+      - key: AIOA_AWS_INTEGRATION_ENABLED
+        value: "false"
+      - key: AIOA_PORT
+        value: "10000"
+      - key: AIOA_LOCAL_API_TOKEN_PATH
+        value: /var/lib/aioa/operator.token
+      - key: AIOA_OPERATOR_TOKEN
+        sync: false

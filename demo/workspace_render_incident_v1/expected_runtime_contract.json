@@ -1,0 +1,25 @@
+{
+  "fixture_version": "workspace_render_incident_v1",
+  "identifiers_are_synthetic": true,
+  "required_child_argv": [
+    "python",
+    "-m",
+    "aioa_cloudops_agent.portable_server"
+  ],
+  "required_health_paths": [
+    "/health",
+    "/ready"
+  ],
+  "startup_invariants": {
+    "bootstrap_secret_absent_from_child_environment": true,
+    "fail_closed_when_bootstrap_secret_missing": true,
+    "operator_token_file_mode": "0600",
+    "startup_entry_is_fixed_auditable_executable": true
+  },
+  "runtime_invariants": {
+    "authority_mode": "HUMAN_APPROVAL_REQUIRED",
+    "aws_integration_enabled": false,
+    "model_provider": "mock",
+    "network_egress_allowed": false
+  }
+}
