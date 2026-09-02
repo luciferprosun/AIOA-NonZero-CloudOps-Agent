@@ -16,6 +16,13 @@ from .contracts import (
     WorkspaceRef,
     normalize_workspace_relative_path,
 )
+from .evidence import (
+    WorkspaceArtifactHashResult,
+    WorkspaceArtifactReadResult,
+    WorkspaceEvidenceService,
+    WorkspaceInspectionResult,
+    WorkspaceListingResult,
+)
 from .fixture import (
     FIXTURE_VERSION,
     FixtureIntegrityError,
@@ -24,27 +31,50 @@ from .fixture import (
     inspect_fixture_tree,
     materialize_sealed_fixture,
 )
+from .jail import JailedArtifactRead, WorkspaceJail, WorkspaceJailViolation
 from .profile import (
     WORKSPACE_REMEDIATION_PROFILE_ID,
     WORKSPACE_REMEDIATION_PROFILE_VERSION,
     WORKSPACE_REMEDIATION_V1,
     WorkspaceCapabilityProfile,
 )
+from .tools import (
+    HASH_WORKSPACE_ARTIFACT_TOOL_NAME,
+    INSPECT_DEPLOYMENT_INCIDENT_TOOL_NAME,
+    LIST_WORKSPACE_ARTIFACTS_TOOL_NAME,
+    READ_WORKSPACE_ARTIFACT_TOOL_NAME,
+    WORKSPACE_TOOL_NAMES,
+    WorkspaceToolSet,
+    create_workspace_tools,
+)
 
 __all__ = [
     "FIXTURE_VERSION",
+    "HASH_WORKSPACE_ARTIFACT_TOOL_NAME",
+    "INSPECT_DEPLOYMENT_INCIDENT_TOOL_NAME",
+    "LIST_WORKSPACE_ARTIFACTS_TOOL_NAME",
+    "READ_WORKSPACE_ARTIFACT_TOOL_NAME",
     "WORKSPACE_REMEDIATION_PROFILE_ID",
     "WORKSPACE_REMEDIATION_PROFILE_VERSION",
     "WORKSPACE_REMEDIATION_V1",
+    "WORKSPACE_TOOL_NAMES",
     "FixtureIntegrityError",
+    "JailedArtifactRead",
     "MaterializedWorkspace",
+    "WorkspaceArtifactHashResult",
+    "WorkspaceArtifactReadResult",
     "WorkspaceArtifactRef",
     "WorkspaceArtifactType",
     "WorkspaceCapabilityProfile",
     "WorkspaceEvidenceOutcome",
     "WorkspaceEvidenceReceipt",
+    "WorkspaceEvidenceService",
     "WorkspaceHashResult",
+    "WorkspaceInspectionResult",
+    "WorkspaceJail",
+    "WorkspaceJailViolation",
     "WorkspaceListResult",
+    "WorkspaceListingResult",
     "WorkspaceObservation",
     "WorkspaceOperation",
     "WorkspacePolicyDecision",
@@ -52,7 +82,9 @@ __all__ = [
     "WorkspaceReadReceipt",
     "WorkspaceReadResult",
     "WorkspaceRef",
+    "WorkspaceToolSet",
     "canonical_artifact_set_digest",
+    "create_workspace_tools",
     "inspect_fixture_tree",
     "materialize_sealed_fixture",
     "normalize_workspace_relative_path",
