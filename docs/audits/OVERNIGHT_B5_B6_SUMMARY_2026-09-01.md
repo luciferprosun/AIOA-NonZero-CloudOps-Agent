@@ -1,15 +1,61 @@
 # Overnight B5/B6 summary
 
-## Outcome
+## Historical B5/B6 staircase
+
+The original five-commit B5/B6 certification remains part of repository history:
+
+| # | Historical unit | Commit | Historical gate |
+| ---: | --- | --- | --- |
+| 1 | B5.1 container runtime and contract | `d18f945a1484a1255339a3b4bcb1560c58d06d9b` | PASS |
+| 2 | B5.2 clean-clone container judge flow | `dbea5411b1c0d81de0035d9ef08e28211fb79e79` | PASS |
+| 3 | B5.3 build-complete freeze | `e66f05914d6de7fd9b5f5f76faef0fe5c0d19d65` | PASS |
+| 4 | B6.1 sanitized public submission package | `c7fa5a5c2509cccf071a9e58477776c1a1e00aea` | superseded |
+| 5 | B6.2 publication-ready reproducibility | historical following commit | superseded |
+
+The prior B6 result was invalidated when the Docker start contract changed. Its hashes and image
+identity must not be reused for the CMD-recertified release.
+
+## CMD recertification staircase
+
+| Stage | Commit | Status |
+| --- | --- | --- |
+| Render-compatible Docker start contract and focused proof | `5d10229d9ca0d243068c0ee77a0c90a4e722689c` | PASS |
+| frozen B5 image source and re-anchored reviewer evidence | `c262c9f25bbe069f17a05da7221dbce606edb7b8` | PASS |
+| regenerated B5 machine evidence | `dc09bfb0e8d9d265fe592882713d3c156bcd01ff` | PASS |
+| regenerated B6 public source | pending exact commit | IN_PROGRESS |
+| regenerated B6 reproducibility and final bundle | pending | IN_PROGRESS |
+
+## Current B5 outcome
 
 ```text
-PHASE=OVERNIGHT_PORTABLE_B5_B6
-HEAD_BEFORE=c8551708aa471fdec7012d81516bd83aa1e4f127
-B4=PASS
 B5=PASS
 BUILD_COMPLETE=PASS
-B6=PASS
-PUBLICATION_READY=PASS
+SOURCE_COMMIT=c262c9f25bbe069f17a05da7221dbce606edb7b8
+IMAGE_ID=d5eca6b273309ba0fda6e143af47ea0c9c160a7605b29dd6f1fa8262c8d720e9
+IMAGE_DIGEST=sha256:371b7c5b3bc9d88fe07aba54a5bd4b3e69a526ea1ff313b09253b75983e5856a
+CONFIGURED_ENTRYPOINT=NONE
+DEFAULT_CMD=python -m aioa_cloudops_agent.portable_server
+FULL_PYTEST=PASS 1465/1465
+P0=PASS 15/15
+P1=PASS 6/6
+B4=PASS 11/11
+SECRET_SCAN=PASS
+AWS_CALLS=0
+AWS_MUTATIONS=0
+EXTERNAL_DEPLOYMENTS=0
+```
+
+The Render bootstrap proof passed locally: a synthetic operator token was written to the configured
+file with mode `0600`, removed from the child environment, and followed by the exact canonical
+server process reaching `/health` and `/ready`. Missing-token startup failed closed.
+
+## Current boundary
+
+B6 is deliberately marked in progress until two deterministic sanitized builds, a clean-room
+no-cache image build, start/health/readiness, judge flows, final privacy scan, and regenerated hashes
+all pass. No old B6 archive or receipt is authoritative for this recertification.
+
+```text
 AWS_CALLS=0
 AWS_MUTATIONS=0
 EXTERNAL_DEPLOYMENTS=0
@@ -17,51 +63,5 @@ REMOTE_PUSHES=0
 PUBLICATION_ACTIONS=0
 ```
 
-## Five-commit staircase
-
-| # | Roadmap unit | Commit | Gate |
-| ---: | --- | --- | --- |
-| 1 | B5.1 container runtime and contract | `d18f945a1484a1255339a3b4bcb1560c58d06d9b` | PASS |
-| 2 | B5.2 clean-clone container judge flow | `dbea5411b1c0d81de0035d9ef08e28211fb79e79` | PASS |
-| 3 | B5.3 build-complete freeze | `e66f05914d6de7fd9b5f5f76faef0fe5c0d19d65` | PASS |
-| 4 | B6.1 sanitized public submission package | `c7fa5a5c2509cccf071a9e58477776c1a1e00aea` | PASS |
-| 5 | B6.2 publication-ready reproducibility | this commit: `test(submission): certify publication-ready reproducibility bundle` | PASS |
-
-The fifth row deliberately avoids a self-referential SHA. Its exact commit is the commit containing
-this document and is reported by `git log` in the morning handoff.
-
-## Frozen outputs
-
-- B5 build report: `docs/audits/PORTABLE_B5_BUILD_COMPLETE_RELEASE_CANDIDATE_2026-09-01.md`
-- B5 attestation: `docs/audits/BUILD_COMPLETE_ATTESTATION_2026-09-01.md`
-- B6 audit: `docs/audits/PORTABLE_B6_PUBLICATION_READY_2026-09-01.md`
-- B6 reproducibility receipt: `docs/evidence/submission/portable-b6-reproducibility.json`
-- B6 bundle receipt: `docs/evidence/submission/portable-b6-publication-bundle.json`
-- local archive: `dist/submission/portable-b6-2026-09-01/aioa-agents-for-humans-publication-candidate.zip`
-- local archive SHA-256: `c69baf9322cfcd234ca6610f733f5a8de4ae6a463f3e2a66ce8e78664b4c43de`
-
-## Preserved product invariants
-
-All five checkpoints preserve one Strands agent, five bounded tools, model output without execution
-authority, Non-Zero fail-closed states, exact human approval/denial binding, write-before-effect
-idempotency, restart recovery, replay protection, independent verification, and evidence-bound
-success. The deterministic portable path remains outside AWS and requires no paid provider.
-
-## Truth boundary
-
-The result is a locally reproducible publication candidate, not a production system or external
-submission. No AWS account, Bedrock model, live resource, public endpoint, registry, hosting service,
-remote branch, public repository setting, video platform, email support channel, or Devpost action
-was touched.
-
-## Stop and next step
-
-```text
-NEXT_STEP=D1_NON_AWS_LIVE_DEMO_DEPLOYMENT_PREP
-START_D1_NOW=NO
-HARD_BLOCKER=NONE
-HUMAN_ACTION_REQUIRED=REVIEW_LOCAL_REPORTS_BEFORE_ANY_EXTERNAL_ACTION
-```
-
-The macro-run stops after Commit 5 and the final read-only regression. It must not continue into D1
-without a new explicit instruction.
+No AWS account, Render resource, registry, public endpoint, browser session, email, video platform,
+or submission portal was touched.

@@ -143,8 +143,11 @@ Do not promote these placeholders into submission claims until the named receipt
 .venv/bin/python scripts/run_p0_gate.py
 .venv/bin/python scripts/run_p1_gate.py
 .venv/bin/python scripts/phase3/scan_secrets.py
-python scripts/build_public_submission.py --source-ref HEAD --output-dir <empty-directory>
-python scripts/scan_public_submission.py <candidate-directory>
+B6_SOURCE="$(git rev-parse HEAD)"
+test -z "$(git status --porcelain)"
+test "${#B6_SOURCE}" -eq 40
+python scripts/build_public_submission.py --source-ref "$B6_SOURCE" --output-root <empty-directory>
+python scripts/scan_public_submission.py --root <candidate-directory>
 ```
 
 This draft makes no claim of external submission, deployed availability, effective live IAM, live

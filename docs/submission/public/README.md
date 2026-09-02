@@ -90,16 +90,17 @@ Expected top-level result: `status=PASS`, `runtime_mode=portable`, `provider=moc
 
 The frozen B5 local artifact is referenced—not republished—by
 [`B5_BUILD_COMPLETE_REFERENCE.json`](B5_BUILD_COMPLETE_REFERENCE.json). Its local-only identity is
-`localhost/aioa-portable:b5-c2`, image ID
-`524fe1212fc65e3d35a015717d03250e25c5ad32359e1c9595878c5bc6b057e8`, and local manifest digest
-`sha256:a835f9bdbc7a3854304e5574440a6a9944ea4bd04e839eae317a8e6554855eae`. That tag was never pushed;
+`localhost/aioa-portable:b5-cmd-c262c9f25bbe`, image ID
+`d5eca6b273309ba0fda6e143af47ea0c9c160a7605b29dd6f1fa8262c8d720e9`, and local manifest digest
+`sha256:371b7c5b3bc9d88fe07aba54a5bd4b3e69a526ea1ff313b09253b75983e5856a`. That tag was never pushed;
 the public-candidate rebuild receives its own local identity and is not claimed byte-identical to
 the frozen B5 image because this judge-facing README is an export overlay.
 
 ## Health and readiness
 
-The canonical server is `python -m aioa_cloudops_agent.portable_server`, configured as PID 1 and a
-non-root user in the image. Start it without host networking and probe from inside the container:
+The canonical server is `python -m aioa_cloudops_agent.portable_server`, configured as the image's
+default `CMD` with no fixed `ENTRYPOINT`, and runs as a non-root user. Start it without host
+networking and probe from inside the container:
 
 ```bash
 docker run --detach --name aioa-public-check \

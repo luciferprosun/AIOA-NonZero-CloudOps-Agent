@@ -48,8 +48,10 @@ SOURCE_REF="$(python3 -c 'import json; print(json.load(open("PUBLICATION_MANIFES
 ```
 
 Expected: the build succeeds from `Dockerfile`, the exact digest-pinned base is selected, all runtime
-packages satisfy their hashes, and the image config declares user `aioa` plus entry point
-`python -m aioa_cloudops_agent.portable_server`.
+packages satisfy their hashes, and the image config declares user `aioa`, an empty/null
+`Config.Entrypoint`, and default
+`Config.Cmd=["python","-m","aioa_cloudops_agent.portable_server"]`. The `--entrypoint python`
+below is a deliberate judge-flow override; it is not the Dockerfile start contract.
 
 ## 3. Run approve, deny, recovery, and replay
 

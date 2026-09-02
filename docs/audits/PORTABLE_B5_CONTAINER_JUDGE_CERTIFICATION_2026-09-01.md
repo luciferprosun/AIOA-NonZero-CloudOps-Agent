@@ -1,19 +1,20 @@
 # Portable B5 container judge certification
 
-Date: 2026-09-01
+Date: 2026-09-02 CMD recertification
+
 Phase: B5, clean-clone container judge flows
-Baseline commit: `d18f945a1484a1255339a3b4bcb1560c58d06d9b`
-Checked-in status: `PRECOMMIT_QUALIFICATION_PASS_EXACT_COMMIT_ACCEPTANCE_REQUIRED`
+
+CMD implementation commit: `5d10229d9ca0d243068c0ee77a0c90a4e722689c`
+
+Frozen image-source commit: `c262c9f25bbe069f17a05da7221dbce606edb7b8`
+
+B5 evidence-freeze commit: `dc09bfb0e8d9d265fe592882713d3c156bcd01ff`
 
 ## Outcome
 
-The container judge path is implemented as one installed package module and one host-side
-certification gate. It reuses the existing Strands and Non-Zero implementation; it does not add an
-agent loop, execution authority, provider adapter, or evidence schema.
-
-The pre-commit qualification image passed two fresh `run --rm` invocations with no network, shared
-state, bind mount, volume, port publication, credential inheritance, AWS call, or AWS mutation. Each
-invocation proved:
+The source-bound image passed two fresh, isolated judge-flow invocations. Each invocation ran with
+no network, shared state, bind mount, volume, port publication, inherited credential, AWS call, or
+AWS mutation and proved:
 
 ```text
 APPROVED_FINAL_STATE=SUCCESS_WITH_EVIDENCE
@@ -34,19 +35,35 @@ AWS_MUTATIONS=0
 ```
 
 Both deterministic portable receipts had SHA-256
-`f365b07702e43c3848b3470453910b2239d640e8e9ec22a917790a702c110ba3`. The local aggregate gate
-receipt had SHA-256 `4bbe17f1ef358cc84295f08eff88b7d635a9746523e9c92eec41a70f1c4d73d9`.
-These are local mock/offline receipts, not live-cloud evidence.
+`f365b07702e43c3848b3470453910b2239d640e8e9ec22a917790a702c110ba3`. The aggregate gate's
+internal receipt SHA-256 is
+`f9f5861882cba8060ef05fd8f189848b07488dba24912af4f6624d947a503402`. These are local
+mock/offline receipts, not live-cloud evidence.
 
-## Image and runtime boundary
+## Image and start contract
 
-The qualified image was Linux/amd64, declared user `aioa`, MIT-labelled, read-only at runtime, and
-configured with `python -m aioa_cloudops_agent.portable_server` as its entrypoint. The local rootless
-engine has a single UID/GID mapping and cannot directly translate image UID/GID 65532. That engine
-limitation was not represented as a successful default-user run.
+```text
+LOCAL_REFERENCE=localhost/aioa-portable:b5-cmd-c262c9f25bbe
+IMAGE_ID=d5eca6b273309ba0fda6e143af47ea0c9c160a7605b29dd6f1fa8262c8d720e9
+LOCAL_MANIFEST_DIGEST=sha256:371b7c5b3bc9d88fe07aba54a5bd4b3e69a526ea1ff313b09253b75983e5856a
+CONFIGURED_USER=aioa
+CONFIGURED_ENTRYPOINT=NONE
+DEFAULT_CMD=python -m aioa_cloudops_agent.portable_server
+PLATFORM=linux/amd64
+```
 
-Instead, the exact qualified image root filesystem was executed through a nested OCI user namespace
-and a private receipt bound to the image ID, image digest, and baseline source label. It proved:
+The default command preserves ordinary container startup. Render's `dockerCommand` can replace that
+CMD, create the operator-token file with mode `0600`, remove `AIOA_OPERATOR_TOKEN` from the child
+environment, and then `exec` the same server module. The judge-flow command's `--entrypoint python`
+is a deliberate test override for `python -m aioa_cloudops_agent.portable`; it is not a claim about
+the Dockerfile's configured Entrypoint.
+
+## Non-root and local-engine boundary
+
+The local Podman 4.9.3 environment has a single host UID/GID mapping and cannot directly execute the
+image's declared UID/GID 65532. A failed default-user Podman probe was not counted as passing. The
+two disposable judge flows used the gate's narrowly allowed `--user 0:0` compatibility override
+only after a fresh image-ID/digest/source-bound non-root proof established:
 
 ```text
 EFFECTIVE_UID=65532
@@ -59,44 +76,38 @@ READINESS=ready
 TOKEN_MODE=0600
 ```
 
-Only after that separate bound proof did the local compatibility run use `--user 0:0` to work around
-the engine's mapping defect. The gate rejects any other user override and arbitrary extra engine
-arguments. Standard Docker/Podman certification uses the declared image user directly and does not
-use this compatibility override.
+That non-root proof used a private Bubblewrap user namespace against the exact exported image root
+filesystem. The machine gate calls this compatibility path `BOUND_EXTERNAL_OCI_RUNTIME`; that is a
+schema label, not a claim that the earlier nested-crun attempt succeeded. The operator-local Podman
+wrapper only works around an inaccessible parent path inside a private mount namespace. It does not
+change the host path, image contents, image privileges, flow mounts, or deployment configuration,
+and it is not represented as a declared-user Podman proof. A normal engine is expected to run the
+image's declared `aioa` user directly.
 
-## Package completeness
-
-The canonical command is now:
-
-```text
-python -m aioa_cloudops_agent.portable
-```
-
-`scripts/run_portable_demo.py` is a thin compatibility launcher for the same function. The reviewed
-offline deployment contract and verifier fixture ship inside the wheel as package data. Their bytes
-are tested against the existing canonical repository inputs, preventing a second or divergent
-runtime fixture.
-
-## Qualification checks
+## Recertification gates
 
 ```text
-TARGETED_CLI_CONTAINER_AND_SANDBOX_TESTS=26 passed
-RUFF_TARGETED=PASS
-WHEEL_BUILD=PASS
-WHEEL_PACKAGE_RESOURCES=2/2 present
+FULL_PYTEST=PASS 1465 passed 0 failed 0 skipped
+FOCUSED_RENDER_B5_TESTS=PASS 23/23
+P0=PASS 15/15 136 proof tests
+P1=PASS 6/6 93 proof cases
+B4=PASS 11/11 43 proof tests
+CLEAN_CLONE=PASS 6/6
+RUFF=PASS
+PACKAGE_BUILD=PASS
 PIP_CHECK=PASS
-EVIDENCE_BUILD_CHECK=PASS claims=28
-EVIDENCE_VALIDATOR=PASS claims=28 live_receipts=0
-P1_SOURCE_AND_PROOF_GATES=5/5 PASS
-P1_CLEAN_CLONE_GATE=EXPECTED_PRECOMMIT_FAILURE_OLD_HEAD
+REVIEWER_EVIDENCE=PASS 28 claims 0 live receipts
+SOURCE_SECRET_SCAN=PASS 0 findings
+IMAGE_PRIVACY_SCAN=PASS 0 findings
+CONTAINER_JUDGE_GATE=PASS 2/2
+NONROOT_EXACT_ROOTFS_PROOF=PASS
+DIFF_CHECK=PASS
 ```
 
-The clean-clone command necessarily checks the current committed `HEAD`; before this commit exists,
-that is the B5 Commit 1 baseline and cannot contain this implementation. Acceptance therefore
-requires, after creating the single planned Commit 2, cloning that exact commit, rebuilding the
-image from that clone, rerunning both container invocations, and rerunning P1. Any failure must be
-fixed by amending Commit 2 before B5 release freezing. The exact-commit result belongs in the B5
-build-complete attestation, avoiding a circular claim inside this commit.
+The first full-suite attempt recorded `1464 passed, 1 failed` because the pinned local AWS CLI
+version probe transiently returned unavailable while concurrent workloads were active. AWS CLI
+`2.36.11` was present and exact; the isolated test passed. With the workload quiesced, the complete
+suite passed `1465/1465`. No test or AWS gate was weakened or changed.
 
 ## External-action boundary
 
