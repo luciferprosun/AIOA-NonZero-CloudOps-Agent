@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from typing import Final
 
 from opentelemetry.trace import Tracer
-from strands import Agent
+from strands import Agent as StrandsAgent
 from strands.models import Model
 from strands.session import SessionManager
 from strands.vended_interventions.hitl import HumanInTheLoop
@@ -41,7 +41,7 @@ W1 must not apply, execute or deploy a change."""
 class WorkspaceAgentRuntime:
     """References needed to invoke and audit the separate W1 profile."""
 
-    agent: Agent
+    agent: StrandsAgent
     tools: WorkspaceToolSet
     service: WorkspaceEvidenceService
     workspace_ref: WorkspaceRef
@@ -90,7 +90,7 @@ def create_workspace_investigation_agent(
         enable_trust=False,
         ask=None,
     )
-    agent = Agent(
+    agent = StrandsAgent(
         agent_id=WORKSPACE_AGENT_ID,
         name="AIOA Sealed Workspace Investigator",
         description="Read-only evidence investigation for one sealed deployment incident",
