@@ -1,5 +1,13 @@
 """Heritage-aware sealed workspace foundation for AIOA W1."""
 
+from .agent import (
+    WORKSPACE_AGENT_COUNT,
+    WORKSPACE_AGENT_ID,
+    WORKSPACE_REGISTERED_TOOL_COUNT,
+    WORKSPACE_SYSTEM_PROMPT,
+    WorkspaceAgentRuntime,
+    create_workspace_investigation_agent,
+)
 from .contracts import (
     WorkspaceArtifactRef,
     WorkspaceArtifactType,
@@ -54,13 +62,18 @@ __all__ = [
     "INSPECT_DEPLOYMENT_INCIDENT_TOOL_NAME",
     "LIST_WORKSPACE_ARTIFACTS_TOOL_NAME",
     "READ_WORKSPACE_ARTIFACT_TOOL_NAME",
+    "WORKSPACE_AGENT_COUNT",
+    "WORKSPACE_AGENT_ID",
+    "WORKSPACE_REGISTERED_TOOL_COUNT",
     "WORKSPACE_REMEDIATION_PROFILE_ID",
     "WORKSPACE_REMEDIATION_PROFILE_VERSION",
     "WORKSPACE_REMEDIATION_V1",
+    "WORKSPACE_SYSTEM_PROMPT",
     "WORKSPACE_TOOL_NAMES",
     "FixtureIntegrityError",
     "JailedArtifactRead",
     "MaterializedWorkspace",
+    "WorkspaceAgentRuntime",
     "WorkspaceArtifactHashResult",
     "WorkspaceArtifactReadResult",
     "WorkspaceArtifactRef",
@@ -84,6 +97,7 @@ __all__ = [
     "WorkspaceRef",
     "WorkspaceToolSet",
     "canonical_artifact_set_digest",
+    "create_workspace_investigation_agent",
     "create_workspace_tools",
     "inspect_fixture_tree",
     "materialize_sealed_fixture",
