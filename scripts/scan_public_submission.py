@@ -109,7 +109,9 @@ def _record(path: str, category: str) -> dict[str, str]:
 def _is_reviewed_synthetic(path: str, category: str, match: str) -> bool:
     if not path.startswith("tests/"):
         return False
-    if category == "EMAIL_ADDRESS" and match.casefold().endswith((".invalid", ".example")):
+    if category == "EMAIL_ADDRESS" and match.casefold().endswith(
+        (".invalid", ".example", ".test")
+    ):
         return True
     return category in {
         "ABSOLUTE_USER_PATH",

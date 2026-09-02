@@ -17,6 +17,10 @@ def test_public_scan_passes_safe_tree_and_reviews_synthetic_test_fixtures(
         "PATH = '/" + "home/tester/fixture'\n",
         encoding="utf-8",
     )
+    (tmp_path / "tests" / "url_fixture.py").write_text(
+        "URL_USERINFO = 'https://operator@example.test'\n",
+        encoding="utf-8",
+    )
     image = tmp_path / "screenshot.png"
     image.write_bytes(b"\x89PNG\r\n\x1a\n\0fixture")
 
@@ -24,7 +28,7 @@ def test_public_scan_passes_safe_tree_and_reviews_synthetic_test_fixtures(
 
     assert receipt["status"] == "PASS"
     assert receipt["findings_count"] == 0
-    assert receipt["reviewed_synthetic_fixtures_count"] == 3
+    assert receipt["reviewed_synthetic_fixtures_count"] == 4
     assert receipt["binary_files_reviewed"] == 1
     assert receipt["secret_values_emitted"] is False
     assert receipt["personal_values_emitted"] is False
