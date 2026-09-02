@@ -1,0 +1,68 @@
+services:
+  - type: web
+    name: aioa-agents-for-humans-demo
+    runtime: docker
+    repo: https://github.com/luciferprosun/AIOA-NonZero-CloudOps-Agent
+    branch: codex/portable-d1-d2-m1-overnight
+    region: frankfurt
+    plan: free
+    dockerfilePath: ./Dockerfile
+    dockerCommand: >-
+      /bin/sh -c 'set -eu; umask 077; test -n "${AIOA_OPERATOR_TOKEN:-}" ||
+      { printf "%s\n" "AIOA operator token missing" >&2; exit 2; };
+      printf "%s\n" "$AIOA_OPERATOR_TOKEN" > "$AIOA_LOCAL_API_TOKEN_PATH";
+      unset AIOA_OPERATOR_TOKEN;
+      exec python -m aioa_cloudops_agent.portable_server'
+    healthCheckPath: /ready
+    maxShutdownDelaySeconds: 30
+    autoDeployTrigger: "off"
+    renderSubdomainPolicy: enabled
+    envVars:
+      - key: APPLICATION_VERSION
+        value: 0.2.0rc1
+      - key: SOURCE_COMMIT
+        value: 4fafed8b1a877e55d96ddd9baea0a737fbeeaa4a
+      - key: AIOA_RUNTIME_MODE
+        value: portable
+      - key: AIOA_MODEL_PROVIDER
+        value: mock
+      - key: AIOA_AWS_INTEGRATION_ENABLED
+        value: "false"
+      - key: AIOA_HOST
+        value: 0.0.0.0
+      - key: AIOA_PORT
+        value: "10000"
+      - key: AIOA_ALLOWED_ORIGINS
+        value: same-origin
+      - key: AIOA_ALLOWED_EGRESS
+        value: none
+      - key: AIOA_STORAGE_MODE
+        value: file
+      - key: AIOA_LOCAL_MODE
+        value: mock
+      - key: AIOA_LOCAL_HITL_STATE_PATH
+        value: /var/lib/aioa/durable-truth.json
+      - key: AIOA_LOCAL_INVENTORY_PATH
+        value: /var/lib/aioa/mock-inventory.json
+      - key: AIOA_LOCAL_API_TOKEN_PATH
+        value: /var/lib/aioa/operator.token
+      - key: AIOA_SESSION_TTL_SECONDS
+        value: "600"
+      - key: AIOA_REQUEST_TIMEOUT_SECONDS
+        value: "10"
+      - key: AIOA_PROVIDER_TIMEOUT_SECONDS
+        value: "0"
+      - key: AIOA_RETRY_BUDGET
+        value: "0"
+      - key: AIOA_REQUEST_SIZE_LIMIT_BYTES
+        value: "16384"
+      - key: AIOA_LOG_LEVEL
+        value: INFO
+      - key: AIOA_PUBLIC_MODE_LABEL
+        value: DEMO_SANDBOX
+      - key: AIOA_SANDBOX_MODE
+        value: MOCK_OFFLINE
+      - key: AIOA_AUTHORITY_MODE
+        value: HUMAN_APPROVAL_REQUIRED
+      - key: AIOA_OPERATOR_TOKEN
+        sync: false

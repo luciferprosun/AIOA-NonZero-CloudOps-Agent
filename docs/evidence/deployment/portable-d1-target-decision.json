@@ -1,0 +1,51 @@
+{
+  "account_state": "GITHUB_CONNECTED_HUMAN_DEPLOY_PENDING",
+  "application_source_commit": "4fafed8b1a877e55d96ddd9baea0a737fbeeaa4a",
+  "aws_resource_created": false,
+  "captured_at": "2026-09-02T00:53:07Z",
+  "decision": {
+    "provider": "Render",
+    "region": "frankfurt",
+    "service_type": "Free Web Service",
+    "status": "SELECTED"
+  },
+  "document_type": "AIOA_D1_NON_AWS_TARGET_DECISION",
+  "frozen_inputs": {
+    "demo_runbook_sha256": "3ee0e75aab70b9e63860e7deb3e5785cfd6a1df9ac60ea9462d9022fe61d3f47",
+    "dockerfile_sha256": "62ab24342fb35961e6b5b05969f3749b3d4d201afd4f6510223b870c0f4ba93c",
+    "runtime_contract_sha256": "c5af5e77349a1038d860f3108a2bbaee6fbb6d3df7340f931095551a72240233"
+  },
+  "official_references": [
+    "https://render.com/docs/free",
+    "https://render.com/docs/blueprint-spec",
+    "https://render.com/docs/docker",
+    "https://render.com/docs/health-checks",
+    "https://render.com/docs/regions",
+    "https://render.com/docs/configure-environment-variables",
+    "https://www.koyeb.com/docs/reference/organizations",
+    "https://docs.railway.com/pricing/faqs",
+    "https://fly.io/docs/about/cost-management/",
+    "https://huggingface.co/docs/hub/spaces-overview"
+  ],
+  "paid_resource_created": false,
+  "rejected": [
+    {
+      "provider": "Koyeb",
+      "reason": "Starter organization requires a valid payment method"
+    },
+    {
+      "provider": "Railway",
+      "reason": "one-time trial credit rather than a durable zero-paid tier"
+    },
+    {
+      "provider": "Fly.io",
+      "reason": "no free tier and credit card required"
+    },
+    {
+      "provider": "Hugging Face Spaces",
+      "reason": "Docker compute Space creation requires a paid plan"
+    }
+  ],
+  "schema_version": 1,
+  "status": "PASS"
+}
