@@ -785,6 +785,7 @@ def test_local2_claims_are_exactly_anchored_to_their_reviewed_implementations() 
     )
     assert api["authority_source"] == sorted(
         [
+            "scripts/render_start.sh",
             "src/aioa_cloudops_agent/config/portable_server.py::PortableServerSettings",
             "src/aioa_cloudops_agent/local_api/application.py::LocalApiApplication",
             "src/aioa_cloudops_agent/local_api/auth.py::LocalApiTokenAuthorizer.authorize",
@@ -796,7 +797,7 @@ def test_local2_claims_are_exactly_anchored_to_their_reviewed_implementations() 
         ]
     )
     assert len(execution["proof_nodes"]) == 4
-    assert len(api["proof_nodes"]) == 9
+    assert len(api["proof_nodes"]) == 11
 
 
 def test_phase3_iac_anchor_preserves_current_g10_authority_proof() -> None:

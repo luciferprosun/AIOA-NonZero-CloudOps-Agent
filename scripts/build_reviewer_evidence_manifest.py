@@ -63,7 +63,7 @@ PHASE3_RC_COMMIT = "5ac15d30a604434713490d77edb573d14a8f1dcd"
 PORTABLE_B1_COMMIT = "a2e16d0f1d625b34916440d6740a486f73cf2bb1"
 PORTABLE_B3_COMMIT = "1882089fbb41a3f7f3cbad821ed9d6d8c6c2e9a5"
 PORTABLE_B4_COMMIT = "a455379eb3de73bf6c1780b3c4726b0778873dd4"
-PORTABLE_B5_CONTAINER_COMMIT = "5d10229d9ca0d243068c0ee77a0c90a4e722689c"
+PORTABLE_B5_CONTAINER_COMMIT = "af44999efe4bda7aa8b35931377af5eee0b49bbc"
 DAY15_RECOVERY_LINEAGE = (
     DAY15_START_COMMIT,
     DAY15_ORIGINAL_M1_COMMIT,
@@ -331,7 +331,7 @@ def build_claims() -> list[dict[str, Any]]:
         ),
         _claim(
             "LOCAL2-LOOPBACK-API-01",
-            "The Local-2 judge surface defaults to loopback and rejects non-loopback binding unless the canonical container server launch supplies explicit container intent; it remains bearer-bootstrapped into an HttpOnly same-site session, schema-bounded, non-cacheable, and exposes only a sanitized durable evidence timeline.",
+            "The Local-2 judge surface defaults to loopback and rejects non-loopback binding unless the canonical container server launch supplies explicit container intent; its Render startup script fails closed without an operator token, writes the token with owner-only permissions, removes it from the child environment, and execs the canonical server. The surface remains bearer-bootstrapped into an HttpOnly same-site session, schema-bounded, non-cacheable, and exposes only a sanitized durable evidence timeline.",
             "TEST",
             (
                 "src/aioa_cloudops_agent/config/portable_server.py::PortableServerSettings",
@@ -342,6 +342,7 @@ def build_claims() -> list[dict[str, Any]]:
                 "src/aioa_cloudops_agent/local_api/server.py::load_or_create_local_token",
                 "src/aioa_cloudops_agent/local_api/views.py::run_view",
                 "src/aioa_cloudops_agent/portable_server.py::main",
+                "scripts/render_start.sh",
             ),
             (
                 "tests/integration/test_local_hitl_http_server.py::"
@@ -352,6 +353,10 @@ def build_claims() -> list[dict[str, Any]]:
                 "test_token_file_is_created_once_with_owner_only_permissions",
                 "tests/integration/test_portable_judge_experience.py::"
                 "test_judge_http_experience_survives_stale_tab_duplicate_click_and_restart",
+                "tests/integration/test_render_launch_contract.py::"
+                "test_render_docker_command_fails_closed_without_operator_token",
+                "tests/integration/test_render_launch_contract.py::"
+                "test_render_docker_command_securely_bootstraps_canonical_server",
                 "tests/unit/test_judge_console_launcher.py::"
                 "test_browser_bootstrap_keeps_session_credential_in_fragment_only",
                 "tests/unit/test_local_hitl_api.py::"
@@ -364,7 +369,7 @@ def build_claims() -> list[dict[str, Any]]:
                 "test_container_binding_requires_explicit_intent",
             ),
             commit_anchor=PORTABLE_B5_CONTAINER_COMMIT,
-            limitations="Proves a local single-operator demo boundary and deterministic sandbox behavior. The container binds internally to all interfaces, so safe host publication still depends on the documented loopback or isolated-network launch command. It does not attest to a deployed identity provider, public endpoint, production authorization service, or provider-backed operation.",
+            limitations="Proves a local single-operator demo boundary, deterministic sandbox behavior, and the startup script in a local process. The container binds internally to all interfaces, so safe host publication still depends on the documented loopback or isolated-network launch command. It does not attest to a live Render deployment, deployed identity provider, production authorization service, or provider-backed operation.",
         ),
         _claim(
             "MODEL-AUTHORITY-01",
