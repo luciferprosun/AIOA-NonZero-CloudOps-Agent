@@ -12,14 +12,14 @@
   "external_network_connections": 0,
   "findings": [],
   "findings_count": 0,
-  "image_digest": "sha256:a835f9bdbc7a3854304e5574440a6a9944ea4bd04e839eae317a8e6554855eae",
-  "image_id": "524fe1212fc65e3d35a015717d03250e25c5ad32359e1c9595878c5bc6b057e8",
-  "receipt_sha256": "19fc3b0c12ba11305f25f595fd85d7344ccf0999af58ea70f5703daa926ffcac",
+  "image_digest": "sha256:371b7c5b3bc9d88fe07aba54a5bd4b3e69a526ea1ff313b09253b75983e5856a",
+  "image_id": "d5eca6b273309ba0fda6e143af47ea0c9c160a7605b29dd6f1fa8262c8d720e9",
+  "receipt_sha256": "b418eeba1f393cf7d020061b648cb0812aeeef95f531cf522fef3bf380bcee62",
   "receipt_type": "AIOA_B5_IMAGE_EXPORT_PRIVACY_SCAN",
   "regular_files_scanned": 11287,
   "remote_pushes": 0,
   "scanned_bytes": 209599215,
   "schema_version": 1,
-  "source_commit": "dbea5411b1c0d81de0035d9ef08e28211fb79e79",
+  "source_commit": "c262c9f25bbe069f17a05da7221dbce606edb7b8",
   "status": "PASS"
 }

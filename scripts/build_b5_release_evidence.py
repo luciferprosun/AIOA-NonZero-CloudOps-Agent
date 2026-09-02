@@ -26,11 +26,11 @@ CONTAINER_GATE_PATH: Final = RELEASE_ROOT / "portable-b5-container-gate.json"
 NONROOT_RECEIPT_PATH: Final = RELEASE_ROOT / "portable-b5-nonroot-runtime.json"
 IMAGE_SCAN_PATH: Final = RELEASE_ROOT / "portable-b5-image-privacy-scan.json"
 
-SOURCE_COMMIT: Final = "dbea5411b1c0d81de0035d9ef08e28211fb79e79"
-IMAGE_ID: Final = "524fe1212fc65e3d35a015717d03250e25c5ad32359e1c9595878c5bc6b057e8"
-IMAGE_DIGEST: Final = "sha256:a835f9bdbc7a3854304e5574440a6a9944ea4bd04e839eae317a8e6554855eae"
-IMAGE_SIZE_BYTES: Final = 219_809_071
-IMAGE_REFERENCE: Final = "localhost/aioa-portable:b5-c2"
+SOURCE_COMMIT: Final = "c262c9f25bbe069f17a05da7221dbce606edb7b8"
+IMAGE_ID: Final = "d5eca6b273309ba0fda6e143af47ea0c9c160a7605b29dd6f1fa8262c8d720e9"
+IMAGE_DIGEST: Final = "sha256:371b7c5b3bc9d88fe07aba54a5bd4b3e69a526ea1ff313b09253b75983e5856a"
+IMAGE_SIZE_BYTES: Final = 219_807_918
+IMAGE_REFERENCE: Final = "localhost/aioa-portable:b5-cmd-c262c9f25bbe"
 BASE_IMAGE: Final = (
     "docker.io/library/python:3.12-slim-bookworm@"
     "sha256:782412e85d0f0984994c290652577d4018aff08145c85b262bb63dc0c7522254"
@@ -39,11 +39,11 @@ PYTHON_VERSION: Final = "3.12.14"
 APPLICATION_VERSION: Final = "0.2.0rc1"
 WHEEL_SHA256: Final = "fe5b5df0448bf41c9aa0d6460b998adf280cab567b9ba688e5111cb71c0ff395"
 CONTAINER_GATE_RECEIPT_SHA256: Final = (
-    "8d3de09bc1d6756647eba8b74d67b4e86ee302be3889e666ac90058c2ec28db3"
+    "f9f5861882cba8060ef05fd8f189848b07488dba24912af4f6624d947a503402"
 )
 NONROOT_RECEIPT_IMAGE_DIGEST: Final = IMAGE_DIGEST
 IMAGE_SCAN_RECEIPT_SHA256: Final = (
-    "19fc3b0c12ba11305f25f595fd85d7344ccf0999af58ea70f5703daa926ffcac"
+    "b418eeba1f393cf7d020061b648cb0812aeeef95f531cf522fef3bf380bcee62"
 )
 _LOCK_LINE: Final = re.compile(
     r"^(?P<name>[A-Za-z0-9_.-]+)==(?P<version>[^ ]+) "
@@ -74,7 +74,7 @@ _CHECKS: Final[tuple[dict[str, object], ...]] = (
     {"check_id": "CLEAN_CLONE", "exact_source_commit": True, "status": "PASS"},
     {"check_id": "CONTAINER_JUDGE_GATE", "invocations": 2, "status": "PASS"},
     {"check_id": "DIFF_CHECK", "status": "PASS"},
-    {"check_id": "FULL_PYTEST", "proof_tests": 1428, "skipped": 0, "status": "PASS"},
+    {"check_id": "FULL_PYTEST", "proof_tests": 1465, "skipped": 0, "status": "PASS"},
     {"check_id": "IMAGE_EXPORT_PRIVACY_SCAN", "findings": 0, "status": "PASS"},
     {"check_id": "NATIVE_PORTABLE_FLOW", "status": "PASS"},
     {"check_id": "NONROOT_OCI_RUNTIME", "effective_uid": 65532, "status": "PASS"},
@@ -366,7 +366,7 @@ def build_artifact_manifest(package_bytes: bytes) -> dict[str, object]:
         "image": {
             "base_image": BASE_IMAGE,
             "configured_user": "aioa",
-            "entrypoint": ["python", "-m", "aioa_cloudops_agent.portable_server"],
+            "cmd": ["python", "-m", "aioa_cloudops_agent.portable_server"],
             "health_path": "/health",
             "id": IMAGE_ID,
             "local_manifest_digest": IMAGE_DIGEST,

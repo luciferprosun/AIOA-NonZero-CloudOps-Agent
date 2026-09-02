@@ -70,6 +70,12 @@ def test_b5_artifact_and_attestation_bind_source_image_docs_and_zero_cloud() -> 
     )
     assert artifact["image"]["registry_digest"] is None
     assert artifact["image"]["status"] == "LOCAL_ONLY_NOT_PUSHED"
+    assert artifact["image"]["cmd"] == [
+        "python",
+        "-m",
+        "aioa_cloudops_agent.portable_server",
+    ]
+    assert "entrypoint" not in artifact["image"]
     assert artifact["artifacts"]["PORTABLE_RUNTIME_CONTRACT"]["sha256"]
     assert artifact["artifacts"]["CONTAINER_JUDGE_RUNBOOK"]["sha256"]
     assert artifact["artifacts"]["SUBMISSION_DEMO_RUNBOOK"]["sha256"]

@@ -1,6 +1,6 @@
 {
-  "artifact_manifest_file_sha256": "4963d32bf76aff6da8f221430dfff702d5b4fa879429afa0ba7d63bb1d323223",
-  "attestation_sha256": "d0a0db0fedac0e3a37b776fea52d5624f6f3525a059307423d64fca7109a15dd",
+  "artifact_manifest_file_sha256": "765f917d8a1eee038d3f4deefdc858cd7785838b0f5039091584950ec396f442",
+  "attestation_sha256": "5106f99fb3ebfe38d1fde9895b85782ee89a686c2e2fd30db5ba2da62de16e43",
   "aws_calls": 0,
   "aws_mutations": 0,
   "checks": [
@@ -26,7 +26,7 @@
     },
     {
       "check_id": "FULL_PYTEST",
-      "proof_tests": 1428,
+      "proof_tests": 1465,
       "skipped": 0,
       "status": "PASS"
     },
@@ -72,18 +72,18 @@
       "status": "PASS"
     }
   ],
-  "container_digest": "sha256:a835f9bdbc7a3854304e5574440a6a9944ea4bd04e839eae317a8e6554855eae",
-  "container_id": "524fe1212fc65e3d35a015717d03250e25c5ad32359e1c9595878c5bc6b057e8",
+  "container_digest": "sha256:371b7c5b3bc9d88fe07aba54a5bd4b3e69a526ea1ff313b09253b75983e5856a",
+  "container_id": "d5eca6b273309ba0fda6e143af47ea0c9c160a7605b29dd6f1fa8262c8d720e9",
   "deployments": 0,
   "document_type": "AIOA_B5_BUILD_COMPLETE_ATTESTATION",
   "freeze_rule": "ANY_RUNTIME_SOURCE_DEPENDENCY_CONTAINER_OR_BOUND_DOCUMENT_CHANGE_INVALIDATES_BUILD_COMPLETE_AND_REQUIRES_B5_REBUILD",
   "image_pushes": 0,
   "limitations": "Local OCI build and offline/mock execution only; no registry publication, public endpoint, live provider receipt, AWS identity, or live infrastructure mutation is claimed.",
-  "package_manifest_file_sha256": "cd578d6e6abef666424a05b3aa710f91781791e57b5e19760d1b0c38c10956a8",
+  "package_manifest_file_sha256": "e9d182b2cd503fcc6e805af96d532dd14ab67765c5a6021e8dc4762990e0f36d",
   "publications": 0,
   "remote_git_pushes": 0,
   "schema_version": 1,
-  "sha256sums_file_sha256": "76acd797b841b5c10ec89888917b01849b2cd04f82fd0ec4456cb292e1cbe0e7",
-  "source_commit": "dbea5411b1c0d81de0035d9ef08e28211fb79e79",
+  "sha256sums_file_sha256": "8f4927a87f0adb2aa2beb737faa483adb64cbaa3f8ceea2b494d1de685a136df",
+  "source_commit": "c262c9f25bbe069f17a05da7221dbce606edb7b8",
   "status": "BUILD_COMPLETE"
 }

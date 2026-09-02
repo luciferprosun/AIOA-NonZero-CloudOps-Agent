@@ -43,20 +43,20 @@
   ],
   "image": {
     "architecture": "amd64",
-    "configured_user": "aioa",
-    "content_identity": "sha256:a835f9bdbc7a3854304e5574440a6a9944ea4bd04e839eae317a8e6554855eae",
-    "digest": "sha256:a835f9bdbc7a3854304e5574440a6a9944ea4bd04e839eae317a8e6554855eae",
-    "entrypoint": [
+    "cmd": [
       "python",
       "-m",
       "aioa_cloudops_agent.portable_server"
     ],
-    "id": "524fe1212fc65e3d35a015717d03250e25c5ad32359e1c9595878c5bc6b057e8",
+    "configured_user": "aioa",
+    "content_identity": "sha256:371b7c5b3bc9d88fe07aba54a5bd4b3e69a526ea1ff313b09253b75983e5856a",
+    "digest": "sha256:371b7c5b3bc9d88fe07aba54a5bd4b3e69a526ea1ff313b09253b75983e5856a",
+    "id": "d5eca6b273309ba0fda6e143af47ea0c9c160a7605b29dd6f1fa8262c8d720e9",
     "license": "MIT",
     "os": "linux",
-    "reference": "localhost/aioa-portable:b5-c2",
-    "size_bytes": 219809071,
-    "source_commit": "dbea5411b1c0d81de0035d9ef08e28211fb79e79"
+    "reference": "localhost/aioa-portable:b5-cmd-c262c9f25bbe",
+    "size_bytes": 219807918,
+    "source_commit": "c262c9f25bbe069f17a05da7221dbce606edb7b8"
   },
   "nonroot_proof": {
     "cap_eff": "0000000000000000",
@@ -69,7 +69,7 @@
     "readiness": "ready",
     "token_mode": "0o600"
   },
-  "receipt_sha256": "8d3de09bc1d6756647eba8b74d67b4e86ee302be3889e666ac90058c2ec28db3",
+  "receipt_sha256": "f9f5861882cba8060ef05fd8f189848b07488dba24912af4f6624d947a503402",
   "receipt_type": "AIOA_B5_CONTAINER_JUDGE_GATE",
   "remote_pushes": 0,
   "runtime_hardening": {

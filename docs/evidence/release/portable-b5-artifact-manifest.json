@@ -11,11 +11,11 @@
     },
     "CONTAINER_DEFINITION": {
       "path": "Dockerfile",
-      "sha256": "62ab24342fb35961e6b5b05969f3749b3d4d201afd4f6510223b870c0f4ba93c"
+      "sha256": "2c406cf165e9e21c74f85a6ae3123ee1498790c15f3586cd8ffe548309dd8a7e"
     },
     "CONTAINER_JUDGE_RUNBOOK": {
       "path": "docs/operations/container-judge-certification.md",
-      "sha256": "26c37b52d5f153c582e10b824f18a5a06840def479bb49d77365c97e9f99f81a"
+      "sha256": "2c1e96fdade714f2e63738dfbe61b5230512a43955d36ac125f8205eed78e663"
     },
     "LICENSE": {
       "path": "LICENSE",
@@ -39,7 +39,7 @@
     },
     "REVIEWER_EVIDENCE_MANIFEST": {
       "path": "docs/evidence/reviewer-evidence-manifest.json",
-      "sha256": "a671b76f392e2c08aed6315db4a8d5e2ce48faa4dd51cf7d7c0b1efde7fbd1da"
+      "sha256": "85b72959cf215ed859a625699869f5acd4e375e9d9671558e5cae6a4d3fa1bc8"
     },
     "RUNTIME_DEPENDENCY_LOCK": {
       "path": "requirements/portable.lock",
@@ -60,21 +60,21 @@
   "document_type": "AIOA_B5_PORTABLE_ARTIFACT_MANIFEST",
   "evidence": {
     "container_gate": {
-      "file_sha256": "e2ab3e4e3491c60320a5434128e232c33934b93b3cf37f1354e736b07bddb1ca",
+      "file_sha256": "2672ab2285dfdfc7e274aa4129f32333b259038781a22f1ffbadae44e1287d67",
       "path": "docs/evidence/release/portable-b5-container-gate.json",
-      "receipt_sha256": "8d3de09bc1d6756647eba8b74d67b4e86ee302be3889e666ac90058c2ec28db3"
+      "receipt_sha256": "f9f5861882cba8060ef05fd8f189848b07488dba24912af4f6624d947a503402"
     },
     "image_privacy_scan": {
-      "file_sha256": "cfed55c4afc0c1222a922a6e392f3a9149f4810e595b4aef565c81a96de52ef8",
+      "file_sha256": "909d99235c5eb66d2e471ddf7cccec7cd7bb26b8123fff04ede95cd56a11049c",
       "path": "docs/evidence/release/portable-b5-image-privacy-scan.json",
-      "receipt_sha256": "19fc3b0c12ba11305f25f595fd85d7344ccf0999af58ea70f5703daa926ffcac"
+      "receipt_sha256": "b418eeba1f393cf7d020061b648cb0812aeeef95f531cf522fef3bf380bcee62"
     },
     "nonroot_runtime": {
-      "file_sha256": "e6db47a0f1845f1cfebc0c5f2fbee330814928805c0047e430c774b7940dd761",
+      "file_sha256": "22f8447678f89f255ab0c72a6b941f5189a4b420610387891a9be134b4270601",
       "path": "docs/evidence/release/portable-b5-nonroot-runtime.json"
     },
     "python_packages": {
-      "file_sha256": "cd578d6e6abef666424a05b3aa710f91781791e57b5e19760d1b0c38c10956a8",
+      "file_sha256": "e9d182b2cd503fcc6e805af96d532dd14ab67765c5a6021e8dc4762990e0f36d",
       "path": "docs/evidence/release/portable-b5-python-packages.json"
     }
   },
@@ -88,22 +88,22 @@
   },
   "image": {
     "base_image": "docker.io/library/python:3.12-slim-bookworm@sha256:782412e85d0f0984994c290652577d4018aff08145c85b262bb63dc0c7522254",
-    "configured_user": "aioa",
-    "entrypoint": [
+    "cmd": [
       "python",
       "-m",
       "aioa_cloudops_agent.portable_server"
     ],
+    "configured_user": "aioa",
     "health_path": "/health",
-    "id": "524fe1212fc65e3d35a015717d03250e25c5ad32359e1c9595878c5bc6b057e8",
-    "local_manifest_digest": "sha256:a835f9bdbc7a3854304e5574440a6a9944ea4bd04e839eae317a8e6554855eae",
-    "local_reference": "localhost/aioa-portable:b5-c2",
+    "id": "d5eca6b273309ba0fda6e143af47ea0c9c160a7605b29dd6f1fa8262c8d720e9",
+    "local_manifest_digest": "sha256:371b7c5b3bc9d88fe07aba54a5bd4b3e69a526ea1ff313b09253b75983e5856a",
+    "local_reference": "localhost/aioa-portable:b5-cmd-c262c9f25bbe",
     "readiness_path": "/ready",
     "registry_digest": null,
-    "size_bytes": 219809071,
+    "size_bytes": 219807918,
     "status": "LOCAL_ONLY_NOT_PUSHED"
   },
-  "manifest_sha256": "340c4d00a97a39692b41661dde7b13142f6c5247d03389ee1fb0bbe2796f67ce",
+  "manifest_sha256": "e9a5c558e0a8f01fc69a215297cb689f71860812c42838a8746ce1eb786d99fd",
   "runtime_contract": {
     "allowed_egress": "none",
     "authority_mode": "HUMAN_APPROVAL_REQUIRED",
@@ -112,7 +112,7 @@
     "storage_mode": "file"
   },
   "schema_version": 1,
-  "source_commit": "dbea5411b1c0d81de0035d9ef08e28211fb79e79",
-  "source_tree_git_oid": "ad83b97461abec6af171441267c63ee33b2f3e71",
+  "source_commit": "c262c9f25bbe069f17a05da7221dbce606edb7b8",
+  "source_tree_git_oid": "def4ccbb9bb07f6843f8efb2e48c86c1741e8ac3",
   "status": "FROZEN_LOCAL_ARTIFACT"
 }
