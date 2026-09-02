@@ -2,8 +2,8 @@
 
 ## Result
 
-`W1_GATE=PASS` for the certified implementation at
-`a0e30a4cc015148da97584e896a0df08369c209e` on branch
+`W1_GATE=PASS` for the certified implementation and tracked fixture at
+`0859b5bf8efa62ac9fc4eb8cd2fb8024b39dd5fa` on branch
 `codex/w1-heritage-workspace-foundation`.
 
 W1 adds a deterministic sanitized incident fixture, immutable workspace contracts, a server-owned
@@ -115,7 +115,8 @@ The explicit W1 suite contains 50 passing cases across
 | Ruff | PASS | all repository checks |
 | pip check | PASS | no broken requirements |
 | git diff --check | PASS | no whitespace errors |
-| canonical secret scan | PASS | 437 files; 0 findings; 0 values emitted |
+| canonical secret scan | PASS | 438 files; 0 findings; 0 values emitted |
+| local clean clone | PASS | tracked five-file fixture; W1 50/50; secret scan 438/0 |
 | external egress during certification | PASS | 0 |
 | AWS calls / mutations | PASS | 0 / 0 |
 
@@ -176,4 +177,7 @@ W2 must not be inferred as authorization to mutate files, run commands, deploy, 
 5. `ecc6cf6` — `test(workspace): certify W1 path and evidence boundaries`
 6. `ec05c7f` — `test(gates): certify isolated workspace agent topology`
 7. `a0e30a4` — `fix(workspace): preserve frozen P0 authority evidence`
-8. The commit containing this report — `docs(workspace): freeze W1 foundation checkpoint`
+8. `dc38e7b` — `docs(workspace): freeze W1 foundation checkpoint`
+9. `0859b5b` — `fix(fixture): track sanitized deployment evidence`
+10. The commit containing this reconciliation —
+    `docs(workspace): certify clean-clone fixture checkpoint`

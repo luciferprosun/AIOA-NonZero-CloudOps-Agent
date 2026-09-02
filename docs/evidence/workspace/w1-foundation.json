@@ -56,6 +56,15 @@
       "status": "PASS"
     },
     "diff_check": "PASS",
+    "local_clean_clone": {
+      "fixture_is_tracked": true,
+      "head": "0859b5bf8efa62ac9fc4eb8cd2fb8024b39dd5fa",
+      "secret_scan_files": 438,
+      "secret_scan_findings": 0,
+      "status": "PASS",
+      "workspace_tests_passed": 50,
+      "workspace_tests_total": 50
+    },
     "full_pytest": {
       "duration_seconds": 785.5,
       "passed": 1515,
@@ -77,9 +86,9 @@
     "pip_check": "PASS",
     "ruff": "PASS",
     "secret_scan": {
-      "files_scanned": 437,
+      "files_scanned": 438,
       "findings": 0,
-      "receipt_sha256": "cde835dba50743e9f77b2fe9e4c2fc278de1470605f58c4a0648ed9da16cf7af",
+      "receipt_sha256": "a4840ba302206746083530d2a7dc855372bcfa399b8701877971a8e657e9e0f9",
       "status": "PASS"
     },
     "workspace_pytest": {
@@ -88,7 +97,7 @@
       "total": 50
     }
   },
-  "certified_implementation_head": "a0e30a4cc015148da97584e896a0df08369c209e",
+  "certified_implementation_head": "0859b5bf8efa62ac9fc4eb8cd2fb8024b39dd5fa",
   "feature_branch": "codex/w1-heritage-workspace-foundation",
   "fixture": {
     "artifact_count": 5,
