@@ -1,8 +1,8 @@
 {
   "archive": {
-    "bytes": 4473912,
-    "path": "dist/submission/portable-b6-2026-09-02/aioa-agents-for-humans-publication-candidate.zip",
-    "sha256": "297136b4d166661608e0e9c0a332b428ffdefe187f6810b177d57b68ae63610a",
+    "bytes": 4480704,
+    "path": "dist/submission/portable-b6-2026-09-02-render-start/aioa-agents-for-humans-publication-candidate.zip",
+    "sha256": "af07a6a4c085db60ebd66971bbe5ed42fb3aa7de5d6b7486ffc70b59943bf45a",
     "uploaded": false
   },
   "aws_calls": 0,
@@ -13,20 +13,21 @@
   },
   "b6_report": {
     "path_in_archive": "B6_REPRODUCIBILITY_REPORT.json",
-    "sha256": "39aba73cb8633ac9b84a8f70f7b44f4acc95aacf33e132e3b362db9811470398",
+    "sha256": "49c4923bc3fd02da7f0bb0a37d0448a68a29d9e678738ec3d7c96fbf8b008f3e",
     "status": "PASS"
   },
+  "b6_reproducibility_commit": "b69fbfda9cb5d0244f55938755312ac820bf0e0e",
   "candidate": {
-    "files": 338,
+    "files": 339,
     "git_metadata_present": false,
-    "source_commit": "46ce221e81f88d82df75d67e144d9a2231c54d64"
+    "source_commit": "a7bb1d6eb7ff5a86126f02af6758f0298289816b"
   },
   "classifications": {
     "GENERATED": 1,
     "LEGAL_REVIEW": 2,
     "PRIVATE_INTERNAL": 87,
     "PUBLIC_ALLOWED": 152,
-    "PUBLIC_REQUIRED": 178
+    "PUBLIC_REQUIRED": 179
   },
   "deterministic_rebuild": {
     "archive_byte_comparison": "IDENTICAL",
@@ -35,23 +36,23 @@
   },
   "document_type": "AIOA_B6_LOCAL_PUBLICATION_BUNDLE",
   "external_deployments": 0,
-  "inventory_count": 420,
+  "inventory_count": 421,
   "outer_files": {
     "PUBLICATION_EXCLUSIONS.md": "f50d82d35cce11fc7894fc6191db3ae800a4f2f784fab88359e5c656db4b4672",
-    "PUBLICATION_MANIFEST.json": "2b48008e30f805174551171959d71096d6ee480631fc44be83bc9083670a82b3",
-    "PUBLIC_PRIVACY_SCAN.json": "e93d3d1083df923020ab1a915d0c24157e33c57a7584c95103ad3a59b11718ce",
-    "SHA256SUMS": "82e4fa8d66746ef296fd59f028cb5ba561fbe211001baebec4debf0ffc61df78"
+    "PUBLICATION_MANIFEST.json": "4fea85a4fa74362a78ecc937d05c2dcc0ff185bf1b05074105644768fd22ba24",
+    "PUBLIC_PRIVACY_SCAN.json": "fbcb50e77d29eb7c973660cd57d7d83998f392bdaa0473ebd42aa3bafbb843fb",
+    "SHA256SUMS": "5ab8b113e7156be855a68b045b4358acffe0b85483b14ec5cb9b3431114baa6e"
   },
-  "payload_count_before_manifest_and_sums": 336,
-  "payload_tree_sha256": "a8d9c3ba89edb06ba503135c8e2f017f17ac46f7010886a0b8239b02f61ffdfe",
+  "payload_count_before_manifest_and_sums": 337,
+  "payload_tree_sha256": "f6d6595cf381371525b8f46d0fab06362a4be482059501dd10b0d4c2ef4840cc",
   "privacy_scan": {
-    "file_sha256": "e93d3d1083df923020ab1a915d0c24157e33c57a7584c95103ad3a59b11718ce",
+    "file_sha256": "fbcb50e77d29eb7c973660cd57d7d83998f392bdaa0473ebd42aa3bafbb843fb",
     "findings": 0,
-    "receipt_sha256": "ea92b8840474de8fa44e472df990e1506cd6f29b4fd8829460277fbd4a9b7534",
+    "receipt_sha256": "8e2791cb66113e12724c42080d3b24356ec8179b17439d414a47be1188b7de13",
     "status": "PASS"
   },
   "publication_actions": 0,
-  "publication_manifest_internal_sha256": "a1b8661ae3cf9c8c38455e2ee61f4634408351d08c051c8fdf3bfb81a38e7f13",
+  "publication_manifest_internal_sha256": "7eec2cc800bf500b624c02b55eabb790f6350636b6ca4e501b41389f88ba757a",
   "publication_ready": "PASS",
   "remote_pushes": 0,
   "schema_version": 1,

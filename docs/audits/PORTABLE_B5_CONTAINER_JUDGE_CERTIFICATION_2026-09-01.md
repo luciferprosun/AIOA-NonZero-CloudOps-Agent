@@ -65,7 +65,8 @@ the Dockerfile's configured Entrypoint.
 ## Non-root and local-engine boundary
 
 The local Podman 4.9.3 environment has a single host UID/GID mapping and cannot directly execute the
-image's declared UID/GID 65532. A failed default-user Podman probe was not counted as passing. The
+image's declared UID/GID 65532. A direct default-user Podman diagnostic could not complete under
+that mapping and was not counted as passing. The
 two disposable judge flows used the gate's narrowly allowed `--user 0:0` compatibility override
 only after a fresh image-ID/digest/source-bound non-root proof established:
 
@@ -82,11 +83,12 @@ TOKEN_MODE=0600
 
 That non-root proof used a private Bubblewrap user namespace against the exact exported image root
 filesystem. The machine gate calls this compatibility path `BOUND_EXTERNAL_OCI_RUNTIME`; that is a
-schema label, not a claim that the earlier nested-crun attempt succeeded. The operator-local Podman
-wrapper only works around an inaccessible parent path inside a private mount namespace. It does not
-change the host path, image contents, image privileges, flow mounts, or deployment configuration,
-and it is not represented as a declared-user Podman proof. A normal engine is expected to run the
-image's declared `aioa` user directly.
+schema label, not a claim that the earlier nested-crun attempt succeeded. The operator-local
+accessible wrapper uses local engine state under the dedicated `.aioa-b6` data root and bind-remaps
+its storage parent only inside a private user/mount namespace. It does not alter image contents,
+image privileges, the judge-flow mount policy, or deployment configuration, and it is not a
+declared-user Podman proof. A normal engine is expected to run the image's declared `aioa` user
+directly.
 
 ## Recertification gates
 
@@ -109,8 +111,9 @@ DIFF_CHECK=PASS
 ```
 
 The complete suite passed `1465/1465` on the first recertification run. The P1 command proof was
-re-run from a clean worktree after generated evidence was safely stashed, and passed `6/6`. No test
-or AWS gate was weakened or changed.
+re-run from a clean worktree after generated evidence was safely stashed, and passed `6/6`. No
+safety, approval, or AWS gate was weakened; the Render-start recertification updated the test
+inventory and passed `1465/1465` tests.
 
 ## External-action boundary
 

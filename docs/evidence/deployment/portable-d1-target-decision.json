@@ -1,8 +1,9 @@
 {
-  "account_state": "GITHUB_CONNECTED_HUMAN_DEPLOY_PENDING",
-  "application_source_commit": "4fafed8b1a877e55d96ddd9baea0a737fbeeaa4a",
+  "account_state": "GITHUB_CONNECTED_OWNER_REDEPLOY_PENDING",
+  "application_source_commit": "797c94e72151c46504b9ae81412738aa6b253e8a",
   "aws_resource_created": false,
   "captured_at": "2026-09-02T00:53:07Z",
+  "blueprint_source_commit": "a7bb1d6eb7ff5a86126f02af6758f0298289816b",
   "decision": {
     "provider": "Render",
     "region": "frankfurt",
@@ -11,8 +12,11 @@
   },
   "document_type": "AIOA_D1_NON_AWS_TARGET_DECISION",
   "frozen_inputs": {
+    "dockerignore_sha256": "0e6b8400e2813f0be52a5f3f5243d520cbbe740b286a44749e8e6db368265812",
     "demo_runbook_sha256": "3ee0e75aab70b9e63860e7deb3e5785cfd6a1df9ac60ea9462d9022fe61d3f47",
-    "dockerfile_sha256": "62ab24342fb35961e6b5b05969f3749b3d4d201afd4f6510223b870c0f4ba93c",
+    "dockerfile_sha256": "4640463904ced78776f5f482510e9f117d7ee2e0b6a8e04c5ba83e349378bc8f",
+    "render_blueprint_sha256": "c9e351188844ec4236068ffe62fa9747376ec520eabea39c9e92dd30909a645c",
+    "render_start_script_sha256": "d350917c132a338605f630fde97a2ac017e1664fe9cf413a7153827326e6d250",
     "runtime_contract_sha256": "c5af5e77349a1038d860f3108a2bbaee6fbb6d3df7340f931095551a72240233"
   },
   "official_references": [
@@ -28,6 +32,8 @@
     "https://huggingface.co/docs/hub/spaces-overview"
   ],
   "paid_resource_created": false,
+  "recertified_at": "2026-09-02T15:53:45Z",
+  "render_schema_sha256": "f6cb3fbae8c598d41385069bf7084293b48b802f88e1bc98b1c4b9c24a15be47",
   "rejected": [
     {
       "provider": "Koyeb",

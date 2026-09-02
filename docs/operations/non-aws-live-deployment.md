@@ -4,10 +4,12 @@ Status: `D1.1_TARGET_SELECTED`; live service not yet created.
 
 ## Frozen application boundary
 
-The Render deployment builds the existing root `Dockerfile`. The accepted application source is the
-merged `main` tree at `4fafed8b1a877e55d96ddd9baea0a737fbeeaa4a`. Deployment-only commits may add
-configuration and evidence, but must not change the Dockerfile, packaged source, dependency locks,
-runtime contract, or jury runbook without invalidating B5/B6.
+The Render deployment builds the existing root `Dockerfile`. The recertified runtime/image source
+is `797c94e72151c46504b9ae81412738aa6b253e8a`; the sanitized B6 source and exact Blueprint are bound
+at `a7bb1d6eb7ff5a86126f02af6758f0298289816b`. Later evidence-only commits may add reports, but any
+change to the Dockerfile, `.dockerignore`, installed Render startup script, packaged source,
+dependency locks, runtime contract, Blueprint behavior, or jury runbook invalidates the applicable
+B5/B6 evidence and requires recertification.
 
 The service remains the portable deterministic sandbox:
 
@@ -41,10 +43,13 @@ dashboard during the first Blueprint creation. It must be a freshly generated, U
 least 48 characters. It must never be committed, pasted into a terminal transcript, written to a
 URL query, or printed in deployment logs.
 
-The deployment command runs as the image's non-root `aioa` user. It creates the canonical token file
-with `umask 077`, removes the bootstrap variable before replacing itself with the frozen canonical
-process, and fails closed if the secret is absent. The browser UI exchanges the one-time fragment
-bootstrap for an `HttpOnly`, same-origin session and immediately removes the fragment from history.
+Render invokes the fixed image-owned executable `/usr/local/bin/aioa-render-start` as the image's
+non-root `aioa` user. The script applies `umask 077`, fails closed if the token or target path is
+missing, writes the canonical token file, forces mode `0600`, unsets `AIOA_OPERATOR_TOKEN`, and
+`exec`s `python -m aioa_cloudops_agent.portable_server`. The Blueprint contains only that executable
+path, eliminating the previous multi-command shell-quoting boundary. The browser UI exchanges the
+one-time fragment bootstrap for an `HttpOnly`, same-origin session and immediately removes the
+fragment from history.
 
 ## State and recovery contract
 

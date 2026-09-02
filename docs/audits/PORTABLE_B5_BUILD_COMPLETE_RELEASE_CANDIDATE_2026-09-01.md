@@ -44,13 +44,15 @@ BASE_IMAGE=docker.io/library/python:3.12-slim-bookworm@sha256:782412e85d0f098499
 The tag is a mutable local convenience. The recorded manifest digest, image ID, and exact source
 label form the frozen local identity. No registry digest exists because no push occurred.
 
-The local Podman 4.9.3 host has only one usable host UID/GID mapping, so its default-user probe could
-not map image UID/GID 65532 and was not counted as passing. A private Bubblewrap user namespace ran
+The local Podman 4.9.3 host has only one usable host UID/GID mapping, so its direct default-user
+diagnostic could not complete under the mapping and was not counted as passing. A private
+Bubblewrap user namespace ran
 the exact exported image root filesystem and proved UID/GID 65532, zero effective capabilities,
 `NoNewPrivs=1`, server PID 1, health/readiness, and token mode `0600`. Only after that bound proof did
-the two judge flows use the narrowly allowed local `0:0` compatibility override. The local Podman
-wrapper merely works around an inaccessible parent path in a private mount namespace; it does not
-change the host, image, flow mounts, privileges, or deployment configuration. The gate's
+the two judge flows use the narrowly allowed local `0:0` compatibility override. The operator-local
+accessible wrapper uses local engine state under the dedicated `.aioa-b6` data root and bind-remaps
+its storage parent only inside a private user/mount namespace. It does not alter image contents,
+image privileges, the judge-flow mount policy, or deployment configuration. The gate's
 `BOUND_EXTERNAL_OCI_RUNTIME` value is a schema label for this external proof path, not a claim that
 the failed nested-crun attempt succeeded.
 

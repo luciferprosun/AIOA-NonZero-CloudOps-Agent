@@ -37,7 +37,9 @@ image identity and every B6 bundle/image hash.
 | fixed Render startup executable and focused proof | `af44999efe4bda7aa8b35931377af5eee0b49bbc` | PASS |
 | frozen B5 image source and re-anchored reviewer evidence | `797c94e72151c46504b9ae81412738aa6b253e8a` | PASS |
 | regenerated B5 machine evidence | `bafe664295ebcf2f67735854fcc36de156abc225` | PASS |
-| sanitized B6 source and clean-room certification | pending | INVALIDATED_PENDING_RECERTIFICATION |
+| frozen sanitized B6 source | `a7bb1d6eb7ff5a86126f02af6758f0298289816b` | PASS |
+| clean-room image, Render bootstrap, non-root, judge, and reproducibility receipt | `b69fbfda9cb5d0244f55938755312ac820bf0e0e` | PASS |
+| final deterministic bundle, privacy scan, and audits | this commit | PASS |
 
 ## Current B5 outcome
 
@@ -67,13 +69,21 @@ server process reaching `/health` and `/ready`. Missing-token startup failed clo
 ## Current B6 outcome
 
 ```text
-B6=INVALIDATED_PENDING_RECERTIFICATION
-PUBLICATION_READY=NO
-INVALIDATION_REASON=DOCKERFILE_AND_RENDER_START_SCRIPT_CHANGED
+B6=PASS
+PUBLICATION_READY=PASS
+SOURCE_COMMIT=a7bb1d6eb7ff5a86126f02af6758f0298289816b
+IMAGE_ID=a310690a3d411ea133ba2e6aedb05fc9a4279ee7f0a8f16c4ddc198b3d945833
+IMAGE_DIGEST=sha256:6602875706bfdbd68444ac83c928d758781aaac8ab9b4358e87d3f7e3f49f9d5
+RENDER_START_SCRIPT=PASS
+NONROOT_PID1=PASS UID_GID_65532
+CONTAINER_JUDGE=PASS 2/2
+PUBLIC_SCAN=PASS 0 findings
+ARCHIVE_SHA256=af07a6a4c085db60ebd66971bbe5ed42fb3aa7de5d6b7486ffc70b59943bf45a
+DETERMINISTIC_REBUILDS=2/2 IDENTICAL
 ```
 
-The prior B6 files remain historical until fresh deterministic exports, clean-room image proof,
-public scans, and final bundle receipts are committed for the Render startup-script source.
+The final local bundle is publication-ready but remains unuploaded. Deployment and external
+publication are not part of B6.
 
 ## External-action boundary
 

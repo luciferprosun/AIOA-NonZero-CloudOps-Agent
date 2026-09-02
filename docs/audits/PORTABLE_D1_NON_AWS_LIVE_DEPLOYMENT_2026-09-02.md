@@ -2,33 +2,35 @@
 
 Date: 2026-09-02
 
-## Main re-attestation
+## Current pre-redeployment state
 
 ```text
-MAIN_REATTESTED=YES
-PR_STATE=MERGED
-MAIN_HEAD=4fafed8b1a877e55d96ddd9baea0a737fbeeaa4a
-ORIGIN_MAIN_HEAD=4fafed8b1a877e55d96ddd9baea0a737fbeeaa4a
-MAIN_AHEAD=0
-MAIN_BEHIND=0
+HISTORICAL_MERGED_MAIN_HEAD=4fafed8b1a877e55d96ddd9baea0a737fbeeaa4a
+CURRENT_WORK_BRANCH=codex/portable-d1-d2-m1-overnight
+CERTIFIED_RUNTIME_SOURCE=797c94e72151c46504b9ae81412738aa6b253e8a
+CERTIFIED_B6_SOURCE=a7bb1d6eb7ff5a86126f02af6758f0298289816b
 B5_BUILD_COMPLETE=PASS
 B6_PUBLICATION_READY=PASS
-WORKTREE=CLEAN
-READY_FOR_D1=YES
+RENDER_START_SCRIPT=PASS
+READY_FOR_RENDER_REDEPLOY=YES
+LIVE_DEPLOYMENT_PERFORMED=NO
 ```
 
-The source PDF contains `4fafed8b1a877e55d96ddd9baea0a737fbeaaa4a`; that value is a typo.
-Git and merged PR #1 independently resolve the actual merge commit shown above. The prior full
-regression was `1447 passed`, zero failed, zero skipped; P0 was 15/15, P1 was 6/6, and the B4 gate
-was 11/11 scenarios with 43 proof tests. Clean-clone, sanitized clean-room, and secret scans passed
-with zero findings. At this preflight the B5 evidence validator passed again, 28
-deployment-critical tests passed, and `pip check` reported no broken requirements.
+The earlier `main` merge and its CMD-era D1 evidence remain historical. The Render startup-script
+change invalidated the prior image and B6 bundle, so they were not relabeled. B5 was rebuilt from a
+clean clone and passed the full 1,465-test regression, P0 15/15, P1 6/6, B4 11/11, clean-clone,
+container judge, non-root, pip, Ruff, secret/privacy, and zero-egress gates. B6 was then rebuilt from
+the sanitized source and passed deterministic export, no-cache image build, exact startup-script,
+non-root PID-1, judge-flow, final privacy, and byte-identical bundle gates.
 
-Frozen input hashes:
+Frozen inputs:
 
 | Input | SHA-256 |
 | --- | --- |
-| `Dockerfile` | `62ab24342fb35961e6b5b05969f3749b3d4d201afd4f6510223b870c0f4ba93c` |
+| `Dockerfile` | `4640463904ced78776f5f482510e9f117d7ee2e0b6a8e04c5ba83e349378bc8f` |
+| `.dockerignore` | `0e6b8400e2813f0be52a5f3f5243d520cbbe740b286a44749e8e6db368265812` |
+| `scripts/render_start.sh` | `d350917c132a338605f630fde97a2ac017e1664fe9cf413a7153827326e6d250` |
+| `render.yaml` | `c9e351188844ec4236068ffe62fa9747376ec520eabea39c9e92dd30909a645c` |
 | `docs/PORTABLE_RUNTIME.md` | `c5af5e77349a1038d860f3108a2bbaee6fbb6d3df7340f931095551a72240233` |
 | `docs/submission/demo-runbook.md` | `3ee0e75aab70b9e63860e7deb3e5785cfd6a1df9ac60ea9462d9022fe61d3f47` |
 
@@ -38,59 +40,52 @@ Frozen input hashes:
 DEPLOY_PROVIDER=Render
 DEPLOY_PLAN=free
 DEPLOY_REGION=frankfurt
-ACCOUNT_STATE=GITHUB_CONNECTED_HUMAN_DEPLOY_PENDING
+ACCOUNT_STATE=GITHUB_CONNECTED_OWNER_REDEPLOY_PENDING
 PAID_RESOURCE_CREATED=NO
 AWS_RESOURCE_CREATED=NO
-D1_1_GATE=PASS
+D1_1_LOCAL_GATE=PASS
 ```
 
-Render was selected from current official documentation because its Free Web Service supports a
-Docker build, public managed HTTPS, environment secrets, log streams, HTTP health checks, restart,
-and rollback to the two most recent deployments. Render explicitly documents behavior for
-workspaces without a payment method: usage exhaustion suspends services/builds instead of charging
-them. The limitations are accepted for this demo: 0.1 CPU, 512 MB RAM, idle spin-down, cold start,
-and ephemeral local files.
-
-The deployment contract, secret bootstrap, state semantics, rejected alternatives, and rollback
-plan are in `docs/operations/non-aws-live-deployment.md`. Machine-readable decision evidence is in
-`docs/evidence/deployment/portable-d1-target-decision.json`. The Blueprint passed Render's current
-official JSON Schema. A local launch-contract probe also proved that its `dockerCommand` creates the
-operator token at mode 0600, removes the bootstrap secret from the application process environment,
-and reaches healthy/ready portable/mock service state. The checkpoint regression passed 24 focused
-portable/container/judge tests, Ruff, `pip check`, and the B5 drift validator. The tracked secret
-scan inspected 413 files with zero findings and emitted receipt
-`87f106ce2a93c43918d727af0a8f2a6a191a7ee0fd35cb11a8fdcc0a1865cc0a`.
-
-No service, deployment, public URL, card, payment commitment, AWS resource, database, disk, or other
-provider resource existed at this checkpoint. The human connected Render to GitHub and explicitly
-deferred the actual deployment until morning; subsequent work is CLI-only.
-
-## D1.2 live launch
-
-Status: `CLI_ACCEPTANCE_HARNESS_PASS`; `LIVE_BLOCKED_BY_HUMAN_DEPLOY`.
-
-The provider-agnostic acceptance harness is committed at
-`scripts/operations/run_live_acceptance.py`. It accepts its URL only through `AIOA_PUBLIC_URL` and
-its operator credential only through `AIOA_OPERATOR_TOKEN_FILE` or an inherited environment value;
-there is no token CLI option. File input is opened without following symlinks and requires a regular,
-single-link, owner-only file. Non-loopback HTTP and non-HTTPS live mode fail closed. HTTPS uses the
-standard verifying TLS context with bounded timeouts and response capture.
-
-The harness was exercised against a separately launched canonical
-`python -m aioa_cloudops_agent.portable_server` process. All seven checks passed: safe health,
-readiness, unknown-route rejection, unsupported-method rejection, unauthenticated session denial,
-Bearer-to-session bootstrap, and authenticated cookie-session lookup. The focused regression was
-`16 passed`; Ruff, `pip check`, and `git diff --check` passed. The tracked receipt is
-`docs/evidence/deployment/portable-d1-cli-acceptance.json`; it contains status codes and content
-hashes but no operator token, session cookie, raw header, private state path, or provider secret.
+The checked-in Blueprint preserves `plan: free`, `region: frankfurt`, `/ready`, the mock provider,
+AWS disabled, no allowed egress, and human approval authority. Its only startup override is:
 
 ```text
-D1_2_CLI_HARNESS=PASS
-D1_2_LIVE=BLOCKED_BY_HUMAN_DEPLOY
-LOCAL_CANONICAL_PROCESS=PASS
-LOCAL_ACCEPTANCE_CHECKS=7/7
-LOCAL_FOCUSED_TESTS=16/16
-LIVE_PUBLIC_URL=NOT_CREATED
+dockerCommand: /usr/local/bin/aioa-render-start
+```
+
+The Blueprint passed the current official Render JSON Schema with zero validation errors; the
+fetched schema SHA-256 was
+`f6cb3fbae8c598d41385069bf7084293b48b802f88e1bc98b1c4b9c24a15be47`.
+
+The installed script proof used the exact clean-room image. It wrote a synthetic operator token to
+the configured file at mode `0600`, removed `AIOA_OPERATOR_TOKEN` from the canonical child process,
+started `python -m aioa_cloudops_agent.portable_server`, and reached `/health` and `/ready` with all
+AWS, external-network, and real-cloud mutation authority disabled. Missing-token startup failed
+closed with exit status 2. A separate exact-rootfs proof ran the same contract at UID/GID 65532,
+zero capabilities, `NoNewPrivs=1`, and server PID 1.
+
+The provider decision and current hashes are recorded in
+`docs/evidence/deployment/portable-d1-target-decision.json`. No Render service or other provider
+resource was created or modified by this recertification.
+
+## D1.2 post-redeployment acceptance
+
+Status: `WAITING_FOR_OWNER_RENDER_REDEPLOY`.
+
+The provider-agnostic acceptance harness remains at
+`scripts/operations/run_live_acceptance.py`. The checked-in
+`docs/evidence/deployment/portable-d1-cli-acceptance.json` is a historical local CMD-era receipt and
+is not presented as evidence for the new live deployment. After the owner redeploys the reviewed
+Blueprint, D1 must generate a fresh live receipt against the resulting HTTPS origin and exact
+deployed revision.
+
+The live acceptance must prove safe health, readiness, unknown-route and unsupported-method
+rejection, unauthenticated denial, Bearer-to-session bootstrap, authenticated cookie-session
+lookup, TLS verification, deployed source identity, and the expected `Secure`, `HttpOnly`,
+`SameSite=Strict` session boundary. It must not print or persist the operator token or session cookie.
+
+```text
+LIVE_PUBLIC_URL=EXISTING_PROVIDER_STATE_NOT_INSPECTED
 LIVE_HTTPS_REQUESTS=0
 AWS_CALLS=0
 AWS_MUTATIONS=0
@@ -98,14 +93,11 @@ BROWSER_ACTIONS=0
 PROVIDER_RESOURCE_CREATION=0
 ```
 
-Cookie `Secure` is deliberately not promoted from this local HTTP proof. The D2 public-HTTPS probe
-must require and measure it after deployment. The currently frozen application emits `HttpOnly` and
-`SameSite=Strict`; no claim of a live `Secure` attribute is made here.
-
 ## D1.3 live certification and freeze
 
-Status: `BLOCKED_BY_HUMAN_DEPLOY`.
+Status: `BLOCKED_UNTIL_OWNER_REDEPLOYS`.
 
-Approve, deny, replay, binding-tamper, cold-start, and deployed-source checks have not been run
-against a public service because no service or public URL exists. This is a human deployment
-dependency, not a failure of the local CLI harness.
+Approve, deny, replay, binding-tamper, cold-start, deployed-source, and rollback checks have not been
+run against the repaired public service in this task. No CLI deployment or provider mutation was
+authorized. The repository is locally ready for the owner-triggered Render redeploy; live D1/D2
+evidence must be generated afterward.
