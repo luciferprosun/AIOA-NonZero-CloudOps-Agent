@@ -4,27 +4,29 @@
   "aws_mutations": 0,
   "b5_build_complete": {
     "attestation": "docs/evidence/release/portable-b5-build-complete-attestation.json",
-    "attestation_sha256": "5106f99fb3ebfe38d1fde9895b85782ee89a686c2e2fd30db5ba2da62de16e43",
-    "frozen_image_id": "d5eca6b273309ba0fda6e143af47ea0c9c160a7605b29dd6f1fa8262c8d720e9",
-    "frozen_manifest_digest": "sha256:371b7c5b3bc9d88fe07aba54a5bd4b3e69a526ea1ff313b09253b75983e5856a",
+    "attestation_file_sha256": "66f9df7c5314b5e1606d5e3a103b352bd8d38ac8751b7a36ba89b3aefa646810",
+    "attestation_sha256": "5e2c929f9ede0ac16193c4cbef847d1a96fc8207f5dcac009c5dcbf5fdcdaaa7",
+    "frozen_image_id": "2f4b9a0d2708ae82aeda558e45271b59b192894a3b09a1831723ad42e8fe78b4",
+    "frozen_manifest_digest": "sha256:bdf35995e5588ccb93348f0784411d32d0aeb480483b1f34d530c4e3f34edbc3",
     "nonroot_receipt": "docs/evidence/release/portable-b5-nonroot-runtime.json",
-    "source_commit": "c262c9f25bbe069f17a05da7221dbce606edb7b8",
+    "nonroot_receipt_file_sha256": "30cc83d71de47e0a3e79ceaa2a268900ed5019a930104c7276556ab91afb8876",
+    "source_commit": "797c94e72151c46504b9ae81412738aa6b253e8a",
     "status": "PASS"
   },
   "checks": [
     {
       "check_id": "SANITIZED_SOURCE_EXPORT",
-      "inventory_count": 420,
+      "inventory_count": 421,
       "status": "PASS"
     },
     {
       "check_id": "CANDIDATE_SHA256SUMS",
-      "entries": 336,
+      "entries": 337,
       "status": "PASS"
     },
     {
-      "check_id": "SANITIZED_CLEAN_ROOM_BUILD",
       "build_cache": false,
+      "check_id": "SANITIZED_CLEAN_ROOM_BUILD",
       "dependency_hash_enforcement": true,
       "pip_check": "PASS",
       "status": "PASS"
@@ -40,10 +42,30 @@
       "status": "PASS"
     },
     {
-      "check_id": "SANITIZED_CLEAN_ROOM_START",
+      "check_id": "SANITIZED_CLEAN_ROOM_DEFAULT_START",
       "default_cmd_start": "PASS",
+      "status": "PASS"
+    },
+    {
+      "canonical_child_argv": true,
+      "check_id": "RENDER_START_SCRIPT_BOOTSTRAP",
       "health": "PASS",
+      "installed_mode": "0555",
+      "missing_token_exit_status": 2,
+      "operator_token_absent_from_child_environment": true,
+      "proof_file_sha256": "db7a2c3aa6930b080def7106501d23f8e0c8564b7984a67bd9b8cbf0f1efad42",
       "readiness": "PASS",
+      "source_mode": "0755",
+      "status": "PASS",
+      "token_file_mode": "0600"
+    },
+    {
+      "cap_eff": "0000000000000000",
+      "check_id": "SANITIZED_NONROOT_RENDER_START",
+      "effective_uid_gid": "65532:65532",
+      "no_new_privs": "1",
+      "pid1": "python -m aioa_cloudops_agent.portable_server",
+      "receipt_file_sha256": "1ca176d0323bfb8cc7fffab21ef55c88ade05f337333653e2fb2ef569d1be34c",
       "status": "PASS"
     },
     {
@@ -69,14 +91,23 @@
     },
     {
       "check_id": "CLAIMS_PROOF_AUDIT",
-      "proof_paths": 29,
+      "claims": 28,
+      "proof_paths": 31,
       "status": "PASS"
     },
     {
       "check_id": "PUBLIC_SECRET_AND_PRIVATE_DATA_SCAN",
       "findings": 0,
-      "regular_files": 337,
+      "regular_files": 338,
       "reviewed_synthetic_fixtures": 14,
+      "status": "PASS"
+    },
+    {
+      "application_files": 284,
+      "check_id": "CLEAN_ROOM_IMAGE_PRIVACY_SCAN",
+      "findings": 0,
+      "receipt_file_sha256": "fb786bec09e36418570b5008d0e558027d0bd94d3cf9f27bf4c81fc8325c97c4",
+      "regular_files": 11288,
       "status": "PASS"
     }
   ],
@@ -89,7 +120,7 @@
     ]
   },
   "container": {
-    "build_manifest_digest": "sha256:d3a1e9994487af1067ab5b296deef9a727eb9a21073cabeff6c131e0d03fbc0d",
+    "build_manifest_digest": "sha256:6602875706bfdbd68444ac83c928d758781aaac8ab9b4358e87d3f7e3f49f9d5",
     "cmd": [
       "python",
       "-m",
@@ -98,28 +129,32 @@
     "configured_user": "aioa",
     "default_cmd_start": "PASS",
     "engine": "podman-4.9.3-local",
-    "engine_user_override": "0:0",
+    "engine_user_override": "0:0_JUDGE_FLOW_ONLY_AFTER_EXACT_NONROOT_PROOF",
     "entrypoint": null,
-    "health_probe_file_sha256": "33cea5e8ceeb07001630be3c92484d83964c6b7eb228f1199c246964bed2adad",
-    "image_id": "a5627d4a90a4d5aeb596f1028b2f1923d6bd23e407f02c042ef3c70365cdfda7",
-    "local_manifest_digest": "sha256:e810c00a2f79bd4404e19a28096c4fae53154594a46d9e6224f71e2a33543e70",
-    "local_reference": "localhost/aioa-portable:b6-public-cmd-46ce221e81f8",
+    "health_probe_file_sha256": "db7a2c3aa6930b080def7106501d23f8e0c8564b7984a67bd9b8cbf0f1efad42",
+    "image_id": "a310690a3d411ea133ba2e6aedb05fc9a4279ee7f0a8f16c4ddc198b3d945833",
+    "image_privacy_scan_file_sha256": "fb786bec09e36418570b5008d0e558027d0bd94d3cf9f27bf4c81fc8325c97c4",
+    "local_manifest_digest": "sha256:6602875706bfdbd68444ac83c928d758781aaac8ab9b4358e87d3f7e3f49f9d5",
+    "local_reference": "localhost/aioa-portable:b6-public-render-a7bb1d6eb7ff",
     "network": "none",
     "no_new_privileges": true,
-    "oci_archive_sha256": "c15d896412d14d0fce5ac5f42ede06ec3af866fdc8e1e4ae5ca83f7a3acfbe36",
+    "nonroot_receipt_file_sha256": "1ca176d0323bfb8cc7fffab21ef55c88ade05f337333653e2fb2ef569d1be34c",
+    "oci_archive_sha256": "4eac968a43a84908fac42e7d26da48a8ccd6b780cc06035f958f678896abd534",
     "read_only_rootfs": true,
+    "render_start_proof_file_sha256": "db7a2c3aa6930b080def7106501d23f8e0c8564b7984a67bd9b8cbf0f1efad42",
     "runtime_capabilities": "NONE",
-    "runtime_nonroot_claim": "NOT_REATTESTED_HOST_UID_MAP_LIMITATION_USE_B5_FROZEN_EXACT_ROOTFS_PROOF",
-    "size_bytes": 219807733,
-    "source_label": "46ce221e81f88d82df75d67e144d9a2231c54d64"
+    "runtime_nonroot_claim": "PASS_BUBBLEWRAP_EXACT_EXPORTED_ROOTFS_UID_GID_65532",
+    "size_bytes": 219815045,
+    "source_label": "a7bb1d6eb7ff5a86126f02af6758f0298289816b"
   },
   "diagnostics": {
-    "clean_room_build": "PASS_FIRST_PROPER_ABSOLUTE_ENGINE_INVOCATION",
-    "detached_exec_probe": "HOST_USER_NAMESPACE_CANNOT_OPEN_CHILD_MOUNT_NAMESPACE_NOT_COUNTED",
-    "first_launcher_attempt": "RELATIVE_ENGINE_PATH_UNAVAILABLE_RETRIED_WITH_REVIEWED_ABSOLUTE_PATH",
+    "clean_room_build": "PASS_NO_CACHE_EXACT_FROZEN_SOURCE",
+    "default_cmd_probe": "PROCESS_REMAINED_RUNNING_UNTIL_EXACT_CONTROLLED_STOP",
+    "local_engine_cleanup": "STOP_TRANSITION_STALLED_IN_LOCAL_WRAPPER_AND_EXACT_CONTAINER_WAS_FORCE_REMOVED_AFTER_PROCESS_STOP",
+    "nonroot_runtime": "BUBBLEWRAP_0_9_0_EXACT_EXPORTED_ROOTFS_PID1",
     "product_failures": 0,
-    "public_scan_recertification": "RESERVED_TEST_TLD_FIX_COMMITTED_BEFORE_SOURCE_FREEZE",
-    "runtime_storage": "PRIVATE_MOUNT_NAMESPACE_PARENT_PATH_WORKAROUND_NO_HOST_PATH_MUTATION"
+    "render_bootstrap": "PASS_NETWORK_NONE_AND_SEPARATE_NONROOT_PID1_PROOF",
+    "runtime_storage": "PRIVATE_MOUNT_NAMESPACE_PARENT_PATH_WORKAROUND_NO_IMAGE_OR_DEPLOYMENT_CHANGE"
   },
   "document_type": "AIOA_B6_PUBLIC_CLEAN_ROOM_REPRODUCIBILITY",
   "external_deployments": 0,
@@ -128,30 +163,30 @@
     "denied_final_state": "DENIED_BY_HUMAN",
     "external_network_connections": 0,
     "failure_probes": 5,
-    "file_sha256": "f829b18ff509c40288b134579c0c01a650628780a9ccc15f016b14a47346bb73",
+    "file_sha256": "562151a84289a57554ae09ad08ebedb3c341e5926d0744598ac3bacde096910c",
     "invocations": 2,
     "provider_network_calls": 0,
-    "receipt_sha256": "f365b07702e43c3848b3470453910b2239d640e8e9ec22a917790a702c110ba3",
+    "receipt_sha256": "d6372f42bab782dbbb44558b54e87f3de0eaac52486b85ca0c148a4a864e74b2",
     "recovery_mock_mutations": 0,
     "replay_mutation_delta": 0,
     "status": "PASS"
   },
   "initial_candidate": {
-    "archive_sha256": "070709bcf07168fad533d248cce89587ab14a3ed4605990bbe906c838f1043cb",
-    "manifest_file_sha256": "2cc3bdf547a846baa591b21c7fa48edc71f096ba705c77620cd3282d00aeb776",
-    "payload_tree_sha256": "1c9048d7ffd09e58fec551ba089e661edc04605160339d588d4a8a4769ade723"
+    "archive_sha256": "3dafc6b9a3be452e2c42c3314197f6f317c7d84493a835418a906ef91d6a7548",
+    "manifest_file_sha256": "5dd24bee76f5142737d251dcca604165250a62eec8dacccd09403c3579133d09",
+    "payload_tree_sha256": "8a9101f1be989b09dffa9fcb479bf95a92da9bf7f0b9149f41e36b0b082b112f"
   },
-  "limitations": "Local Linux/amd64 offline/mock certification only. The constrained rootless Podman host required a disclosed 0:0 compatibility override for B6 process runs; this is not a B6 non-root claim. No live AWS, Bedrock, public endpoint, registry push, external deployment, production-readiness, video-publication, or Devpost-submission claim is made.",
+  "limitations": "Local Linux/amd64 offline/mock certification only. The exact B6 exported root filesystem passed a Bubblewrap non-root PID-1 proof at UID/GID 65532. The constrained rootless Podman host still required a disclosed 0:0 compatibility override for the two network-none judge flows after that exact image-bound proof. No live AWS, Bedrock, public endpoint, registry push, external deployment, production-readiness, video-publication, or Devpost-submission claim is made.",
   "privacy_scan": {
-    "file_sha256": "42c85030a30b5c4cb142cc6d7f86fee8dfacaa05985c351dce2abca0559d1007",
+    "file_sha256": "10ba45464c1ed274dc53db7938d690f5990938b7c3ffa055e68df05d8d14511e",
     "findings": 0,
-    "receipt_sha256": "8b6d217426501a3c02076b1475fc59eb6571d85e5298e9b0d61c9e8674045c7b",
+    "receipt_sha256": "be806f3f18e5484eeb6528ea5f621106be784654e9015be833cc1592c5b3e740",
     "status": "PASS"
   },
   "publication_actions": 0,
   "publication_ready": "PASS",
   "remote_pushes": 0,
   "schema_version": 1,
-  "source_commit": "46ce221e81f88d82df75d67e144d9a2231c54d64",
+  "source_commit": "a7bb1d6eb7ff5a86126f02af6758f0298289816b",
   "status": "PASS"
 }
