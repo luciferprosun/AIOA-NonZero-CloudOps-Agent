@@ -1,8 +1,8 @@
 {
   "base_image": "docker.io/library/python:3.12-slim-bookworm@sha256:782412e85d0f0984994c290652577d4018aff08145c85b262bb63dc0c7522254",
   "document_type": "AIOA_B5_DETERMINISTIC_PYTHON_PACKAGE_MANIFEST",
-  "image_digest": "sha256:371b7c5b3bc9d88fe07aba54a5bd4b3e69a526ea1ff313b09253b75983e5856a",
-  "manifest_sha256": "bc92cfd42df2c533c513725bf4ba7ec8005ebb77cf488b9dd32a70750a408e42",
+  "image_digest": "sha256:bdf35995e5588ccb93348f0784411d32d0aeb480483b1f34d530c4e3f34edbc3",
+  "manifest_sha256": "b1f5e23fb592a3b79cd7e3ef36cb991c31d0d1d9c5d19b35705c55ea45cb2b12",
   "package_count": 57,
   "packages": [
     {
@@ -354,6 +354,6 @@
   "sbom_generator": "LOCK_PLUS_EXACT_IMAGE_OBSERVATION",
   "sbom_tool_status": "DEDICATED_SBOM_TOOL_UNAVAILABLE_PACKAGE_MANIFEST_USED",
   "schema_version": 1,
-  "source_commit": "c262c9f25bbe069f17a05da7221dbce606edb7b8",
+  "source_commit": "797c94e72151c46504b9ae81412738aa6b253e8a",
   "wheel_sha256": "fe5b5df0448bf41c9aa0d6460b998adf280cab567b9ba688e5111cb71c0ff395"
 }

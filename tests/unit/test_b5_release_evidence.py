@@ -77,6 +77,7 @@ def test_b5_artifact_and_attestation_bind_source_image_docs_and_zero_cloud() -> 
     ]
     assert "entrypoint" not in artifact["image"]
     assert artifact["artifacts"]["PORTABLE_RUNTIME_CONTRACT"]["sha256"]
+    assert artifact["artifacts"]["RENDER_START_SCRIPT"]["sha256"]
     assert artifact["artifacts"]["CONTAINER_JUDGE_RUNBOOK"]["sha256"]
     assert artifact["artifacts"]["SUBMISSION_DEMO_RUNBOOK"]["sha256"]
     assert set(artifact["external_actions"].values()) == {0}

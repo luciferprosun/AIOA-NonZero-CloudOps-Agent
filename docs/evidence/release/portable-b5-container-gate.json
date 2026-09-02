@@ -49,14 +49,14 @@
       "aioa_cloudops_agent.portable_server"
     ],
     "configured_user": "aioa",
-    "content_identity": "sha256:371b7c5b3bc9d88fe07aba54a5bd4b3e69a526ea1ff313b09253b75983e5856a",
-    "digest": "sha256:371b7c5b3bc9d88fe07aba54a5bd4b3e69a526ea1ff313b09253b75983e5856a",
-    "id": "d5eca6b273309ba0fda6e143af47ea0c9c160a7605b29dd6f1fa8262c8d720e9",
+    "content_identity": "sha256:bdf35995e5588ccb93348f0784411d32d0aeb480483b1f34d530c4e3f34edbc3",
+    "digest": "sha256:bdf35995e5588ccb93348f0784411d32d0aeb480483b1f34d530c4e3f34edbc3",
+    "id": "2f4b9a0d2708ae82aeda558e45271b59b192894a3b09a1831723ad42e8fe78b4",
     "license": "MIT",
     "os": "linux",
-    "reference": "localhost/aioa-portable:b5-cmd-c262c9f25bbe",
-    "size_bytes": 219807918,
-    "source_commit": "c262c9f25bbe069f17a05da7221dbce606edb7b8"
+    "reference": "localhost/aioa-portable:b5-render-797c94e72151",
+    "size_bytes": 219814532,
+    "source_commit": "797c94e72151c46504b9ae81412738aa6b253e8a"
   },
   "nonroot_proof": {
     "cap_eff": "0000000000000000",
@@ -69,7 +69,7 @@
     "readiness": "ready",
     "token_mode": "0o600"
   },
-  "receipt_sha256": "f9f5861882cba8060ef05fd8f189848b07488dba24912af4f6624d947a503402",
+  "receipt_sha256": "1b75a75026625a1549d52d855097873e0b6fb969a66c3e75e8ad51351c291aee",
   "receipt_type": "AIOA_B5_CONTAINER_JUDGE_GATE",
   "remote_pushes": 0,
   "runtime_hardening": {

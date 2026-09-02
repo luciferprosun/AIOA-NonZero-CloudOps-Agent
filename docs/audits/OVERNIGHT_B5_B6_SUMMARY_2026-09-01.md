@@ -15,7 +15,7 @@ The original five-commit B5/B6 certification remains part of repository history:
 The prior B6 result was invalidated when the Docker start contract changed. Its hashes and image
 identity must not be reused for the CMD-recertified release.
 
-## CMD recertification staircase
+## Prior CMD recertification staircase
 
 | Stage | Commit | Status |
 | --- | --- | --- |
@@ -27,16 +27,29 @@ identity must not be reused for the CMD-recertified release.
 | clean-room reproducibility receipt | `986c5b2d174e9e745338b141e3f37b1c28ca2997` | PASS |
 | final scan, bundle receipt, and audits | this commit | PASS |
 
+That staircase is preserved as history. The later Render startup-script change invalidated its B5
+image identity and every B6 bundle/image hash.
+
+## Render startup-script recertification staircase
+
+| Stage | Commit | Status |
+| --- | --- | --- |
+| fixed Render startup executable and focused proof | `af44999efe4bda7aa8b35931377af5eee0b49bbc` | PASS |
+| frozen B5 image source and re-anchored reviewer evidence | `797c94e72151c46504b9ae81412738aa6b253e8a` | PASS |
+| regenerated B5 machine evidence | pending current recertification commit | PASS pending commit |
+| sanitized B6 source and clean-room certification | pending | INVALIDATED_PENDING_RECERTIFICATION |
+
 ## Current B5 outcome
 
 ```text
 B5=PASS
 BUILD_COMPLETE=PASS
-SOURCE_COMMIT=c262c9f25bbe069f17a05da7221dbce606edb7b8
-IMAGE_ID=d5eca6b273309ba0fda6e143af47ea0c9c160a7605b29dd6f1fa8262c8d720e9
-IMAGE_DIGEST=sha256:371b7c5b3bc9d88fe07aba54a5bd4b3e69a526ea1ff313b09253b75983e5856a
+SOURCE_COMMIT=797c94e72151c46504b9ae81412738aa6b253e8a
+IMAGE_ID=2f4b9a0d2708ae82aeda558e45271b59b192894a3b09a1831723ad42e8fe78b4
+IMAGE_DIGEST=sha256:bdf35995e5588ccb93348f0784411d32d0aeb480483b1f34d530c4e3f34edbc3
 CONFIGURED_ENTRYPOINT=NONE
 DEFAULT_CMD=python -m aioa_cloudops_agent.portable_server
+RENDER_START_SCRIPT=/usr/local/bin/aioa-render-start
 FULL_PYTEST=PASS 1465/1465
 P0=PASS 15/15
 P1=PASS 6/6
@@ -54,22 +67,13 @@ server process reaching `/health` and `/ready`. Missing-token startup failed clo
 ## Current B6 outcome
 
 ```text
-B6=PASS
-PUBLICATION_READY=PASS
-PUBLIC_SOURCE_COMMIT=46ce221e81f88d82df75d67e144d9a2231c54d64
-CONFIGURED_ENTRYPOINT=NONE
-DEFAULT_CMD=python -m aioa_cloudops_agent.portable_server
-CLEAN_ROOM_NO_CACHE_BUILD=PASS
-DEFAULT_CMD_START=PASS
-HEALTH_READY=PASS
-APPROVE_DENY_RECOVERY_REPLAY=PASS
-PUBLIC_SCAN=PASS 0 findings
-FINAL_ARCHIVE_SHA256=297136b4d166661608e0e9c0a332b428ffdefe187f6810b177d57b68ae63610a
-DETERMINISTIC_FINAL_BUILDS=2/2 IDENTICAL
+B6=INVALIDATED_PENDING_RECERTIFICATION
+PUBLICATION_READY=NO
+INVALIDATION_REASON=DOCKERFILE_AND_RENDER_START_SCRIPT_CHANGED
 ```
 
-All old B6 identities are superseded. The authoritative B6 report, final scan, and bundle receipt
-are the CMD-recertified files under `docs/evidence/submission/`.
+The prior B6 files remain historical until fresh deterministic exports, clean-room image proof,
+public scans, and final bundle receipts are committed for the Render startup-script source.
 
 ## External-action boundary
 

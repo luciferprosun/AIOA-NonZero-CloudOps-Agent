@@ -15,7 +15,7 @@ services:
       - key: APPLICATION_VERSION
         value: 0.2.0rc1
       - key: SOURCE_COMMIT
-        value: c262c9f25bbe069f17a05da7221dbce606edb7b8
+        value: 797c94e72151c46504b9ae81412738aa6b253e8a
       - key: AIOA_RUNTIME_MODE
         value: portable
       - key: AIOA_MODEL_PROVIDER

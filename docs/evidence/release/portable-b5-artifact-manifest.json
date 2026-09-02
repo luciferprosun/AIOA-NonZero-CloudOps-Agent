@@ -3,7 +3,7 @@
   "artifacts": {
     "BUILD_CONTEXT_POLICY": {
       "path": ".dockerignore",
-      "sha256": "c6bf8a28a6fbcb1ba2e94fcdedcb00cf6f6620556262c88629dd14d800346458"
+      "sha256": "0e6b8400e2813f0be52a5f3f5243d520cbbe740b286a44749e8e6db368265812"
     },
     "BUILD_DEPENDENCY_LOCK": {
       "path": "requirements/build.lock",
@@ -11,7 +11,7 @@
     },
     "CONTAINER_DEFINITION": {
       "path": "Dockerfile",
-      "sha256": "2c406cf165e9e21c74f85a6ae3123ee1498790c15f3586cd8ffe548309dd8a7e"
+      "sha256": "4640463904ced78776f5f482510e9f117d7ee2e0b6a8e04c5ba83e349378bc8f"
     },
     "CONTAINER_JUDGE_RUNBOOK": {
       "path": "docs/operations/container-judge-certification.md",
@@ -37,9 +37,13 @@
       "path": "pyproject.toml",
       "sha256": "c11d0b6bc5a804599ecebed13753b16918d13d990735ab764cd9e000c08cfc5a"
     },
+    "RENDER_START_SCRIPT": {
+      "path": "scripts/render_start.sh",
+      "sha256": "d350917c132a338605f630fde97a2ac017e1664fe9cf413a7153827326e6d250"
+    },
     "REVIEWER_EVIDENCE_MANIFEST": {
       "path": "docs/evidence/reviewer-evidence-manifest.json",
-      "sha256": "85b72959cf215ed859a625699869f5acd4e375e9d9671558e5cae6a4d3fa1bc8"
+      "sha256": "380373cbe4313323712583d4a4dbafce10041a27304918059945cb0a6730d304"
     },
     "RUNTIME_DEPENDENCY_LOCK": {
       "path": "requirements/portable.lock",
@@ -60,21 +64,21 @@
   "document_type": "AIOA_B5_PORTABLE_ARTIFACT_MANIFEST",
   "evidence": {
     "container_gate": {
-      "file_sha256": "2672ab2285dfdfc7e274aa4129f32333b259038781a22f1ffbadae44e1287d67",
+      "file_sha256": "1b0bef9f4cd43331bf72bdd418ad1bc8e61f2220a097823fa78066da000e13c6",
       "path": "docs/evidence/release/portable-b5-container-gate.json",
-      "receipt_sha256": "f9f5861882cba8060ef05fd8f189848b07488dba24912af4f6624d947a503402"
+      "receipt_sha256": "1b75a75026625a1549d52d855097873e0b6fb969a66c3e75e8ad51351c291aee"
     },
     "image_privacy_scan": {
-      "file_sha256": "909d99235c5eb66d2e471ddf7cccec7cd7bb26b8123fff04ede95cd56a11049c",
+      "file_sha256": "8a8b9a56b351d5c637dc03d4630109048a2307f1a4122e4387ee157b5775385a",
       "path": "docs/evidence/release/portable-b5-image-privacy-scan.json",
-      "receipt_sha256": "b418eeba1f393cf7d020061b648cb0812aeeef95f531cf522fef3bf380bcee62"
+      "receipt_sha256": "4a1fd5356a1622916ba195c3084d810ec0d9b878a19ef9096fe93a4b23fe8b06"
     },
     "nonroot_runtime": {
-      "file_sha256": "22f8447678f89f255ab0c72a6b941f5189a4b420610387891a9be134b4270601",
+      "file_sha256": "30cc83d71de47e0a3e79ceaa2a268900ed5019a930104c7276556ab91afb8876",
       "path": "docs/evidence/release/portable-b5-nonroot-runtime.json"
     },
     "python_packages": {
-      "file_sha256": "e9d182b2cd503fcc6e805af96d532dd14ab67765c5a6021e8dc4762990e0f36d",
+      "file_sha256": "9805a68b2435625cd7bdc7263056d71fbc550cb6d943d808c94a55f3a3ef0479",
       "path": "docs/evidence/release/portable-b5-python-packages.json"
     }
   },
@@ -95,15 +99,15 @@
     ],
     "configured_user": "aioa",
     "health_path": "/health",
-    "id": "d5eca6b273309ba0fda6e143af47ea0c9c160a7605b29dd6f1fa8262c8d720e9",
-    "local_manifest_digest": "sha256:371b7c5b3bc9d88fe07aba54a5bd4b3e69a526ea1ff313b09253b75983e5856a",
-    "local_reference": "localhost/aioa-portable:b5-cmd-c262c9f25bbe",
+    "id": "2f4b9a0d2708ae82aeda558e45271b59b192894a3b09a1831723ad42e8fe78b4",
+    "local_manifest_digest": "sha256:bdf35995e5588ccb93348f0784411d32d0aeb480483b1f34d530c4e3f34edbc3",
+    "local_reference": "localhost/aioa-portable:b5-render-797c94e72151",
     "readiness_path": "/ready",
     "registry_digest": null,
-    "size_bytes": 219807918,
+    "size_bytes": 219814532,
     "status": "LOCAL_ONLY_NOT_PUSHED"
   },
-  "manifest_sha256": "e9a5c558e0a8f01fc69a215297cb689f71860812c42838a8746ce1eb786d99fd",
+  "manifest_sha256": "5c810c3abe1ccd77317de7282b472694ed3e2304b4d5306bd18fdc022effe241",
   "runtime_contract": {
     "allowed_egress": "none",
     "authority_mode": "HUMAN_APPROVAL_REQUIRED",
@@ -112,7 +116,7 @@
     "storage_mode": "file"
   },
   "schema_version": 1,
-  "source_commit": "c262c9f25bbe069f17a05da7221dbce606edb7b8",
-  "source_tree_git_oid": "def4ccbb9bb07f6843f8efb2e48c86c1741e8ac3",
+  "source_commit": "797c94e72151c46504b9ae81412738aa6b253e8a",
+  "source_tree_git_oid": "bd9997296560aa9e57d5fa38001a40a7c38f6a38",
   "status": "FROZEN_LOCAL_ARTIFACT"
 }

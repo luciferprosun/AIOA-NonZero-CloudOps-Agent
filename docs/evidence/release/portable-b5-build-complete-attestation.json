@@ -1,6 +1,6 @@
 {
-  "artifact_manifest_file_sha256": "765f917d8a1eee038d3f4deefdc858cd7785838b0f5039091584950ec396f442",
-  "attestation_sha256": "5106f99fb3ebfe38d1fde9895b85782ee89a686c2e2fd30db5ba2da62de16e43",
+  "artifact_manifest_file_sha256": "98846b9723e1921ca2b60b8f47a90f3bb7a04c5de9d529a2359e115ff177e8c3",
+  "attestation_sha256": "5e2c929f9ede0ac16193c4cbef847d1a96fc8207f5dcac009c5dcbf5fdcdaaa7",
   "aws_calls": 0,
   "aws_mutations": 0,
   "checks": [
@@ -72,18 +72,18 @@
       "status": "PASS"
     }
   ],
-  "container_digest": "sha256:371b7c5b3bc9d88fe07aba54a5bd4b3e69a526ea1ff313b09253b75983e5856a",
-  "container_id": "d5eca6b273309ba0fda6e143af47ea0c9c160a7605b29dd6f1fa8262c8d720e9",
+  "container_digest": "sha256:bdf35995e5588ccb93348f0784411d32d0aeb480483b1f34d530c4e3f34edbc3",
+  "container_id": "2f4b9a0d2708ae82aeda558e45271b59b192894a3b09a1831723ad42e8fe78b4",
   "deployments": 0,
   "document_type": "AIOA_B5_BUILD_COMPLETE_ATTESTATION",
   "freeze_rule": "ANY_RUNTIME_SOURCE_DEPENDENCY_CONTAINER_OR_BOUND_DOCUMENT_CHANGE_INVALIDATES_BUILD_COMPLETE_AND_REQUIRES_B5_REBUILD",
   "image_pushes": 0,
   "limitations": "Local OCI build and offline/mock execution only; no registry publication, public endpoint, live provider receipt, AWS identity, or live infrastructure mutation is claimed.",
-  "package_manifest_file_sha256": "e9d182b2cd503fcc6e805af96d532dd14ab67765c5a6021e8dc4762990e0f36d",
+  "package_manifest_file_sha256": "9805a68b2435625cd7bdc7263056d71fbc550cb6d943d808c94a55f3a3ef0479",
   "publications": 0,
   "remote_git_pushes": 0,
   "schema_version": 1,
-  "sha256sums_file_sha256": "8f4927a87f0adb2aa2beb737faa483adb64cbaa3f8ceea2b494d1de685a136df",
-  "source_commit": "c262c9f25bbe069f17a05da7221dbce606edb7b8",
+  "sha256sums_file_sha256": "042ac6cc58d8cc2cc0ac92b25cd9d2cafbce0660c960ab3a77d7c3de7e1fe4dd",
+  "source_commit": "797c94e72151c46504b9ae81412738aa6b253e8a",
   "status": "BUILD_COMPLETE"
 }

@@ -4,10 +4,10 @@
 
 ```text
 BUILD_COMPLETE=PASS
-PHASE=B5_BUILD_COMPLETE_CMD_RECERTIFICATION
-FROZEN_SOURCE_COMMIT=c262c9f25bbe069f17a05da7221dbce606edb7b8
-FROZEN_SOURCE_TREE=def4ccbb9bb07f6843f8efb2e48c86c1741e8ac3
-EVIDENCE_FREEZE_COMMIT=dc09bfb0e8d9d265fe592882713d3c156bcd01ff
+PHASE=B5_BUILD_COMPLETE_RENDER_START_SCRIPT_RECERTIFICATION
+FROZEN_SOURCE_COMMIT=797c94e72151c46504b9ae81412738aa6b253e8a
+FROZEN_SOURCE_TREE=bd9997296560aa9e57d5fa38001a40a7c38f6a38
+EVIDENCE_FREEZE_COMMIT=PENDING_CURRENT_RECERTIFICATION_COMMIT
 APPLICATION_VERSION=0.2.0rc1
 PLATFORM=linux/amd64
 PYTHON_VERSION=3.12.14
@@ -26,15 +26,18 @@ offline/mock receipt to live-cloud evidence.
 ## Frozen image
 
 ```text
-LOCAL_REFERENCE=localhost/aioa-portable:b5-cmd-c262c9f25bbe
-IMAGE_ID=d5eca6b273309ba0fda6e143af47ea0c9c160a7605b29dd6f1fa8262c8d720e9
-LOCAL_OCI_MANIFEST_DIGEST=sha256:371b7c5b3bc9d88fe07aba54a5bd4b3e69a526ea1ff313b09253b75983e5856a
-IMAGE_SIZE_BYTES=219807918
+LOCAL_REFERENCE=localhost/aioa-portable:b5-render-797c94e72151
+IMAGE_ID=2f4b9a0d2708ae82aeda558e45271b59b192894a3b09a1831723ad42e8fe78b4
+LOCAL_OCI_MANIFEST_DIGEST=sha256:bdf35995e5588ccb93348f0784411d32d0aeb480483b1f34d530c4e3f34edbc3
+IMAGE_SIZE_BYTES=219814532
 REGISTRY_DIGEST=NONE_NOT_PUSHED
 CONFIGURED_USER=aioa
 EFFECTIVE_CERTIFIED_UID_GID=65532:65532
 CONFIGURED_ENTRYPOINT=NONE
 DEFAULT_CMD=python -m aioa_cloudops_agent.portable_server
+RENDER_START_SCRIPT=/usr/local/bin/aioa-render-start
+RENDER_START_SCRIPT_MODE=0555
+RENDER_DOCKER_COMMAND=/usr/local/bin/aioa-render-start
 BASE_IMAGE=docker.io/library/python:3.12-slim-bookworm@sha256:782412e85d0f0984994c290652577d4018aff08145c85b262bb63dc0c7522254
 ```
 
@@ -55,8 +58,9 @@ the failed nested-crun attempt succeeded.
 
 | Input | SHA-256 |
 | --- | --- |
-| `Dockerfile` | `2c406cf165e9e21c74f85a6ae3123ee1498790c15f3586cd8ffe548309dd8a7e` |
-| `.dockerignore` | `c6bf8a28a6fbcb1ba2e94fcdedcb00cf6f6620556262c88629dd14d800346458` |
+| `Dockerfile` | `4640463904ced78776f5f482510e9f117d7ee2e0b6a8e04c5ba83e349378bc8f` |
+| `.dockerignore` | `0e6b8400e2813f0be52a5f3f5243d520cbbe740b286a44749e8e6db368265812` |
+| `scripts/render_start.sh` | `d350917c132a338605f630fde97a2ac017e1664fe9cf413a7153827326e6d250` |
 | `requirements/build.lock` | `d46492123b794c100b45c485f2981c1a12f71388f61439a5a662d850b19039a5` |
 | `requirements/portable.lock` | `a7be92862cb66b67f2bf5b664f62abee1dbd48d65e2ee12fbcbaa5be2dff5dcd` |
 | project wheel | `fe5b5df0448bf41c9aa0d6460b998adf280cab567b9ba688e5111cb71c0ff395` |
@@ -81,7 +85,7 @@ deltas remained zero. Provider network, external network, AWS calls, and AWS mut
 
 ## Image privacy scan
 
-The exact exported root-filesystem scan covered 11,287 regular files and 209,599,215 bytes,
+The exact exported root-filesystem scan covered 11,288 regular files and 209,599,663 bytes,
 including 284 application-package files. It found no Git metadata, environment file, AWS credential
 file/value, private-key block/file, or baked operator token. Result: `PASS`, findings: `0`.
 
@@ -89,15 +93,15 @@ file/value, private-key block/file, or baked operator token. Result: `PASS`, fin
 
 | Evidence | File SHA-256 | Internal SHA-256 |
 | --- | --- | --- |
-| package manifest | `e9d182b2cd503fcc6e805af96d532dd14ab67765c5a6021e8dc4762990e0f36d` | `bc92cfd42df2c533c513725bf4ba7ec8005ebb77cf488b9dd32a70750a408e42` |
-| artifact manifest | `765f917d8a1eee038d3f4deefdc858cd7785838b0f5039091584950ec396f442` | `e9a5c558e0a8f01fc69a215297cb689f71860812c42838a8746ce1eb786d99fd` |
-| container gate | `2672ab2285dfdfc7e274aa4129f32333b259038781a22f1ffbadae44e1287d67` | `f9f5861882cba8060ef05fd8f189848b07488dba24912af4f6624d947a503402` |
-| image privacy scan | `909d99235c5eb66d2e471ddf7cccec7cd7bb26b8123fff04ede95cd56a11049c` | `b418eeba1f393cf7d020061b648cb0812aeeef95f531cf522fef3bf380bcee62` |
-| non-root runtime | `22f8447678f89f255ab0c72a6b941f5189a4b420610387891a9be134b4270601` | image/digest/source bound |
-| `portable-b5-SHA256SUMS` | `8f4927a87f0adb2aa2beb737faa483adb64cbaa3f8ceea2b494d1de685a136df` | deterministic sorted list |
-| build-complete attestation | `9e256e6a8f5b1229010bd0c040b196dd6ab6621d0294cccdaf53f5323c73f652` | `5106f99fb3ebfe38d1fde9895b85782ee89a686c2e2fd30db5ba2da62de16e43` |
+| package manifest | `9805a68b2435625cd7bdc7263056d71fbc550cb6d943d808c94a55f3a3ef0479` | `b1f5e23fb592a3b79cd7e3ef36cb991c31d0d1d9c5d19b35705c55ea45cb2b12` |
+| artifact manifest | `98846b9723e1921ca2b60b8f47a90f3bb7a04c5de9d529a2359e115ff177e8c3` | `5c810c3abe1ccd77317de7282b472694ed3e2304b4d5306bd18fdc022effe241` |
+| container gate | `1b0bef9f4cd43331bf72bdd418ad1bc8e61f2220a097823fa78066da000e13c6` | `1b75a75026625a1549d52d855097873e0b6fb969a66c3e75e8ad51351c291aee` |
+| image privacy scan | `8a8b9a56b351d5c637dc03d4630109048a2307f1a4122e4387ee157b5775385a` | `4a1fd5356a1622916ba195c3084d810ec0d9b878a19ef9096fe93a4b23fe8b06` |
+| non-root runtime | `30cc83d71de47e0a3e79ceaa2a268900ed5019a930104c7276556ab91afb8876` | image/digest/source bound |
+| `portable-b5-SHA256SUMS` | `042ac6cc58d8cc2cc0ac92b25cd9d2cafbce0660c960ab3a77d7c3de7e1fe4dd` | deterministic sorted list |
+| build-complete attestation | `66f9df7c5314b5e1606d5e3a103b352bd8d38ac8751b7a36ba89b3aefa646810` | `5e2c929f9ede0ac16193c4cbef847d1a96fc8207f5dcac009c5dcbf5fdcdaaa7` |
 
-The generator re-reads every bound source file from frozen Git commit `c262c9f…`, rejects blob
+The generator re-reads every bound source file from frozen Git commit `797c94e…`, rejects blob
 drift, and independently recomputes receipt, manifest, attestation, file, and checksum hashes.
 
 ## Final B5 gate
@@ -120,9 +124,9 @@ IMAGE_EXPORT_PRIVACY_SCAN=PASS 0 findings
 DIFF_CHECK=PASS
 ```
 
-The first full-suite diagnostic encountered one transient local-tool availability result; the exact
-pinned AWS CLI was present, the isolated test passed, and a quiesced complete rerun passed all 1,465
-tests. No test or gate was weakened.
+This recertification's complete full-suite run passed all 1,465 tests on its first run. P1's
+clean-worktree command proof was run after the generated evidence was safely stashed and passed
+without changing code or weakening any gate.
 
 ## Freeze rule
 

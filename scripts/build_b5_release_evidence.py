@@ -26,11 +26,11 @@ CONTAINER_GATE_PATH: Final = RELEASE_ROOT / "portable-b5-container-gate.json"
 NONROOT_RECEIPT_PATH: Final = RELEASE_ROOT / "portable-b5-nonroot-runtime.json"
 IMAGE_SCAN_PATH: Final = RELEASE_ROOT / "portable-b5-image-privacy-scan.json"
 
-SOURCE_COMMIT: Final = "c262c9f25bbe069f17a05da7221dbce606edb7b8"
-IMAGE_ID: Final = "d5eca6b273309ba0fda6e143af47ea0c9c160a7605b29dd6f1fa8262c8d720e9"
-IMAGE_DIGEST: Final = "sha256:371b7c5b3bc9d88fe07aba54a5bd4b3e69a526ea1ff313b09253b75983e5856a"
-IMAGE_SIZE_BYTES: Final = 219_807_918
-IMAGE_REFERENCE: Final = "localhost/aioa-portable:b5-cmd-c262c9f25bbe"
+SOURCE_COMMIT: Final = "797c94e72151c46504b9ae81412738aa6b253e8a"
+IMAGE_ID: Final = "2f4b9a0d2708ae82aeda558e45271b59b192894a3b09a1831723ad42e8fe78b4"
+IMAGE_DIGEST: Final = "sha256:bdf35995e5588ccb93348f0784411d32d0aeb480483b1f34d530c4e3f34edbc3"
+IMAGE_SIZE_BYTES: Final = 219_814_532
+IMAGE_REFERENCE: Final = "localhost/aioa-portable:b5-render-797c94e72151"
 BASE_IMAGE: Final = (
     "docker.io/library/python:3.12-slim-bookworm@"
     "sha256:782412e85d0f0984994c290652577d4018aff08145c85b262bb63dc0c7522254"
@@ -39,11 +39,11 @@ PYTHON_VERSION: Final = "3.12.14"
 APPLICATION_VERSION: Final = "0.2.0rc1"
 WHEEL_SHA256: Final = "fe5b5df0448bf41c9aa0d6460b998adf280cab567b9ba688e5111cb71c0ff395"
 CONTAINER_GATE_RECEIPT_SHA256: Final = (
-    "f9f5861882cba8060ef05fd8f189848b07488dba24912af4f6624d947a503402"
+    "1b75a75026625a1549d52d855097873e0b6fb969a66c3e75e8ad51351c291aee"
 )
 NONROOT_RECEIPT_IMAGE_DIGEST: Final = IMAGE_DIGEST
 IMAGE_SCAN_RECEIPT_SHA256: Final = (
-    "b418eeba1f393cf7d020061b648cb0812aeeef95f531cf522fef3bf380bcee62"
+    "4a1fd5356a1622916ba195c3084d810ec0d9b878a19ef9096fe93a4b23fe8b06"
 )
 _LOCK_LINE: Final = re.compile(
     r"^(?P<name>[A-Za-z0-9_.-]+)==(?P<version>[^ ]+) "
@@ -56,6 +56,7 @@ _SOURCE_ARTIFACTS: Final[tuple[tuple[str, str], ...]] = (
     ("PACKAGE_DATA_MANIFEST", "MANIFEST.in"),
     ("PROJECT_README", "README.md"),
     ("PYTHON_PACKAGE_CONTRACT", "pyproject.toml"),
+    ("RENDER_START_SCRIPT", "scripts/render_start.sh"),
     ("BUILD_DEPENDENCY_LOCK", "requirements/build.lock"),
     ("RUNTIME_DEPENDENCY_LOCK", "requirements/portable.lock"),
     ("PORTABLE_RUNTIME_CONTRACT", "docs/PORTABLE_RUNTIME.md"),

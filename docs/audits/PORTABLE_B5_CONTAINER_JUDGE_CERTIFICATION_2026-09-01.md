@@ -1,14 +1,14 @@
 # Portable B5 container judge certification
 
-Date: 2026-09-02 CMD recertification
+Date: 2026-09-02 Render startup-script recertification
 
 Phase: B5, clean-clone container judge flows
 
-CMD implementation commit: `5d10229d9ca0d243068c0ee77a0c90a4e722689c`
+Render startup-script implementation commit: `af44999efe4bda7aa8b35931377af5eee0b49bbc`
 
-Frozen image-source commit: `c262c9f25bbe069f17a05da7221dbce606edb7b8`
+Frozen image-source commit: `797c94e72151c46504b9ae81412738aa6b253e8a`
 
-B5 evidence-freeze commit: `dc09bfb0e8d9d265fe592882713d3c156bcd01ff`
+B5 evidence-freeze commit: `PENDING_CURRENT_RECERTIFICATION_COMMIT`
 
 ## Outcome
 
@@ -37,24 +37,28 @@ AWS_MUTATIONS=0
 Both deterministic portable receipts had SHA-256
 `f365b07702e43c3848b3470453910b2239d640e8e9ec22a917790a702c110ba3`. The aggregate gate's
 internal receipt SHA-256 is
-`f9f5861882cba8060ef05fd8f189848b07488dba24912af4f6624d947a503402`. These are local
+`1b75a75026625a1549d52d855097873e0b6fb969a66c3e75e8ad51351c291aee`. These are local
 mock/offline receipts, not live-cloud evidence.
 
 ## Image and start contract
 
 ```text
-LOCAL_REFERENCE=localhost/aioa-portable:b5-cmd-c262c9f25bbe
-IMAGE_ID=d5eca6b273309ba0fda6e143af47ea0c9c160a7605b29dd6f1fa8262c8d720e9
-LOCAL_MANIFEST_DIGEST=sha256:371b7c5b3bc9d88fe07aba54a5bd4b3e69a526ea1ff313b09253b75983e5856a
+LOCAL_REFERENCE=localhost/aioa-portable:b5-render-797c94e72151
+IMAGE_ID=2f4b9a0d2708ae82aeda558e45271b59b192894a3b09a1831723ad42e8fe78b4
+LOCAL_MANIFEST_DIGEST=sha256:bdf35995e5588ccb93348f0784411d32d0aeb480483b1f34d530c4e3f34edbc3
 CONFIGURED_USER=aioa
 CONFIGURED_ENTRYPOINT=NONE
 DEFAULT_CMD=python -m aioa_cloudops_agent.portable_server
+RENDER_START_SCRIPT=/usr/local/bin/aioa-render-start
+RENDER_START_SCRIPT_MODE=0555
+RENDER_DOCKER_COMMAND=/usr/local/bin/aioa-render-start
 PLATFORM=linux/amd64
 ```
 
-The default command preserves ordinary container startup. Render's `dockerCommand` can replace that
-CMD, create the operator-token file with mode `0600`, remove `AIOA_OPERATOR_TOKEN` from the child
-environment, and then `exec` the same server module. The judge-flow command's `--entrypoint python`
+The default command preserves ordinary container startup. Render's `dockerCommand` is the fixed,
+single executable path above. The script creates the operator-token file with mode `0600`, removes
+`AIOA_OPERATOR_TOKEN` from the child environment, and then `exec`s the same server module without a
+multi-command quoting boundary. The judge-flow command's `--entrypoint python`
 is a deliberate test override for `python -m aioa_cloudops_agent.portable`; it is not a claim about
 the Dockerfile's configured Entrypoint.
 
@@ -88,7 +92,7 @@ image's declared `aioa` user directly.
 
 ```text
 FULL_PYTEST=PASS 1465 passed 0 failed 0 skipped
-FOCUSED_RENDER_B5_TESTS=PASS 23/23
+FOCUSED_RENDER_START_TESTS=PASS 13/13
 P0=PASS 15/15 136 proof tests
 P1=PASS 6/6 93 proof cases
 B4=PASS 11/11 43 proof tests
@@ -104,10 +108,9 @@ NONROOT_EXACT_ROOTFS_PROOF=PASS
 DIFF_CHECK=PASS
 ```
 
-The first full-suite attempt recorded `1464 passed, 1 failed` because the pinned local AWS CLI
-version probe transiently returned unavailable while concurrent workloads were active. AWS CLI
-`2.36.11` was present and exact; the isolated test passed. With the workload quiesced, the complete
-suite passed `1465/1465`. No test or AWS gate was weakened or changed.
+The complete suite passed `1465/1465` on the first recertification run. The P1 command proof was
+re-run from a clean worktree after generated evidence was safely stashed, and passed `6/6`. No test
+or AWS gate was weakened or changed.
 
 ## External-action boundary
 
