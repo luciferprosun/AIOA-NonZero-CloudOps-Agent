@@ -68,7 +68,7 @@ class WorkspaceArtifactType(StrEnum):
 
     JSON = "JSON"
     MARKDOWN = "MARKDOWN"
-    SHELL = "SHELL"
+    SHELL_SCRIPT = "SHELL"
     TEXT = "TEXT"
     YAML = "YAML"
 

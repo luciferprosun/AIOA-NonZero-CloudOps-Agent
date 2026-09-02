@@ -42,7 +42,7 @@ def artifact_type_for_path(relative_path: str) -> WorkspaceArtifactType:
     if relative_path.endswith(".md"):
         return WorkspaceArtifactType.MARKDOWN
     if relative_path.endswith(".sh"):
-        return WorkspaceArtifactType.SHELL
+        return WorkspaceArtifactType.SHELL_SCRIPT
     if relative_path.endswith(('.yaml', '.yml')):
         return WorkspaceArtifactType.YAML
     return WorkspaceArtifactType.TEXT

@@ -26,6 +26,16 @@ EXPECTED_TOOLS = (
     "stop_sandbox_instance",
     "verify_instance_state",
 )
+EXPECTED_WORKSPACE_TOOLS = (
+    "inspect_deployment_incident",
+    "list_workspace_artifacts",
+    "read_workspace_artifact",
+    "hash_workspace_artifact",
+)
+EXPECTED_AGENT_CONSTRUCTORS = {
+    "src/aioa_cloudops_agent/agent/factory.py": 1,
+    "src/aioa_cloudops_agent/workspace/agent.py": 1,
+}
 PRIOR_ART_BLOBS = {
     "PRIOR-ART.md": "b049876c0f2a08c41ff50cbb58184d0c3ee1966e",
     "docs/audit/prior-art-june1-forensic-baseline.md": (
@@ -647,7 +657,7 @@ def _git(*args: str) -> subprocess.CompletedProcess[str]:
 
 
 def _check_agent_topology() -> tuple[str, ...]:
-    constructors = 0
+    constructors: dict[str, int] = {}
     for path in sorted((ROOT / "src").rglob("*.py")):
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
         for item in ast.walk(tree):
@@ -655,13 +665,19 @@ def _check_agent_topology() -> tuple[str, ...]:
                 name = item.func.id if isinstance(item.func, ast.Name) else None
                 attribute = item.func.attr if isinstance(item.func, ast.Attribute) else None
                 if name == "Agent" or attribute == "Agent":
-                    constructors += 1
+                    relative_path = path.relative_to(ROOT).as_posix()
+                    constructors[relative_path] = constructors.get(relative_path, 0) + 1
     source_root = str(ROOT / "src")
     if source_root not in sys.path:
         sys.path.insert(0, source_root)
     factory = importlib.import_module("aioa_cloudops_agent.agent.factory")
+    workspace_agent = importlib.import_module("aioa_cloudops_agent.workspace.agent")
     reasons: list[str] = []
-    if factory.PRIMARY_AGENT_COUNT != 1 or constructors != 1:
+    if (
+        factory.PRIMARY_AGENT_COUNT != 1
+        or workspace_agent.WORKSPACE_AGENT_COUNT != 1
+        or constructors != EXPECTED_AGENT_CONSTRUCTORS
+    ):
         reasons.append("AGENT_TOPOLOGY_DRIFT")
     if factory.CURRENT_TOOL_NAMES != EXPECTED_TOOLS:
         reasons.append("CANONICAL_TOOL_NAMES_DRIFT")
@@ -669,6 +685,13 @@ def _check_agent_topology() -> tuple[str, ...]:
         reasons.append("REGISTERED_TOOL_COUNT_DRIFT")
     if len(EXPECTED_TOOLS) != factory.FINAL_TOOL_CAP:
         reasons.append("FINAL_TOOL_CAP_DRIFT")
+    if workspace_agent.WORKSPACE_TOOL_NAMES != EXPECTED_WORKSPACE_TOOLS:
+        reasons.append("WORKSPACE_TOOL_NAMES_DRIFT")
+    if (
+        len(EXPECTED_WORKSPACE_TOOLS)
+        != workspace_agent.WORKSPACE_REGISTERED_TOOL_COUNT
+    ):
+        reasons.append("WORKSPACE_REGISTERED_TOOL_COUNT_DRIFT")
     return tuple(reasons)
 
 
