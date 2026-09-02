@@ -32,6 +32,8 @@ from aioa_cloudops_agent.persistence import DurableTruthRepository, compute_evid
 from aioa_cloudops_agent.providers import (
     ModelProvider,
     ModelProviderError,
+    ModelProviderNonRetryableError,
+    ModelProviderRetryableError,
     ModelProviderTimeoutError,
 )
 from aioa_cloudops_agent.safety import workflow_state_for_failure
@@ -223,6 +225,26 @@ class LocalFirstPhaseOneFlow:
                     code="MODEL_PROVIDER_TIMEOUT",
                     message="Model provider exhausted its bounded response time",
                     retryable=False,
+                ),
+            )
+        except ModelProviderNonRetryableError:
+            return self._persist_failure(
+                current,
+                FailureDetail(
+                    kind=FailureKind.PROVIDER_FAILURE,
+                    code="MODEL_PROVIDER_NON_RETRYABLE_FAILURE",
+                    message="Model provider returned a permanent failure",
+                    retryable=False,
+                ),
+            )
+        except ModelProviderRetryableError:
+            return self._persist_failure(
+                current,
+                FailureDetail(
+                    kind=FailureKind.PROVIDER_FAILURE,
+                    code="MODEL_PROVIDER_RETRYABLE_FAILURE",
+                    message="Model provider returned a retryable failure",
+                    retryable=True,
                 ),
             )
         except ModelProviderError:

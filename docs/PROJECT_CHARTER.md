@@ -9,15 +9,16 @@
 | TRACK | Professional Agents |
 | LANGUAGE | Python |
 | AGENT_ARCHITECTURE | Single Strands Agent |
-| MODEL_PLATFORM | Amazon Bedrock |
+| MODEL_PLATFORM | Provider-neutral Strands Model; deterministic mock default, Bedrock optional |
 | NZ_CONTROL_PLANE | Custom deterministic application layer |
-| DURABLE_SOURCE_OF_TRUTH | DynamoDB |
-| EVIDENCE_ARTIFACTS | S3 |
-| TELEMETRY | CloudWatch / OpenTelemetry |
+| DURABLE_SOURCE_OF_TRUTH | Local durable contract by default; DynamoDB optional integration |
+| EVIDENCE_ARTIFACTS | Local hash-bound receipts by default; S3 optional integration |
+| TELEMETRY | Local/OpenTelemetry by default; CloudWatch optional integration |
 | AUTHORITY_MODEL | AUTO / PLAN_AND_CONFIRM / NEVER_AUTONOMOUS |
 | AGENTCORE | NOT_ON_P0_CRITICAL_PATH |
 | NO_LEGACY_CODE_IMPORT | TRUE |
 | EXACT_CLOUDOPS_USE_CASE | BOUNDED_IDLE_EC2_REMEDIATION_AGENT |
+| PRODUCT_RUNTIME | PORTABLE_FIRST / AWS_OPTIONAL |
 
 ## Current Boundary
 
@@ -29,3 +30,8 @@ path additionally demonstrates provider-neutral resource planning, exact human a
 protected mock execution, restart reconciliation, and independent verification through the same
 Non-Zero run/checkpoint lifecycle. These local application services do not expand the five registered
 Strands tools. No AWS deployment or live cloud mutation has been performed.
+
+D-016 is the authorized product-scope review that removes Bedrock, DynamoDB, S3, CloudWatch and
+AgentCore from the completion critical path while preserving their optional adapters and historical
+deployment contracts. It does not change the single Strands Agent, five-tool cap, authority model,
+approval binding, durable ordering, replay protection, verification or audit requirements.

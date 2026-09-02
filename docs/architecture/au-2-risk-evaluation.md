@@ -2,11 +2,16 @@
 
 ```text
 AU2_IMPLEMENTED = NO
+AU2_GLOBAL_EVENT_CHAIN_IMPLEMENTED = NO
+PORTABLE_B4_LOCAL_SNAPSHOT_INTEGRITY = YES
 AU2_RISK = HIGH
 AU2_RECOMMENDATION = DEFER_UNTIL_AFTER_SUBMISSION
 ```
 
-This is a design verdict, not authority to change persistence or deploy infrastructure.
+This remains the design verdict for a global append-only event chain and is not deployment
+authority. B4 separately added a versioned, typed SHA-256 envelope around complete local durable
+truth and sandbox snapshots. That detects corruption and ordinary content edits without changing
+the canonical `AuditEvent` schema or claiming an externally anchored signature.
 
 ## Evidence-backed decision
 

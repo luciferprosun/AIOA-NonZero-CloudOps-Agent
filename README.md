@@ -1,11 +1,12 @@
-# AIOA Non-Zero CloudOps — Bounded Idle EC2 Remediation Agent
+# AIOA Non-Zero CloudOps — Portable Agents for Humans
 
 Newly authored work for the **AWS Agents for Humans Hackathon 2026**.
 
 - Track: Professional Agents
-- Status: Phase 3 `DEPLOYMENT_READY_LOCAL_RC` candidate with a frozen deployment contract, offline preflight/IaC/cleanup/verifier proofs, hardened jury demo, and commit-bound attestation; no live deployment or AWS mutation has run
+- Status: portable-first local product with deterministic Strands, HITL, evidence, replay and recovery; AWS deployment remains optional and no live deployment or AWS mutation has run
+- Historical AWS release contract: Phase 3 `DEPLOYMENT_READY_LOCAL_RC`, retained as an optional integration path rather than the product completion gate
 - Orchestration: one Strands Agent
-- Model platform: Amazon Bedrock
+- Model platform: provider-neutral Strands `Model`; deterministic portable default, Amazon Bedrock optional
 - Current capability: five bounded tools covering investigation, proposal-bound stop, and independent verification
 - Safety boundary: executable P0/P1 matrices, bounded dependency circuits, deterministic reviewer evidence, and an independent fail-closed emergency veto immediately around the private mutation boundary
 
@@ -29,9 +30,11 @@ git clone https://github.com/luciferprosun/AIOA-NonZero-CloudOps-Agent.git
 cd AIOA-NonZero-CloudOps-Agent
 python3.12 -m venv .venv
 .venv/bin/python -m pip install ".[dev]"
+.venv/bin/python scripts/run_portable_demo.py
 .venv/bin/python -m pytest -q
 .venv/bin/python scripts/run_p0_gate.py
 .venv/bin/python scripts/run_p1_gate.py
+.venv/bin/python scripts/run_b4_hardening_gate.py
 .venv/bin/python scripts/build_reviewer_evidence_manifest.py --check
 .venv/bin/python scripts/validate_reviewer_evidence_manifest.py
 ```
@@ -43,6 +46,15 @@ The P1 runner includes the clean-clone proof. To run only that reproducibility c
 ```
 
 The harness creates another disposable environment with `python -m venv`. On hosts where the standard-library module lacks `ensurepip`, the declared dev dependency provides the documented `python -m virtualenv` fallback. These checks use mocks and static proof. They do not deploy infrastructure or call live AWS services.
+
+The canonical portable demo invokes the real five-tool Strands Agent, then proves approve, deny,
+binding rejection, replay protection and restart recovery through the existing Non-Zero verifier.
+It writes a hash-bound, owner-only evidence bundle under `.local/portable/` and needs no AWS
+credential, API key, paid provider, local LLM or network service. See
+[`docs/PORTABLE_RUNTIME.md`](docs/PORTABLE_RUNTIME.md) and
+[`docs/JUDGE_SANDBOX.md`](docs/JUDGE_SANDBOX.md).
+The B4 attack matrix and exact reliability/security limits are documented in
+[`docs/RELIABILITY_SECURITY.md`](docs/RELIABILITY_SECURITY.md).
 
 Phase 3 adds local release validation without requiring AWS credentials:
 
@@ -103,13 +115,20 @@ Run a standalone approved or denied terminal demonstration:
 Run the same workflow through the loopback-only API and embedded operator console:
 
 ```bash
-.venv/bin/python scripts/run_local_hitl_api.py
+.venv/bin/python scripts/run_local_hitl_api.py --open-browser
 ```
 
-Open `http://127.0.0.1:8765`, then paste the contents of the owner-only
-`.local/aioa-local-api.token` file into the session field. The page keeps the token only in memory;
-the API binds only to `127.0.0.1`, requires an exact Bearer header, rejects ambiguous JSON and query
-authority, and returns `Cache-Control: no-store` plus a strict content-security policy.
+The B3/B4 judge experience opens with a fragment-only credential bootstrap, exchanges it for an
+`HttpOnly` same-site loopback session, and removes the fragment immediately. Choose the approval or
+denial story in one click, then follow the visible evidence, proposal, policy, human decision,
+execution, verification, and receipt stages. Refresh/resume, stale-tab rejection, and duplicate-click
+reconciliation are supported without putting the raw token in browser storage. The API still accepts
+the exact Bearer token for local verification clients and still binds only to `127.0.0.1`.
+
+See [`docs/JUDGE_EXPERIENCE.md`](docs/JUDGE_EXPERIENCE.md) for the three-minute judge path, API
+contract, screenshots, and truthful mode boundaries. The deterministic machine-readable proof
+remains `scripts/run_portable_demo.py`; the browser is the primary human product experience, not a
+replacement for that evidence gate.
 
 The original Phase 1-only entry point remains available:
 
@@ -123,7 +142,10 @@ The original Phase 1-only entry point remains available:
   tests/integration/test_local_first_phase_one.py \
   tests/integration/test_local_hitl_execution.py \
   tests/unit/test_local_hitl_api.py \
-  tests/integration/test_local_hitl_http_server.py
+  tests/unit/test_judge_console_ui.py \
+  tests/unit/test_judge_console_launcher.py \
+  tests/integration/test_local_hitl_http_server.py \
+  tests/integration/test_portable_judge_experience.py
 ```
 
 `AIOA_LOCAL_MODE=mock` is the safe default. An explicit `live` request fails closed; it never falls

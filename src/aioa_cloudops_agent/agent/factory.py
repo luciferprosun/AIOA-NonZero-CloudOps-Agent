@@ -3,17 +3,16 @@
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Final
+from typing import Final
 from uuid import UUID
 
 from opentelemetry.trace import Tracer
 from strands import Agent
-from strands.models import BedrockModel, Model
+from strands.models import Model
 from strands.session import SessionManager
 from strands.tools.decorator import DecoratedFunctionTool
 from strands.vended_interventions.hitl import HumanInTheLoop
 
-from aioa_cloudops_agent.aws_clients import create_bedrock_runtime_config
 from aioa_cloudops_agent.cloudops import (
     BUILD_REMEDIATION_EVIDENCE_TOOL_NAME,
     INSPECT_INSTANCE_TOOL_NAME,
@@ -30,11 +29,22 @@ from aioa_cloudops_agent.cloudops import (
     create_inspect_instance_tool,
     create_read_utilization_metrics_tool,
 )
-from aioa_cloudops_agent.config import BedrockSettings, IdlePolicySettings
+from aioa_cloudops_agent.config import (
+    BedrockSettings,
+    IdlePolicySettings,
+    ModelProviderName,
+    RuntimeMode,
+    RuntimeSettings,
+)
 from aioa_cloudops_agent.domain import AuthorityGate, ContractValidationError, ExecutionContext
 from aioa_cloudops_agent.domain.identifiers import validate_correlation_id
 from aioa_cloudops_agent.nz import generate_event_id
 from aioa_cloudops_agent.persistence import DurableTruthRepository
+from aioa_cloudops_agent.providers import (
+    ModelProviderRuntime,
+    create_model_provider,
+)
+from aioa_cloudops_agent.providers import create_bedrock_model as _create_bedrock_model
 from aioa_cloudops_agent.remediation import (
     STOP_SANDBOX_INSTANCE_TOOL_NAME,
     StopRequestHandler,
@@ -74,6 +84,16 @@ CURRENT_TOOL_NAMES: Final = (
 )
 
 
+def create_bedrock_model(
+    settings: BedrockSettings,
+    *,
+    boto_session: object | None = None,
+) -> Model:
+    """Compatibility export routed through the single provider implementation."""
+
+    return _create_bedrock_model(settings, boto_session=boto_session)
+
+
 @dataclass(frozen=True, slots=True)
 class PrimaryAgentRuntime:
     """References required to invoke and audit the one primary agent."""
@@ -87,7 +107,7 @@ class PrimaryAgentRuntime:
     human_in_the_loop: HumanInTheLoop
     tool_context: InvestigationToolContext
     identity: InvestigationIdentity
-    model_settings: BedrockSettings
+    model_settings: ModelProviderRuntime
     target: SandboxTarget
     proposal_id: UUID
     dependency_circuit: DependencyCircuitBreaker
@@ -97,36 +117,6 @@ class PrimaryAgentRuntime:
         """Return the active tool surface without dynamic discovery."""
 
         return tuple(self.agent.tool_names)
-
-
-def create_bedrock_model(
-    settings: BedrockSettings,
-    *,
-    boto_session: Any | None = None,
-) -> BedrockModel:
-    """Create the explicit Nova candidate provider without fallback behavior."""
-
-    if not isinstance(settings, BedrockSettings):
-        raise ContractValidationError("settings must be BedrockSettings")
-    model_config = {
-        "model_id": settings.model_id,
-        "temperature": float(settings.temperature),
-        "max_tokens": settings.max_output_tokens,
-        "streaming": True,
-    }
-    if boto_session is not None:
-        if getattr(boto_session, "region_name", None) != settings.region:
-            raise ContractValidationError("boto_session region must match Bedrock settings")
-        return BedrockModel(
-            boto_session=boto_session,
-            boto_client_config=create_bedrock_runtime_config(),
-            **model_config,
-        )
-    return BedrockModel(
-        region_name=settings.region,
-        boto_client_config=create_bedrock_runtime_config(),
-        **model_config,
-    )
 
 
 def create_human_in_the_loop(
@@ -168,6 +158,7 @@ def create_primary_agent(
     clock: Callable[[], datetime],
     idle_policy: IdlePolicySettings | None = None,
     model_settings: BedrockSettings | None = None,
+    runtime_settings: RuntimeSettings | None = None,
     model: Model | None = None,
     tracer: Tracer | None = None,
     durable_repository: DurableTruthRepository | None = None,
@@ -193,9 +184,34 @@ def create_primary_agent(
     validate_correlation_id(proposal_id)
     if not callable(clock):
         raise ContractValidationError("clock must be callable")
-    settings = model_settings if model_settings is not None else BedrockSettings()
-    if not isinstance(settings, BedrockSettings):
+    if model_settings is not None and not isinstance(model_settings, BedrockSettings):
         raise ContractValidationError("model_settings must be BedrockSettings")
+    if runtime_settings is not None and not isinstance(runtime_settings, RuntimeSettings):
+        raise ContractValidationError("runtime_settings must be RuntimeSettings")
+    if runtime_settings is None:
+        selected_runtime_settings = (
+            RuntimeSettings()
+            if model_settings is None
+            else RuntimeSettings(
+                mode=RuntimeMode.AWS,
+                model_provider=ModelProviderName.BEDROCK,
+                aws_integration_enabled=True,
+                bedrock=model_settings,
+            )
+        )
+    else:
+        selected_runtime_settings = runtime_settings
+    if (
+        model_settings is not None
+        and selected_runtime_settings.bedrock != model_settings
+    ):
+        raise ContractValidationError(
+            "model_settings must match the selected runtime provider"
+        )
+    provider_runtime = create_model_provider(
+        selected_runtime_settings,
+        model_override=model,
+    )
     active_circuit = (
         dependency_circuit
         if dependency_circuit is not None
@@ -209,7 +225,7 @@ def create_primary_agent(
     inspection_service = InspectInstanceService(
         ec2_client,
         target,
-        region=settings.region,
+        region=provider_runtime.region,
         retry=BoundedReadRetry(
             circuit_breaker=active_circuit,
             dependency=CircuitDependency.EC2_READ,
@@ -269,10 +285,10 @@ def create_primary_agent(
         identity=identity,
         target=target,
         clock=clock,
-        model_id=settings.model_id,
+        model_id=provider_runtime.model_id,
     )
     bounded_model = CircuitBoundedModel(
-        model if model is not None else create_bedrock_model(settings),
+        provider_runtime.model,
         active_circuit,
     )
     primary_agent = Agent(
@@ -308,7 +324,7 @@ def create_primary_agent(
         human_in_the_loop=intervention,
         tool_context=tool_context,
         identity=identity,
-        model_settings=settings,
+        model_settings=provider_runtime,
         target=target,
         proposal_id=proposal_id,
         dependency_circuit=active_circuit,

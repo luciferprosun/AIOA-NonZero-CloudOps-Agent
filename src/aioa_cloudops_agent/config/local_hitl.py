@@ -9,6 +9,18 @@ from aioa_cloudops_agent.domain.errors import ContractValidationError
 from .local_first import LocalFirstMode
 
 
+def _validate_local_json_path(name: str, value: object) -> Path:
+    if not isinstance(value, Path) or not str(value).strip():
+        raise ContractValidationError(f"Local-2 {name} must be a non-empty Path")
+    if ".." in value.parts or len(os.fsencode(value)) > 4_096:
+        raise ContractValidationError(f"Local-2 {name} contains unsafe traversal or length")
+    if any(parent.is_symlink() for parent in value.parents if parent.exists()):
+        raise ContractValidationError(f"Local-2 {name} must not traverse a symlink")
+    if value.is_symlink():
+        raise ContractValidationError(f"Local-2 {name} must not be a symlink")
+    return value
+
+
 @dataclass(frozen=True, slots=True)
 class LocalHitlSettings:
     """Non-secret settings for the complete credential-free Local-2 runtime."""
@@ -23,15 +35,20 @@ class LocalHitlSettings:
             raise ContractValidationError(
                 "Local-2 live mode is unavailable; explicit mock mode is required"
             )
-        if not isinstance(self.state_path, Path) or not str(self.state_path).strip():
-            raise ContractValidationError("Local-2 state_path must be a non-empty Path")
-        if not isinstance(self.inventory_path, Path) or not str(
-            self.inventory_path
-        ).strip():
-            raise ContractValidationError(
-                "Local-2 inventory_path must be a non-empty Path"
-            )
-        if self.state_path == self.inventory_path:
+        state_path = _validate_local_json_path("state_path", self.state_path)
+        inventory_path = _validate_local_json_path(
+            "inventory_path", self.inventory_path
+        )
+        same_existing_file = False
+        if state_path.exists() and inventory_path.exists():
+            try:
+                same_existing_file = os.path.samefile(state_path, inventory_path)
+            except OSError:
+                same_existing_file = False
+        if (
+            state_path.resolve(strict=False) == inventory_path.resolve(strict=False)
+            or same_existing_file
+        ):
             raise ContractValidationError(
                 "Local-2 durable truth and mock inventory paths must be separate"
             )

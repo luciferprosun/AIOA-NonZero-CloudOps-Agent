@@ -51,7 +51,7 @@
 ## D-007 — DynamoDB as Planned Durable Source of Truth
 
 - Date: 2026-08-22
-- Status: ACCEPTED
+- Status: SUPERSEDED_IN_CRITICAL_PATH_BY_D-016
 - Decision: Plan DynamoDB as the durable source of truth.
 - Rationale: Durable state must be explicit and separate from model output.
 - Reversal condition: A later product-scope or compatibility review must demonstrate that DynamoDB cannot satisfy the frozen use case.
@@ -59,7 +59,7 @@
 ## D-008 — S3 as Planned Evidence and Artifact Store
 
 - Date: 2026-08-22
-- Status: ACCEPTED
+- Status: SUPERSEDED_IN_CRITICAL_PATH_BY_D-016
 - Decision: Plan S3 as the evidence and artifact store.
 - Rationale: Evidence artifacts require durable, inspectable storage outside transient agent context.
 - Reversal condition: A later product-scope review must demonstrate a concrete incompatibility.
@@ -115,7 +115,23 @@
 ## D-015 — Loopback-Only Local Operator Surface
 
 - Date: 2026-08-26
-- Status: ACCEPTED
+- Status: ACCEPTED_LOOPBACK_BOUNDARY_AMENDED_BY_D-017_FOR_BROWSER_SESSION
 - Decision: Expose the Local-2 demo through one standard-library HTTP server bound only to `127.0.0.1`, with an owner-only bearer-token file, strict JSON and request-size handling, no CORS, hardened response headers, and a same-origin UI that retains its token only in page memory. The surface is an application boundary, not a sixth Strands tool.
 - Rationale: Judges and developers need an inspectable human interaction without turning local demonstration convenience into public or cloud authority.
 - Reversal condition: Any non-loopback or deployed approval surface requires a separately reviewed identity, freshness, quota, secret-management, and infrastructure decision.
+
+## D-016 — Portable-First Product Completion With Optional AWS
+
+- Date: 2026-09-01
+- Status: ACCEPTED
+- Decision: Product completion, tests, Strands execution, HITL, evidence, replay, recovery, local API and judge demonstration must run in explicit portable mode without AWS. The deterministic local Strands provider and local durable/evidence implementations are first-class. Bedrock, DynamoDB, S3, Lambda, CloudWatch and AgentCore remain preserved optional integrations and cannot be selected implicitly.
+- Rationale: Missing access to an external AWS account must not block a complete Agents for Humans product. The existing Local-1/Local-2 contracts already prove the same policy, approval, durable ordering, execution binding, verification and recovery boundaries without granting cloud authority. This product-scope review satisfies the D-007 and D-008 reversal conditions for critical-path status while retaining both designs for a later authorized integration.
+- Reversal condition: A future provider or deployment may be enabled only through an explicit runtime/infrastructure decision and must pass the same Non-Zero contract suite. It may not make the proven portable path contingent on AWS or weaken D-005, D-009, D-012, D-014 or D-015.
+
+## D-017 — Judge UX Remains a Projection, Not an Authority Layer
+
+- Date: 2026-09-01
+- Status: ACCEPTED
+- Decision: Promote the existing loopback Local-2 console into the primary judge-facing UX while keeping all proposal, policy, approval, execution, verification, replay, and recovery authority in existing application/domain services. Use a fragment-only raw-token bootstrap followed by an `HttpOnly`, `SameSite=Strict` browser session; retain exact Bearer support for local verification clients. Expose only a sanitized durable projection and bounded audit metadata.
+- Rationale: A judge must understand and complete the product flow without terminal choreography, but presentation convenience cannot create a browser-to-executor path or leak nonce/session material. An HttpOnly session allows safe refresh/resume without persistent script-readable credentials, and the fixed intent header prevents ordinary cross-origin form submission from exercising cookie-authenticated state changes.
+- Reversal condition: The UI may move beyond loopback only after a separate public-identity, origin, CSRF, quota, abuse, session-expiry, and deployment review. It may never receive direct mutation authority or bypass D-009 and D-014.

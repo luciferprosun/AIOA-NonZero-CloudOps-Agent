@@ -295,6 +295,19 @@ def test_private_receipt_writer_is_owner_only_and_rejects_symlink(tmp_path: Path
         _atomic_write(link, "changed")
     assert target.read_text(encoding="utf-8") == "preserve"
 
+    unrelated = tmp_path / "unrelated.json"
+    unrelated.write_text("{}\n", encoding="utf-8")
+    unrelated.chmod(0o600)
+    with pytest.raises(PostDeployVerifierError, match="VERIFIER_OUTPUT_EXISTING_FILE_UNSAFE"):
+        _atomic_write(unrelated, "{}\n")
+
+    directory = tmp_path / "receipt-directory"
+    directory.mkdir()
+    directory_link = tmp_path / "receipt-directory-link"
+    directory_link.symlink_to(directory, target_is_directory=True)
+    with pytest.raises(PostDeployVerifierError, match="VERIFIER_OUTPUT_SYMLINK_FORBIDDEN"):
+        _atomic_write(directory_link / "receipt.json", "{}\n")
+
 
 def test_complete_verifier_opens_no_network_socket(
     tmp_path: Path,

@@ -1,6 +1,7 @@
-# AIOA Non-Zero CloudOps — Phase 3 Local Jury Demo Runbook
+# AIOA Non-Zero CloudOps — Portable Local Jury Demo Runbook
 
-Status: `DEPLOYMENT_READY_LOCAL_RC` candidate; `MOCK/OFFLINE`; not deployed or live verified.
+Status: `PORTABLE_B4_HARDENED`; historical Phase 3 status `DEPLOYMENT_READY_LOCAL_RC`;
+`MOCK/OFFLINE`; not deployed or live verified.
 
 ## Fast executable proof
 
@@ -59,33 +60,40 @@ zero mock mutations, no receipt or verification hash, and the same zero network/
 7. Show the five fail-closed probes and close on the explicit counts: network `0`, AWS mutations `0`,
    live receipts `0`.
 
-## Optional loopback operator console
+## Primary B3 judge experience
 
-1. Start `.venv/bin/python scripts/run_local_hitl_api.py`.
-2. Open `http://127.0.0.1:8765`. The server refuses public binding; its owner-only token is read from
-   `.local/aioa-local-api.token`, is held only in browser memory, and is sent only to the loopback
-   origin.
-3. Choose **Unattached Elastic IP** and start the bounded run. Show the evidence-bound
+1. Start `.venv/bin/python scripts/run_local_hitl_api.py --open-browser`.
+2. Confirm `DEMO SANDBOX`, `PORTABLE / MOCK`, `STRANDS`, zero real-cloud writes, and zero external
+   network calls. The server refuses public binding; the fragment-only token bootstrap is removed
+   immediately after exchange for an `HttpOnly` loopback session.
+3. Choose **Release an unattached Elastic IP**. Show the evidence-bound
    `PLAN_AND_CONFIRM` proposal, expiry, hashes, and `authorizes_execution: false`.
-4. Request and approve its exact challenge, then resume protected execution. Show the independent
+4. Review and approve its exact challenge, then explicitly execute. Show the independent
    verification and `SUCCESS_WITH_EVIDENCE`.
-5. Resume again and show reconciliation rather than a second action.
-6. Start **Public SSH ingress**, request its challenge, deny it, and resume. Show
+5. Select **Test replay protection** and show reconciliation rather than a second action.
+6. Start **Deny a public-ingress change**, request its challenge, and deny it. Show
    `DENIED_BY_HUMAN` without execution evidence.
 
-The UI is optional because the CLI jury receipt is the deterministic, automated proof. Do not use a
-private/public tunnel or change the loopback bind during this phase.
+The UI is the human-facing product demonstration. The CLI jury receipt remains the deterministic,
+automated proof. Do not use a private/public tunnel or change the loopback bind during this phase.
 
 ## Honest narration
 
 Say “AWS-shaped deterministic local inventory,” “protected mock mutation,” and
-“deployment-ready local release candidate.” Do not say live AWS deployment, effective IAM proof,
+“reliability-hardened portable local candidate.” Do not say live AWS deployment, effective IAM proof,
 Bedrock invocation, production availability, or real EC2 change. Local tests prove control-flow and
 contract properties; they do not prove an external account or deployed service.
 
 ## Verification before recording
 
 Run only from a clean committed tree. The final all-in-one gate is:
+
+```bash
+.venv/bin/python scripts/run_b4_hardening_gate.py
+```
+
+This B4 gate does not replace the complete project regression. The retained Phase 3 all-in-one gate
+can also be run against the exact clean head:
 
 ```bash
 HEAD_SHA="$(git rev-parse HEAD)"

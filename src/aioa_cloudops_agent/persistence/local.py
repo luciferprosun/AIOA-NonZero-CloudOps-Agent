@@ -1,14 +1,12 @@
-"""Restart-safe atomic JSON implementation of the canonical durable truth contract."""
+"""Restart-safe, integrity-bound JSON implementation of durable truth."""
 
-import fcntl
-import json
-import os
-import tempfile
 from collections.abc import Callable
-from contextlib import contextmanager, suppress
+from contextlib import contextmanager
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from threading import RLock
+from typing import Literal
 from uuid import UUID
 
 from aioa_cloudops_agent.nz import (
@@ -28,11 +26,34 @@ from aioa_cloudops_agent.nz import (
 )
 from aioa_cloudops_agent.nz.errors import StorageDependencyError
 
+from .local_integrity import (
+    LocalIntegrityError,
+    atomic_write_private_json,
+    locked_private_file,
+    open_local_payload,
+    read_private_json,
+    seal_local_payload,
+    validate_local_path,
+)
 from .memory import InMemoryTestDurableTruthRepository
+
+_DURABLE_PAYLOAD_TYPE = "AIOA_DURABLE_TRUTH"
+
+
+@dataclass(frozen=True, slots=True)
+class LocalRunSnapshot:
+    """One internally consistent, integrity-verified judge read."""
+
+    run: Run | None
+    checkpoint: Checkpoint | None
+    audit_events: tuple[AuditEvent, ...]
+    audit_event_count: int
+    integrity_status: Literal["VERIFIED"]
+    snapshot_sha256: str
 
 
 class LocalFileDurableTruthRepository:
-    """Atomic local state with process locking and full typed reconstruction."""
+    """Atomic local state with process locking, typed reconstruction, and a digest."""
 
     def __init__(self, path: str | Path) -> None:
         if isinstance(path, str):
@@ -43,11 +64,11 @@ class LocalFileDurableTruthRepository:
             resolved = path
         else:
             raise TypeError("local state path must be str or Path")
-        if resolved.exists() and resolved.is_dir():
-            raise StorageDependencyError("local state path must be a file")
         try:
+            validate_local_path(resolved)
             resolved.parent.mkdir(parents=True, exist_ok=True)
-        except OSError as error:
+            validate_local_path(resolved)
+        except (OSError, LocalIntegrityError) as error:
             raise StorageDependencyError("local state directory is unavailable") from error
         self._path = resolved
         self._lock_path = resolved.with_name(f"{resolved.name}.lock")
@@ -61,59 +82,41 @@ class LocalFileDurableTruthRepository:
     def _lock(self, *, exclusive: bool) -> object:
         with self._thread_lock:
             try:
-                with self._lock_path.open("a+b") as handle:
-                    os.chmod(self._lock_path, 0o600)
-                    fcntl.flock(handle.fileno(), fcntl.LOCK_EX if exclusive else fcntl.LOCK_SH)
-                    try:
-                        yield
-                    finally:
-                        fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
-            except OSError as error:
+                with locked_private_file(self._lock_path, exclusive=exclusive):
+                    yield
+            except (OSError, LocalIntegrityError) as error:
                 raise StorageDependencyError("local state lock is unavailable") from error
 
     def _load(self) -> InMemoryTestDurableTruthRepository:
+        repository, _ = self._load_with_digest()
+        return repository
+
+    def _load_with_digest(
+        self,
+    ) -> tuple[InMemoryTestDurableTruthRepository, str | None]:
         if not self._path.exists():
-            return InMemoryTestDurableTruthRepository()
+            return InMemoryTestDurableTruthRepository(), None
         try:
-            payload = json.loads(self._path.read_text(encoding="utf-8"))
-        except (OSError, UnicodeError, json.JSONDecodeError) as error:
+            envelope = read_private_json(self._path)
+            payload, digest = open_local_payload(
+                envelope,
+                payload_type=_DURABLE_PAYLOAD_TYPE,
+            )
+            repository = InMemoryTestDurableTruthRepository.from_snapshot(payload)
+        except StorageDependencyError:
+            raise
+        except (OSError, LocalIntegrityError) as error:
             raise StorageDependencyError("local durable state is corrupt or unreadable") from error
-        return InMemoryTestDurableTruthRepository.from_snapshot(payload)
+        return repository, digest
 
     def _write(self, repository: InMemoryTestDurableTruthRepository) -> None:
-        serialized = json.dumps(
-            repository.export_snapshot(),
-            allow_nan=False,
-            ensure_ascii=True,
-            indent=2,
-            sort_keys=True,
-        ) + "\n"
-        descriptor = -1
-        temporary_name = ""
         try:
-            descriptor, temporary_name = tempfile.mkstemp(
-                dir=self._path.parent,
-                prefix=f".{self._path.name}.",
-                suffix=".tmp",
+            envelope = seal_local_payload(
+                repository.export_snapshot(),
+                payload_type=_DURABLE_PAYLOAD_TYPE,
             )
-            os.fchmod(descriptor, 0o600)
-            with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
-                descriptor = -1
-                handle.write(serialized)
-                handle.flush()
-                os.fsync(handle.fileno())
-            os.replace(temporary_name, self._path)
-            directory_descriptor = os.open(self._path.parent, os.O_RDONLY)
-            try:
-                os.fsync(directory_descriptor)
-            finally:
-                os.close(directory_descriptor)
-        except OSError as error:
-            if descriptor >= 0:
-                os.close(descriptor)
-            if temporary_name:
-                with suppress(OSError):
-                    Path(temporary_name).unlink(missing_ok=True)
+            atomic_write_private_json(self._path, envelope)
+        except (OSError, TypeError, ValueError) as error:
             raise StorageDependencyError("local durable state write failed") from error
 
     def _read[Result](
@@ -138,6 +141,11 @@ class LocalFileDurableTruthRepository:
 
     def get_run(self, run_id: UUID) -> Run | None:
         return self._read(lambda repository: repository.get_run(run_id))
+
+    def assert_ready(self) -> None:
+        """Verify that the complete local snapshot is readable without changing truth."""
+
+        self._read(lambda _repository: None)
 
     def transition_run(
         self,
@@ -265,6 +273,31 @@ class LocalFileDurableTruthRepository:
 
     def get_audit_event(self, run_id: UUID, event_id: UUID) -> AuditEvent | None:
         return self._read(lambda repository: repository.get_audit_event(run_id, event_id))
+
+    def list_audit_events(self, run_id: UUID, *, limit: int = 128) -> tuple[AuditEvent, ...]:
+        """Read a bounded audit timeline for one exact run without scanning other state."""
+
+        return self._read(
+            lambda repository: repository.list_audit_events(run_id, limit=limit)
+        )
+
+    def read_run_snapshot(self, run_id: UUID, *, limit: int = 128) -> LocalRunSnapshot:
+        """Read run, checkpoint, timeline, and digest under one shared file lock."""
+
+        with self._lock(exclusive=False):
+            repository, digest = self._load_with_digest()
+            if digest is None:
+                raise StorageDependencyError(
+                    "local durable state has no integrity-bound snapshot"
+                )
+            return LocalRunSnapshot(
+                run=repository.get_run(run_id),
+                checkpoint=repository.get_checkpoint(run_id),
+                audit_events=repository.list_audit_events(run_id, limit=limit),
+                audit_event_count=repository.count_audit_events(run_id),
+                integrity_status="VERIFIED",
+                snapshot_sha256=digest,
+            )
 
     def create_verification_evidence(
         self,

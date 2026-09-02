@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 import pytest
@@ -55,3 +56,35 @@ def test_local_hitl_environment_rejects_invalid_ttl(
 
     with pytest.raises(ContractValidationError):
         LocalHitlSettings.from_environment()
+
+
+def test_local_hitl_paths_reject_traversal_symlinks_and_hardlink_aliases(
+    tmp_path: Path,
+) -> None:
+    with pytest.raises(ContractValidationError, match="unsafe traversal"):
+        LocalHitlSettings(
+            state_path=tmp_path / "nested" / ".." / "truth.json",
+            inventory_path=tmp_path / "inventory.json",
+        )
+
+    target = tmp_path / "target.json"
+    target.write_text("{}", encoding="utf-8")
+    link = tmp_path / "link.json"
+    link.symlink_to(target)
+    with pytest.raises(ContractValidationError, match="must not be a symlink"):
+        LocalHitlSettings(state_path=link, inventory_path=tmp_path / "inventory.json")
+
+    directory = tmp_path / "state-directory"
+    directory.mkdir()
+    directory_link = tmp_path / "linked-directory"
+    directory_link.symlink_to(directory, target_is_directory=True)
+    with pytest.raises(ContractValidationError, match="must not traverse a symlink"):
+        LocalHitlSettings(
+            state_path=directory_link / "truth.json",
+            inventory_path=tmp_path / "inventory.json",
+        )
+
+    alias = tmp_path / "alias.json"
+    os.link(target, alias)
+    with pytest.raises(ContractValidationError, match="must be separate"):
+        LocalHitlSettings(state_path=target, inventory_path=alias)

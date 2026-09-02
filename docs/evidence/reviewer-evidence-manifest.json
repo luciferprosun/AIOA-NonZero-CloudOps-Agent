@@ -6,9 +6,9 @@
       ],
       "claim": "The runtime factory creates one primary Strands Agent.",
       "claim_id": "AGENT-TOPOLOGY-01",
-      "commit_anchor": "17d5f4637dbd69a33eff1cbb46282c36b19ce6ad",
+      "commit_anchor": "a2e16d0f1d625b34916440d6740a486f73cf2bb1",
       "evidence_kind": "TEST",
-      "hash": "458e4b96b52819343c8d4dcc31708df1b9ee0d3f1d1d7251185e40accbaed51e",
+      "hash": "c9d9df98bb3936987a262104cc3b87954fd153e750068208c22ecec440c7e189",
       "limitations": "Proves the repository runtime factory, not the topology of an undeployed AWS stack.",
       "proof_nodes": [
         "P0-01",
@@ -25,9 +25,9 @@
       ],
       "claim": "Human approval is explicit and bound to the proposal, request, actor session, and decision nonce.",
       "claim_id": "APPROVAL-BINDING-01",
-      "commit_anchor": "7ffe0cf7c9ca4a5c7c311fd5394a245e80bb78e0",
+      "commit_anchor": "a455379eb3de73bf6c1780b3c4726b0778873dd4",
       "evidence_kind": "TEST",
-      "hash": "ec18fae60b93fc1489615c651ad27c6fa545b8bad32ac38fd820bad3bd2e20b0",
+      "hash": "3a151a5491889d0bfb085179dcf272889a4e8e4599b1e11640a0f686a1673a2c",
       "limitations": "Does not attest to a real operator approval or a deployed identity provider.",
       "proof_nodes": [
         "P0-05",
@@ -84,9 +84,9 @@
       ],
       "claim": "A fresh Agent runtime can restore a durable native interrupt using trusted principal identity and a server-issued one-time challenge, while no approval or resume route is public.",
       "claim_id": "DAY15-COLD-RESUME-01",
-      "commit_anchor": "f2ee79c09ba174ba72cb527b70c095f412151758",
+      "commit_anchor": "a2e16d0f1d625b34916440d6740a486f73cf2bb1",
       "evidence_kind": "TEST",
-      "hash": "dd6c0eadf66bb3add46056f8b303e877bbb0b52b58e33d6bec31bf7c705cbb26",
+      "hash": "3898e671f965728c52fe6a7e1159ad2d56ec6be2a469c363f0d1b888d2570191",
       "limitations": "Proves deterministic restoration and duplicate rejection with local durable fakes; the capability remains absent from the public route table.",
       "proof_nodes": [
         "tests/integration/test_durable_hitl_approval_flow.py::test_fresh_process_restores_native_interrupt_with_trusted_one_time_freshness",
@@ -344,9 +344,9 @@
       ],
       "claim": "Local mock execution requires an exact authenticated approval, durable idempotency ownership, one atomic receipt, and independent verification before evidenced success.",
       "claim_id": "LOCAL2-HITL-EXECUTION-01",
-      "commit_anchor": "7ffe0cf7c9ca4a5c7c311fd5394a245e80bb78e0",
+      "commit_anchor": "a455379eb3de73bf6c1780b3c4726b0778873dd4",
       "evidence_kind": "TEST",
-      "hash": "53e8c79653e260837ca01e132834cf1ad48011f32044d66d5eca96ce5428b5bb",
+      "hash": "499b401af7ee47c6beb9970ead9c8e429f345cc8ff8b318699600847481111f9",
       "limitations": "Bounded to deterministic state files; it provides no provider receipt or account observation.",
       "proof_nodes": [
         "tests/integration/test_local_hitl_execution.py::test_approved_eip_executes_once_verifies_and_reconciles_after_restart",
@@ -359,23 +359,31 @@
     },
     {
       "authority_source": [
+        "src/aioa_cloudops_agent/config/portable_server.py::PortableServerSettings",
         "src/aioa_cloudops_agent/local_api/application.py::LocalApiApplication",
         "src/aioa_cloudops_agent/local_api/auth.py::LocalApiTokenAuthorizer.authorize",
+        "src/aioa_cloudops_agent/local_api/judge_ui.py::judge_ui_headers",
         "src/aioa_cloudops_agent/local_api/server.py::create_local_http_server",
-        "src/aioa_cloudops_agent/local_api/server.py::load_or_create_local_token"
+        "src/aioa_cloudops_agent/local_api/server.py::load_or_create_local_token",
+        "src/aioa_cloudops_agent/local_api/views.py::run_view",
+        "src/aioa_cloudops_agent/portable_server.py::main"
       ],
-      "claim": "The Local-2 operator surface is loopback-only, bearer-authenticated, schema-bounded, non-cacheable, and keeps its credential out of browser storage.",
+      "claim": "The Local-2 judge surface defaults to loopback and rejects non-loopback binding unless the canonical container entrypoint supplies explicit container intent; it remains bearer-bootstrapped into an HttpOnly same-site session, schema-bounded, non-cacheable, and exposes only a sanitized durable evidence timeline.",
       "claim_id": "LOCAL2-LOOPBACK-API-01",
-      "commit_anchor": "7ffe0cf7c9ca4a5c7c311fd5394a245e80bb78e0",
+      "commit_anchor": "d18f945a1484a1255339a3b4bcb1560c58d06d9b",
       "evidence_kind": "TEST",
-      "hash": "22b9a0c032cc5fe505934fb5c8c2064e59c5bbc5707d6087b6eeef3825d6de5e",
-      "limitations": "Proves a local single-operator demonstration boundary, not a deployed identity provider, public endpoint, or production authorization service.",
+      "hash": "bab38399be11102e4a3291c8c6ae2a93756c7f3bcd6b346fa8fcacede4ea0447",
+      "limitations": "Proves a local single-operator demo boundary and deterministic sandbox behavior. The container binds internally to all interfaces, so safe host publication still depends on the documented loopback or isolated-network launch command. It does not attest to a deployed identity provider, public endpoint, production authorization service, or provider-backed operation.",
       "proof_nodes": [
         "tests/integration/test_local_hitl_http_server.py::test_real_loopback_server_exposes_health_and_authenticated_start",
         "tests/integration/test_local_hitl_http_server.py::test_server_refuses_non_loopback_bind",
         "tests/integration/test_local_hitl_http_server.py::test_token_file_is_created_once_with_owner_only_permissions",
+        "tests/integration/test_portable_judge_experience.py::test_judge_http_experience_survives_stale_tab_duplicate_click_and_restart",
+        "tests/unit/test_judge_console_launcher.py::test_browser_bootstrap_keeps_session_credential_in_fragment_only",
         "tests/unit/test_local_hitl_api.py::test_full_approved_http_flow_executes_verifies_and_reconciles",
-        "tests/unit/test_local_hitl_api.py::test_public_console_has_strict_csp_and_no_browser_secret_storage"
+        "tests/unit/test_local_hitl_api.py::test_public_console_has_strict_csp_and_no_browser_secret_storage",
+        "tests/unit/test_local_hitl_api.py::test_run_view_is_sanitized_and_exposes_bounded_audit_evidence",
+        "tests/unit/test_portable_container_runtime.py::test_container_binding_requires_explicit_intent"
       ],
       "scope": "Local deterministic",
       "status": "PROVEN"
@@ -388,9 +396,9 @@
       ],
       "claim": "Model output cannot itself authorize mutation; execution requires deterministic policy and durable human authority.",
       "claim_id": "MODEL-AUTHORITY-01",
-      "commit_anchor": "7ffe0cf7c9ca4a5c7c311fd5394a245e80bb78e0",
+      "commit_anchor": "a455379eb3de73bf6c1780b3c4726b0778873dd4",
       "evidence_kind": "TEST",
-      "hash": "0bb7c6a4ea0703327bafcf4a6a27748659928dd15d052e6e4a6bafea7c8c87dd",
+      "hash": "fcad1143b68c7a22ce5ac9d79a50255e7948b5a813e68d8004d516df6f887157",
       "limitations": "Does not claim the model is intrinsically safe; authority remains outside the model.",
       "proof_nodes": [
         "P0-02",
@@ -507,9 +515,9 @@
       ],
       "claim": "An ActionProposal is persisted before approval and never authorizes execution by itself.",
       "claim_id": "PROPOSAL-DURABILITY-01",
-      "commit_anchor": "7ffe0cf7c9ca4a5c7c311fd5394a245e80bb78e0",
+      "commit_anchor": "a455379eb3de73bf6c1780b3c4726b0778873dd4",
       "evidence_kind": "TEST",
-      "hash": "90e7fe43cf91f221857c12732a85fe9608d0278c4e4ffcd8ef99563ae28ef3e0",
+      "hash": "b5f8dc1f7494f397be0e202d3571e804365c4c8769fcdc9558a560f1d3da1bbc",
       "limitations": "Proves persistence contracts and mocked repository behavior, not a live DynamoDB write.",
       "proof_nodes": [
         "P0-04",
@@ -559,9 +567,9 @@
       ],
       "claim": "The primary agent exposes exactly the five canonical principal tools derived from the runtime factory.",
       "claim_id": "TOOL-SURFACE-01",
-      "commit_anchor": "17d5f4637dbd69a33eff1cbb46282c36b19ce6ad",
+      "commit_anchor": "a2e16d0f1d625b34916440d6740a486f73cf2bb1",
       "evidence_kind": "TEST",
-      "hash": "3fafc06134c63321841d48097bdfe255048f97ad31a1c0ad339f742aa12ad912",
+      "hash": "54522687833457fcc8bea3cdbb6cba8c4d752b79cec2c8d379e853bdf6306bb7",
       "limitations": "Counts principal Strands tools in this repository, not infrastructure endpoints.",
       "proof_nodes": [
         "P0-01",
@@ -664,6 +672,6 @@
     "strands_version": "1.53.0"
   },
   "live_receipts": [],
-  "manifest_hash": "d447bd58904dfa86c858ecb7a031f7bdd0d2a12f445f763de9a877f5ebb95777",
+  "manifest_hash": "faf488e3547175af87b6a921d504fd3e1e976cdeb497fe2a2dacd2568d063554",
   "schema_version": "2.0"
 }

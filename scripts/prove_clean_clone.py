@@ -170,27 +170,22 @@ def sanitized_environment(base: Mapping[str, str]) -> dict[str, str]:
 
 
 def clone_command(mode: str, destination: Path, root: Path = ROOT) -> tuple[str, ...]:
-    """Build a full-history clone command; shallow/local optimization is forbidden."""
+    """Build a full-history clone command without collapsing a local feature HEAD to main."""
 
     if mode == "local-no-local":
-        source = str(root)
-        extra = ("--no-local",)
-    elif mode == "remote-public":
-        source = PUBLIC_REPOSITORY_URL
-        extra = ()
-    else:
-        raise ValueError("mode must be local-no-local or remote-public")
-    return (
-        "git",
-        "clone",
-        "--quiet",
-        *extra,
-        "--branch",
-        "main",
-        "--single-branch",
-        source,
-        str(destination),
-    )
+        return ("git", "clone", "--quiet", "--no-local", str(root), str(destination))
+    if mode == "remote-public":
+        return (
+            "git",
+            "clone",
+            "--quiet",
+            "--branch",
+            "main",
+            "--single-branch",
+            PUBLIC_REPOSITORY_URL,
+            str(destination),
+        )
+    raise ValueError("mode must be local-no-local or remote-public")
 
 
 def install_command(venv_python: Path) -> tuple[str, ...]:
@@ -331,6 +326,10 @@ def prove_clean_clone(
         clone = _run(clone_command(mode, clone_root, root), cwd=temporary_root, env=environment)
         if clone.returncode != 0:
             raise ReproFailure("CLONE_FAILED")
+        if mode == "local-no-local":
+            checkout = _git(clone_root, "checkout", "--quiet", "--detach", commit)
+            if checkout.returncode != 0:
+                raise ReproFailure("CLONED_COMMIT_MISMATCH")
         cloned_commit = current_commit(clone_root)
         if cloned_commit != commit:
             raise ReproFailure("CLONED_COMMIT_MISMATCH")

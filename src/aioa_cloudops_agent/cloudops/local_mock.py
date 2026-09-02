@@ -1,14 +1,10 @@
-"""Atomic local mock inventory and the protected Local-2 execution boundary."""
+"""Integrity-bound local mock inventory and protected execution boundary."""
 
-import fcntl
-import json
-import os
-import tempfile
 from collections.abc import Callable, Mapping
-from contextlib import contextmanager, suppress
+from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
-from threading import RLock
+from threading import Lock, RLock
 
 from pydantic import TypeAdapter, ValidationError
 
@@ -29,6 +25,15 @@ from aioa_cloudops_agent.nz import (
     SecurityGroupRule,
 )
 from aioa_cloudops_agent.persistence import compute_evidence_digest
+from aioa_cloudops_agent.persistence.local_integrity import (
+    LocalIntegrityError,
+    atomic_write_private_json,
+    locked_private_file,
+    open_local_payload,
+    read_private_json,
+    seal_local_payload,
+    validate_local_path,
+)
 
 from .provider import (
     CloudAdapterUnavailableError,
@@ -38,6 +43,7 @@ from .provider import (
 )
 
 _RESOURCE_ADAPTER = TypeAdapter(CloudResource)
+_INVENTORY_PAYLOAD_TYPE = "AIOA_SANDBOX_INVENTORY"
 
 
 class LocalMockMutationError(CloudProviderError):
@@ -64,8 +70,6 @@ class LocalMockStateStore:
         resolved = Path(path) if isinstance(path, (str, Path)) else None
         if resolved is None or not str(resolved).strip():
             raise ValueError("local mock state path must be a non-empty path")
-        if resolved.exists() and resolved.is_dir():
-            raise CloudAdapterUnavailableError("local mock state path must be a file")
         selected = initial_resources or default_mock_resources()
         identities = {
             (item.resource_type, item.resource_id, item.region) for item in selected
@@ -73,8 +77,10 @@ class LocalMockStateStore:
         if len(identities) != len(selected):
             raise ValueError("local mock resources must have unique identities")
         try:
+            validate_local_path(resolved)
             resolved.parent.mkdir(parents=True, exist_ok=True)
-        except OSError as error:
+            validate_local_path(resolved)
+        except (OSError, LocalIntegrityError) as error:
             raise CloudAdapterUnavailableError(
                 "local mock state directory is unavailable"
             ) from error
@@ -91,17 +97,9 @@ class LocalMockStateStore:
     def _lock(self, *, exclusive: bool) -> object:
         with self._thread_lock:
             try:
-                with self._lock_path.open("a+b") as handle:
-                    os.chmod(self._lock_path, 0o600)
-                    fcntl.flock(
-                        handle.fileno(),
-                        fcntl.LOCK_EX if exclusive else fcntl.LOCK_SH,
-                    )
-                    try:
-                        yield
-                    finally:
-                        fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
-            except OSError as error:
+                with locked_private_file(self._lock_path, exclusive=exclusive):
+                    yield
+            except (OSError, LocalIntegrityError) as error:
                 raise CloudAdapterUnavailableError(
                     "local mock state lock is unavailable"
                 ) from error
@@ -121,8 +119,12 @@ class LocalMockStateStore:
         if not self._path.exists():
             return self._initial_snapshot()
         try:
-            payload = json.loads(self._path.read_text(encoding="utf-8"))
-        except (OSError, UnicodeError, json.JSONDecodeError) as error:
+            envelope = read_private_json(self._path)
+            payload, _ = open_local_payload(
+                envelope,
+                payload_type=_INVENTORY_PAYLOAD_TYPE,
+            )
+        except (OSError, LocalIntegrityError) as error:
             raise CloudAdapterUnavailableError(
                 "local mock state is corrupt or unreadable"
             ) from error
@@ -171,39 +173,13 @@ class LocalMockStateStore:
                 for key in sorted(resources, key=lambda item: (str(item[0]), item[1], item[2]))
             ],
         }
-        serialized = json.dumps(
-            payload,
-            allow_nan=False,
-            ensure_ascii=True,
-            indent=2,
-            sort_keys=True,
-        ) + "\n"
-        descriptor = -1
-        temporary_name = ""
         try:
-            descriptor, temporary_name = tempfile.mkstemp(
-                dir=self._path.parent,
-                prefix=f".{self._path.name}.",
-                suffix=".tmp",
+            envelope = seal_local_payload(
+                payload,
+                payload_type=_INVENTORY_PAYLOAD_TYPE,
             )
-            os.fchmod(descriptor, 0o600)
-            with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
-                descriptor = -1
-                handle.write(serialized)
-                handle.flush()
-                os.fsync(handle.fileno())
-            os.replace(temporary_name, self._path)
-            directory_descriptor = os.open(self._path.parent, os.O_RDONLY)
-            try:
-                os.fsync(directory_descriptor)
-            finally:
-                os.close(directory_descriptor)
-        except OSError as error:
-            if descriptor >= 0:
-                os.close(descriptor)
-            if temporary_name:
-                with suppress(OSError):
-                    Path(temporary_name).unlink(missing_ok=True)
+            atomic_write_private_json(self._path, envelope)
+        except (OSError, TypeError, ValueError) as error:
             raise CloudAdapterUnavailableError("local mock state write failed") from error
 
     def get_resource(self, query: ResourceQuery) -> CloudResource:
@@ -217,6 +193,12 @@ class LocalMockStateStore:
                 "resource was not found in the persistent local inventory"
             )
         return resource
+
+    def assert_ready(self) -> None:
+        """Verify that the sandbox inventory is readable without applying a mutation."""
+
+        with self._lock(exclusive=False):
+            self._load()
 
     def get_receipt(self, idempotency_key: str) -> LocalExecutionReceipt | None:
         with self._lock(exclusive=False):
@@ -344,14 +326,23 @@ class LocalMockStateStore:
             or proposal.authorizes_execution
             or approval.decision is not ApprovalDecision.APPROVED
             or proposal.run_id != evidence.run_id
+            or proposal.correlation_id != evidence.correlation_id
             or proposal.evidence_hash != evidence.evidence_hash
+            or proposal.evidence_fingerprint != evidence.stable_fingerprint()
             or approval.proposal_id != proposal.proposal_id
+            or approval.run_id != proposal.run_id
             or approval.proposal_hash != proposal.proposal_hash
             or approval.evidence_hash != proposal.evidence_hash
+            or approval.proposal_version != proposal.version
+            or intent.run_id != proposal.run_id
             or intent.proposal_id != proposal.proposal_id
             or intent.proposal_hash != proposal.proposal_hash
             or intent.evidence_hash != proposal.evidence_hash
             or intent.decision_hash != approval.decision_hash
+            or intent.operation_type is not proposal.operation_type
+            or intent.target_resource_type is not proposal.target_resource_type
+            or intent.target_resource_id != proposal.target_resource_id
+            or intent.idempotency_key != f"local-exec:{proposal.proposal_hash}"
         ):
             raise LocalMockPolicyError(
                 "local executor prerequisites are not exactly approval-bound"
@@ -445,6 +436,7 @@ class LocalMockRemediationExecutor:
             raise TypeError("state and clock are required")
         self._state = state
         self._clock = clock
+        self._counter_lock = Lock()
         self.execute_calls = 0
         self.mutation_calls = 0
         self.reconciled_calls = 0
@@ -457,7 +449,8 @@ class LocalMockRemediationExecutor:
         approval: LocalApprovalDecisionRecord,
         intent: LocalExecutionIntent,
     ) -> LocalExecutionReceipt:
-        self.execute_calls += 1
+        with self._counter_lock:
+            self.execute_calls += 1
         receipt, applied = self._state.execute(
             proposal=proposal,
             evidence=evidence,
@@ -465,11 +458,18 @@ class LocalMockRemediationExecutor:
             intent=intent,
             executed_at=self._clock(),
         )
-        if applied:
-            self.mutation_calls += 1
-        else:
-            self.reconciled_calls += 1
+        with self._counter_lock:
+            if applied:
+                self.mutation_calls += 1
+            else:
+                self.reconciled_calls += 1
         return receipt
+
+    def counters(self) -> tuple[int, int, int]:
+        """Return execution, mutation, and reconciliation counters atomically."""
+
+        with self._counter_lock:
+            return self.execute_calls, self.mutation_calls, self.reconciled_calls
 
     def get_receipt(self, idempotency_key: str) -> LocalExecutionReceipt | None:
         return self._state.get_receipt(idempotency_key)

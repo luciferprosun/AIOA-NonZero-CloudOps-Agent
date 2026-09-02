@@ -20,6 +20,18 @@ class ModelProviderTimeoutError(ModelProviderError):
     """Deterministic timeout used to verify bounded provider handling."""
 
 
+class ModelProviderRetryableError(ModelProviderError):
+    """Typed transient provider failure that may be retried by an owning boundary."""
+
+
+class ModelProviderNonRetryableError(ModelProviderError):
+    """Typed permanent provider failure which must not be retried silently."""
+
+
+class ModelProviderUnavailableError(ModelProviderRetryableError):
+    """Selected provider could not be loaded or initialized."""
+
+
 class ModelProvider(Protocol):
     """Small provider-neutral interface required by local remediation planning."""
 
@@ -32,9 +44,20 @@ class MockModelFailure(StrEnum):
 
     NONE = "NONE"
     MALFORMED = "MALFORMED"
+    TRUNCATED = "TRUNCATED"
+    INVALID_STRUCTURED = "INVALID_STRUCTURED"
     PROVIDER_ERROR = "PROVIDER_ERROR"
     TIMEOUT = "TIMEOUT"
+    CONNECTION_FAILURE = "CONNECTION_FAILURE"
+    RATE_LIMIT = "RATE_LIMIT"
+    MODEL_UNAVAILABLE = "MODEL_UNAVAILABLE"
+    CONFIGURATION_ERROR = "CONFIGURATION_ERROR"
     POLICY_INVALID = "POLICY_INVALID"
+    EMPTY = "EMPTY"
+    APPROVAL_REQUIRED = "APPROVAL_REQUIRED"
+    DENIED_ACTION = "DENIED_ACTION"
+    RETRYABLE_ERROR = "RETRYABLE_ERROR"
+    NON_RETRYABLE_ERROR = "NON_RETRYABLE_ERROR"
 
 
 @dataclass(frozen=True, slots=True)
@@ -86,6 +109,12 @@ class MockModelProvider(Model):
         self._raise_scripted_failure()
         if self.failure is MockModelFailure.MALFORMED:
             return "{not-json"
+        if self.failure is MockModelFailure.TRUNCATED:
+            return '{"disposition":"PROPOSAL"'
+        if self.failure is MockModelFailure.INVALID_STRUCTURED:
+            return json.dumps({"unexpected": "provider-shape"})
+        if self.failure is MockModelFailure.EMPTY:
+            return ""
         if self.failure is MockModelFailure.POLICY_INVALID:
             return json.dumps(
                 {
@@ -95,6 +124,19 @@ class MockModelProvider(Model):
                     "target_resource_id": evidence.resource.resource_id,
                     "normalized_parameters": {"target": evidence.resource.resource_id},
                     "claimed_authority": AuthorityGate.AUTO.value,
+                },
+                separators=(",", ":"),
+                sort_keys=True,
+            )
+        if self.failure is MockModelFailure.DENIED_ACTION:
+            return json.dumps(
+                {
+                    "disposition": PlanDisposition.PROPOSAL.value,
+                    "operation_type": "TERMINATE_INSTANCE",
+                    "target_resource_type": evidence.resource.resource_type.value,
+                    "target_resource_id": evidence.resource.resource_id,
+                    "normalized_parameters": {"target": evidence.resource.resource_id},
+                    "claimed_authority": AuthorityGate.NEVER_AUTONOMOUS.value,
                 },
                 separators=(",", ":"),
                 sort_keys=True,
@@ -139,7 +181,10 @@ class MockModelProvider(Model):
             }
             yield {"contentBlockStop": {"contentBlockIndex": 0}}
             yield {"messageStop": {"stopReason": "tool_use"}}
-        elif self.failure is MockModelFailure.POLICY_INVALID:
+        elif self.failure in {
+            MockModelFailure.POLICY_INVALID,
+            MockModelFailure.DENIED_ACTION,
+        }:
             yield {
                 "contentBlockStart": {
                     "contentBlockIndex": 0,
@@ -159,6 +204,8 @@ class MockModelProvider(Model):
             }
             yield {"contentBlockStop": {"contentBlockIndex": 0}}
             yield {"messageStop": {"stopReason": "tool_use"}}
+        elif self.failure is MockModelFailure.EMPTY:
+            yield {"messageStop": {"stopReason": "end_turn"}}
         elif self.calls <= len(self.tool_plan):
             tool_call = self.tool_plan[self.calls - 1]
             yield {
@@ -210,3 +257,17 @@ class MockModelProvider(Model):
             raise ModelProviderError("mock model provider failure was injected")
         if self.failure is MockModelFailure.TIMEOUT:
             raise ModelProviderTimeoutError("mock model timeout was injected")
+        if self.failure is MockModelFailure.RETRYABLE_ERROR:
+            raise ModelProviderRetryableError("mock retryable model failure was injected")
+        if self.failure is MockModelFailure.CONNECTION_FAILURE:
+            raise ModelProviderRetryableError("mock model connection failure was injected")
+        if self.failure is MockModelFailure.RATE_LIMIT:
+            raise ModelProviderRetryableError("mock model rate limit was injected")
+        if self.failure is MockModelFailure.NON_RETRYABLE_ERROR:
+            raise ModelProviderNonRetryableError(
+                "mock non-retryable model failure was injected"
+            )
+        if self.failure is MockModelFailure.MODEL_UNAVAILABLE:
+            raise ModelProviderNonRetryableError("mock selected model is unavailable")
+        if self.failure is MockModelFailure.CONFIGURATION_ERROR:
+            raise ModelProviderNonRetryableError("mock model configuration is invalid")

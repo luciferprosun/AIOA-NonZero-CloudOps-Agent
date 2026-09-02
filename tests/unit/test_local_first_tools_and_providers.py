@@ -31,6 +31,8 @@ from aioa_cloudops_agent.providers import (
     MockModelFailure,
     MockModelProvider,
     ModelProviderError,
+    ModelProviderNonRetryableError,
+    ModelProviderRetryableError,
     ModelProviderTimeoutError,
 )
 
@@ -262,6 +264,39 @@ def test_mock_model_provider_supports_explicit_error_and_timeout() -> None:
         MockModelProvider(failure=MockModelFailure.PROVIDER_ERROR).create_plan(evidence)
     with pytest.raises(ModelProviderTimeoutError):
         MockModelProvider(failure=MockModelFailure.TIMEOUT).create_plan(evidence)
+    with pytest.raises(ModelProviderRetryableError):
+        MockModelProvider(failure=MockModelFailure.RETRYABLE_ERROR).create_plan(evidence)
+    with pytest.raises(ModelProviderNonRetryableError):
+        MockModelProvider(failure=MockModelFailure.NON_RETRYABLE_ERROR).create_plan(evidence)
+
+
+def test_mock_provider_has_explicit_approval_required_and_empty_scenarios() -> None:
+    evidence = _evidence(CloudResourceType.ELASTIC_IP, MOCK_UNATTACHED_EIP_ID)
+
+    approval = MockModelProvider(failure=MockModelFailure.APPROVAL_REQUIRED)
+    empty = MockModelProvider(failure=MockModelFailure.EMPTY)
+
+    approval_result = PlanRemediation().execute(
+        evidence,
+        model_output=approval.create_plan(evidence),
+        proposal_id=PROPOSAL_IDS[0],
+        created_at=NOW,
+    )
+    empty_result = PlanRemediation().execute(
+        evidence,
+        model_output=empty.create_plan(evidence),
+        proposal_id=PROPOSAL_IDS[1],
+        created_at=NOW,
+    )
+
+    assert approval_result.value is not None
+    assert approval_result.value.disposition is PlanDisposition.PROPOSAL
+    assert approval_result.value.proposal is not None
+    assert approval_result.value.proposal.authority_class is AuthorityGate.PLAN_AND_CONFIRM
+    assert approval_result.value.proposal.authorizes_execution is False
+    assert empty_result.status is ResultStatus.FAILURE
+    assert empty_result.failure is not None
+    assert empty_result.failure.kind is FailureKind.VALIDATION_FAILURE
 
 
 def test_local_composition_defaults_to_mock_and_never_falls_back_from_live(
