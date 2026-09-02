@@ -67,6 +67,13 @@
 - LOCAL_FIRST_INDEPENDENT_VERIFICATION = COMPLETE_SUCCESS_WITH_EVIDENCE
 - LOCAL_FIRST_OPERATOR_UI = COMPLETE_JUDGE_UX_HTTP_ONLY_SESSION
 - LOCAL_FIRST_LIVE_MODE = FAIL_CLOSED_UNAVAILABLE
+- WORKSPACE_REMEDIATION_W1 = COMPLETE_HERITAGE_AWARE_SEALED_READ_ONLY_FOUNDATION
+- WORKSPACE_REMEDIATION_HERITAGE_MAP = COMPLETE_NO_LEGACY_RUNTIME_IMPORT
+- WORKSPACE_REMEDIATION_PROFILE = FIXED_V1_INSPECT_LIST_READ_HASH_ONLY
+- WORKSPACE_REMEDIATION_FIXTURE = COMPLETE_SANITIZED_RENDER_START_INCIDENT
+- WORKSPACE_REMEDIATION_JAIL = COMPLETE_PATH_IDENTITY_DIGEST_AND_INODE_CONFINEMENT
+- WORKSPACE_REMEDIATION_AGENT = COMPLETE_ONE_AGENT_FOUR_READ_ONLY_TOOLS_MOCK_ONLY
+- WORKSPACE_REMEDIATION_W2 = NOT_STARTED_REQUIRES_SEPARATE_AUDIT
 - AGENTCORE = NOT_STARTED_DAY16_OPTIONAL
 - DEMO = COMPLETE_LOCAL_APPROVE_DENY_ZERO_NETWORK
 - SUBMISSION = DRAFT_AND_RUNBOOK_PREPARED_NOT_EXTERNALLY_SUBMITTED
@@ -106,7 +113,23 @@
 - REQUIRED_CORE_AWS_INTEGRATIONS = 0
 - PORTABLE_ONE_COMMAND_DEMO = python -m aioa_cloudops_agent.portable
 - PORTABLE_SOURCE_CHECKOUT_COMPATIBILITY_LAUNCHER = scripts/run_portable_demo.py
-- NEXT_MACRO_STEP = WAIT_FOR_AUDITED_AIOA_CODEX_GRADE_EXECUTABILITY_ROADMAP
+- NEXT_MACRO_STEP = W2_STRUCTURED_NON_APPLYING_PATCH_PROPOSAL_REQUIRES_AUDITED_PROMPT
+
+## W1 sealed workspace foundation
+
+W1 is complete at a clean feature-branch checkpoint. It adds a deterministic sanitized Render
+incident fixture, server-owned workspace identity and bounds, robust read-only path confinement,
+typed evidence receipts, and one four-tool Strands investigation profile. The explicit W1 suite is
+50/50; the final repository regression is 1515/1515; P0 is 15/15, P1 is 6/6, and B4 is 11/11.
+
+The profile is a library foundation and is not connected to the public Render service. It exposes
+no file mutation, process, network, package-install, Git, browser, MCP, deployment, or AWS
+capability. The existing CloudOps five-tool factory and deployment startup inputs remain unchanged.
+See `docs/architecture/workspace-remediation-v1.md` and
+`docs/audits/W1_HERITAGE_WORKSPACE_FOUNDATION_2026-09-02.md`.
+
+W2 is not authorized by this status. The next safe phase may define a typed, non-applying patch
+proposal only after a separate reviewed prompt preserves the current Non-Zero boundary.
 
 ## Known Nonblocking Items
 

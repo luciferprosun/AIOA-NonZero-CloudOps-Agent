@@ -1,0 +1,114 @@
+{
+  "artifact_hashes": {
+    "demo/workspace_render_incident_v1/README.md": "8728d80d5b00f08adfd931aa21ce7e94c0851b18710ce3c10edfdf596b25e761",
+    "demo/workspace_render_incident_v1/deployment.log": "cbfd8d343ccfb07b665befe4720d388cebaf16d935445cc0421cafbc938ea14a",
+    "demo/workspace_render_incident_v1/expected_runtime_contract.json": "8bf5a36539ea313a578e194e1c84568586770cc792d60709ebde106df9325178",
+    "demo/workspace_render_incident_v1/render.yaml": "b957bbf10af3d711fbfeda271f8ba3b362894f4b02bb8d88239985769a3968db",
+    "demo/workspace_render_incident_v1/scripts/render_start.sh": "d350917c132a338605f630fde97a2ac017e1664fe9cf413a7153827326e6d250",
+    "docs/audits/WORKSPACE_REMEDIATION_HERITAGE_MAP_2026-09-02.md": "af5878300b7abb2e026fa93508fa95583891bbc5d6079913f83fd117ee60ff7a",
+    "src/aioa_cloudops_agent/workspace/__init__.py": "bf57fe00d20b89599a02f221f563a50ceca04e1f8838022ded825e3708bd98c3",
+    "src/aioa_cloudops_agent/workspace/agent.py": "ce7be6021f8956060ead0b655229dd1ddd451fa498579e692df8603c16105b53",
+    "src/aioa_cloudops_agent/workspace/contracts.py": "5e8ecd314fd5212e6f1dd802c14b479f78972e2ab27428baa7d4a5df9512d3ae",
+    "src/aioa_cloudops_agent/workspace/evidence.py": "06d724337990ff5a4c5232061d39f76cc6b21c74df209d282056df5143cb21b5",
+    "src/aioa_cloudops_agent/workspace/fixture.py": "c451c34928fd6a88a26d087bc7cf7807893f1e76fa43c505d438669f2db78f5a",
+    "src/aioa_cloudops_agent/workspace/jail.py": "9aeba4b6ac30073d07a676045a828f554d903f047a192427e7d6ff19330cbf2f",
+    "src/aioa_cloudops_agent/workspace/profile.py": "709219ab7d6eddcd7edee8f1253383ff35fb1528a54e3a64c5ec39823743bcc2",
+    "src/aioa_cloudops_agent/workspace/tools.py": "3786a991ef0e04b745be3be38412a63b1c625e67f24278d293e43639619e3043",
+    "tests/integration/test_workspace_strands_profile.py": "cd33dad41697fcda9c8f3f7a6915edbbdcedc4fc4a0e2e24a0e10b9c3f83e573",
+    "tests/unit/test_workspace_foundation.py": "c87553e0003155bb6a072288215a48e15f3d8418294d980360f08154ccc324ad"
+  },
+  "authority_surface": {
+    "git_remote_capabilities_registered": 0,
+    "mutation_capabilities_registered": 0,
+    "network_capabilities_registered": 0,
+    "package_install_capabilities_registered": 0,
+    "process_capabilities_registered": 0,
+    "workspace_agent_count": 1,
+    "workspace_tool_count": 4,
+    "workspace_tools": [
+      "inspect_deployment_incident",
+      "list_workspace_artifacts",
+      "read_workspace_artifact",
+      "hash_workspace_artifact"
+    ]
+  },
+  "base": {
+    "branch": "codex/portable-d1-d2-m1-overnight",
+    "deployment_checkpoint": "060ef535fc7bc02ec71c333478333f7340c624e4",
+    "head": "03d1c8f6a1d254c98c0b4e88fc93e25ea85ed4c7",
+    "origin_main_head_at_start": "4fafed8b1a877e55d96ddd9baea0a737fbeeaa4a"
+  },
+  "boundaries": {
+    "aoia_core_runtime_imports_added": 0,
+    "aws_calls": 0,
+    "aws_mutations": 0,
+    "external_egress_during_certification": 0,
+    "live_deployment_files_changed": false,
+    "no_legacy_code_import": true,
+    "paid_resources_created": 0,
+    "render_actions": 0
+  },
+  "certification": {
+    "b4": {
+      "gates_passed": 11,
+      "gates_total": 11,
+      "proof_tests": 43,
+      "status": "PASS"
+    },
+    "diff_check": "PASS",
+    "full_pytest": {
+      "duration_seconds": 785.5,
+      "passed": 1515,
+      "status": "PASS",
+      "total": 1515
+    },
+    "p0": {
+      "gates_passed": 15,
+      "gates_total": 15,
+      "proof_tests": 136,
+      "status": "PASS"
+    },
+    "p1": {
+      "gates_passed": 6,
+      "gates_total": 6,
+      "proof_tests": 93,
+      "status": "PASS"
+    },
+    "pip_check": "PASS",
+    "ruff": "PASS",
+    "secret_scan": {
+      "files_scanned": 437,
+      "findings": 0,
+      "receipt_sha256": "cde835dba50743e9f77b2fe9e4c2fc278de1470605f58c4a0648ed9da16cf7af",
+      "status": "PASS"
+    },
+    "workspace_pytest": {
+      "passed": 50,
+      "status": "PASS",
+      "total": 50
+    }
+  },
+  "certified_implementation_head": "a0e30a4cc015148da97584e896a0df08369c209e",
+  "feature_branch": "codex/w1-heritage-workspace-foundation",
+  "fixture": {
+    "artifact_count": 5,
+    "fixture_version": "workspace_render_incident_v1",
+    "root_digest": "84172797b4203b01e7404649449ac7b6468e94b88e7aba9b2104d18c01668db8",
+    "sanitized": true
+  },
+  "frozen_base_hashes": {
+    "Dockerfile": "4640463904ced78776f5f482510e9f117d7ee2e0b6a8e04c5ba83e349378bc8f",
+    "render.yaml": "c9e351188844ec4236068ffe62fa9747376ec520eabea39c9e92dd30909a645c",
+    "scripts/render_start.sh": "d350917c132a338605f630fde97a2ac017e1664fe9cf413a7153827326e6d250",
+    "src/aioa_cloudops_agent/agent/factory.py": "4f1b02661a1effab421b3ec6ed506bf50a97c17ca5eb66cf959d201e0a881822"
+  },
+  "generated_at": "2026-09-02T21:35:58Z",
+  "heritage": {
+    "aoia_core_head_inspected": "20a53ff8872e3aff4b872a021b5a46110549450a",
+    "map": "docs/audits/WORKSPACE_REMEDIATION_HERITAGE_MAP_2026-09-02.md",
+    "reuse_map_status": "PASS"
+  },
+  "phase": "W1_HERITAGE_AWARE_SEALED_WORKSPACE_FOUNDATION",
+  "schema_version": 1,
+  "status": "PASS"
+}
