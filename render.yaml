@@ -14,7 +14,6 @@ services:
       unset AIOA_OPERATOR_TOKEN;
       exec python -m aioa_cloudops_agent.portable_server'
     healthCheckPath: /ready
-    maxShutdownDelaySeconds: 30
     autoDeployTrigger: "off"
     renderSubdomainPolicy: enabled
     envVars:
