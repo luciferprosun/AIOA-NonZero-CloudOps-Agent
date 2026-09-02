@@ -4,30 +4,44 @@
   "aws_mutations": 0,
   "b5_build_complete": {
     "attestation": "docs/evidence/release/portable-b5-build-complete-attestation.json",
-    "frozen_image_id": "524fe1212fc65e3d35a015717d03250e25c5ad32359e1c9595878c5bc6b057e8",
-    "frozen_manifest_digest": "sha256:a835f9bdbc7a3854304e5574440a6a9944ea4bd04e839eae317a8e6554855eae",
+    "attestation_sha256": "5106f99fb3ebfe38d1fde9895b85782ee89a686c2e2fd30db5ba2da62de16e43",
+    "frozen_image_id": "d5eca6b273309ba0fda6e143af47ea0c9c160a7605b29dd6f1fa8262c8d720e9",
+    "frozen_manifest_digest": "sha256:371b7c5b3bc9d88fe07aba54a5bd4b3e69a526ea1ff313b09253b75983e5856a",
     "nonroot_receipt": "docs/evidence/release/portable-b5-nonroot-runtime.json",
+    "source_commit": "c262c9f25bbe069f17a05da7221dbce606edb7b8",
     "status": "PASS"
   },
   "checks": [
     {
       "check_id": "SANITIZED_SOURCE_EXPORT",
-      "inventory_count": 407,
+      "inventory_count": 420,
       "status": "PASS"
     },
     {
       "check_id": "CANDIDATE_SHA256SUMS",
-      "entries": 331,
+      "entries": 336,
       "status": "PASS"
     },
     {
       "check_id": "SANITIZED_CLEAN_ROOM_BUILD",
       "build_cache": false,
       "dependency_hash_enforcement": true,
+      "pip_check": "PASS",
+      "status": "PASS"
+    },
+    {
+      "check_id": "CONTAINER_START_CONTRACT",
+      "cmd": [
+        "python",
+        "-m",
+        "aioa_cloudops_agent.portable_server"
+      ],
+      "entrypoint": null,
       "status": "PASS"
     },
     {
       "check_id": "SANITIZED_CLEAN_ROOM_START",
+      "default_cmd_start": "PASS",
       "health": "PASS",
       "readiness": "PASS",
       "status": "PASS"
@@ -61,8 +75,8 @@
     {
       "check_id": "PUBLIC_SECRET_AND_PRIVATE_DATA_SCAN",
       "findings": 0,
-      "regular_files": 332,
-      "reviewed_synthetic_fixtures": 13,
+      "regular_files": 337,
+      "reviewed_synthetic_fixtures": 14,
       "status": "PASS"
     }
   ],
@@ -75,34 +89,37 @@
     ]
   },
   "container": {
-    "build_manifest_digest": "sha256:2acaf338711940cd2d0318659df3dd3cb06d9ce2a0fb8767eac167e22a8be613",
-    "configured_user": "aioa",
-    "engine": "podman-4.9.3-local",
-    "engine_user_override": "0:0",
-    "entrypoint": [
+    "build_manifest_digest": "sha256:d3a1e9994487af1067ab5b296deef9a727eb9a21073cabeff6c131e0d03fbc0d",
+    "cmd": [
       "python",
       "-m",
       "aioa_cloudops_agent.portable_server"
     ],
-    "health_probe_file_sha256": "764702da78c05f55d12ca319ae1c4428bcf73a7d285dffb81d2a2a5bdcaf88f4",
-    "image_id": "05ae93a9efa117d7fe27b5f8dbc08b511ee8618754a4c3630e7c0ba6a689a225",
-    "local_manifest_digest": "sha256:aa40e619414ba81bf1c5e5964f991505f17a78f884a767a60fa547382c462a9d",
-    "local_reference": "localhost/aioa-portable:b6-public-c4-r1",
+    "configured_user": "aioa",
+    "default_cmd_start": "PASS",
+    "engine": "podman-4.9.3-local",
+    "engine_user_override": "0:0",
+    "entrypoint": null,
+    "health_probe_file_sha256": "33cea5e8ceeb07001630be3c92484d83964c6b7eb228f1199c246964bed2adad",
+    "image_id": "a5627d4a90a4d5aeb596f1028b2f1923d6bd23e407f02c042ef3c70365cdfda7",
+    "local_manifest_digest": "sha256:e810c00a2f79bd4404e19a28096c4fae53154594a46d9e6224f71e2a33543e70",
+    "local_reference": "localhost/aioa-portable:b6-public-cmd-46ce221e81f8",
     "network": "none",
     "no_new_privileges": true,
-    "oci_archive_sha256": "f5b082e0976ff8e5cf8084d5e018dae152bd482c65e51ee2c10650a214c052ca",
+    "oci_archive_sha256": "c15d896412d14d0fce5ac5f42ede06ec3af866fdc8e1e4ae5ca83f7a3acfbe36",
     "read_only_rootfs": true,
     "runtime_capabilities": "NONE",
-    "runtime_nonroot_claim": "NOT_REATTESTED_HOST_UID_MAP_LIMITATION_USE_B5_FROZEN_EXACT_IMAGE_PROOF",
-    "size_bytes": 219807803,
-    "source_label": "c7fa5a5c2509cccf071a9e58477776c1a1e00aea"
+    "runtime_nonroot_claim": "NOT_REATTESTED_HOST_UID_MAP_LIMITATION_USE_B5_FROZEN_EXACT_ROOTFS_PROOF",
+    "size_bytes": 219807733,
+    "source_label": "46ce221e81f88d82df75d67e144d9a2231c54d64"
   },
   "diagnostics": {
-    "first_build_attempt": "HOST_ROOT_FILESYSTEM_FULL_RETRIED_WITH_GRAPHROOT_ON_PROJECT_DISK",
-    "native_optional_test": "NOT_RUN_HOST_ENSUREPIP_UNAVAILABLE",
+    "clean_room_build": "PASS_FIRST_PROPER_ABSOLUTE_ENGINE_INVOCATION",
+    "detached_exec_probe": "HOST_USER_NAMESPACE_CANNOT_OPEN_CHILD_MOUNT_NAMESPACE_NOT_COUNTED",
+    "first_launcher_attempt": "RELATIVE_ENGINE_PATH_UNAVAILABLE_RETRIED_WITH_REVIEWED_ABSOLUTE_PATH",
     "product_failures": 0,
-    "recertification": "PASS_AFTER_PHASE3_DEVPOST_CONTRACT_REPAIR",
-    "runtime_storage": "OCI_ARCHIVE_IMPORTED_TO_LOCAL_RUNTIME_AFTER_EXTERNAL_GRAPHROOT_NAMESPACE_LIMITATION"
+    "public_scan_recertification": "RESERVED_TEST_TLD_FIX_COMMITTED_BEFORE_SOURCE_FREEZE",
+    "runtime_storage": "PRIVATE_MOUNT_NAMESPACE_PARENT_PATH_WORKAROUND_NO_HOST_PATH_MUTATION"
   },
   "document_type": "AIOA_B6_PUBLIC_CLEAN_ROOM_REPRODUCIBILITY",
   "external_deployments": 0,
@@ -114,24 +131,27 @@
     "file_sha256": "f829b18ff509c40288b134579c0c01a650628780a9ccc15f016b14a47346bb73",
     "invocations": 2,
     "provider_network_calls": 0,
-    "receipt_sha256": "f365b07702e43c3848b3470453910b2239d640e8e9ec22a917790a702c110ba3"
+    "receipt_sha256": "f365b07702e43c3848b3470453910b2239d640e8e9ec22a917790a702c110ba3",
+    "recovery_mock_mutations": 0,
+    "replay_mutation_delta": 0,
+    "status": "PASS"
   },
   "initial_candidate": {
-    "archive_sha256": "bb5e27a532f53c675fa600535f053a4cc25cbeb0431dd31c8dc5f1bdcfe5a856",
-    "manifest_file_sha256": "5eed879151ecb8d71cbe536e823a6fb1a85c6936a95a3b1e4273605452b0136e",
-    "payload_tree_sha256": "e963bc1fb863ed6fc9ab76f3ea7b589d27025c213a40d043dd551b8e9d64bdd7"
+    "archive_sha256": "070709bcf07168fad533d248cce89587ab14a3ed4605990bbe906c838f1043cb",
+    "manifest_file_sha256": "2cc3bdf547a846baa591b21c7fa48edc71f096ba705c77620cd3282d00aeb776",
+    "payload_tree_sha256": "1c9048d7ffd09e58fec551ba089e661edc04605160339d588d4a8a4769ade723"
   },
-  "limitations": "Local Linux/amd64 offline/mock certification only. No live AWS, Bedrock, public endpoint, registry push, external deployment, production-readiness, video-publication, or Devpost-submission claim is made.",
+  "limitations": "Local Linux/amd64 offline/mock certification only. The constrained rootless Podman host required a disclosed 0:0 compatibility override for B6 process runs; this is not a B6 non-root claim. No live AWS, Bedrock, public endpoint, registry push, external deployment, production-readiness, video-publication, or Devpost-submission claim is made.",
   "privacy_scan": {
-    "file_sha256": "ad28e9679d3f0786049df6b7d52b4269c32b6a70ba2447ea7bcaf0ad6827e908",
+    "file_sha256": "42c85030a30b5c4cb142cc6d7f86fee8dfacaa05985c351dce2abca0559d1007",
     "findings": 0,
-    "receipt_sha256": "7e20e6bee349d817f3e0b0993c4c1eeff8fe5ea08fbfc4d70a29e15ea4fb7fb7",
+    "receipt_sha256": "8b6d217426501a3c02076b1475fc59eb6571d85e5298e9b0d61c9e8674045c7b",
     "status": "PASS"
   },
   "publication_actions": 0,
   "publication_ready": "PASS",
   "remote_pushes": 0,
   "schema_version": 1,
-  "source_commit": "c7fa5a5c2509cccf071a9e58477776c1a1e00aea",
+  "source_commit": "46ce221e81f88d82df75d67e144d9a2231c54d64",
   "status": "PASS"
 }
