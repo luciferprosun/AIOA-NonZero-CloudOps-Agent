@@ -1,8 +1,8 @@
 {
   "archive": {
-    "bytes": 4408888,
-    "path": "dist/submission/portable-b6-2026-09-01/aioa-agents-for-humans-publication-candidate.zip",
-    "sha256": "c69baf9322cfcd234ca6610f733f5a8de4ae6a463f3e2a66ce8e78664b4c43de",
+    "bytes": 4473912,
+    "path": "dist/submission/portable-b6-2026-09-02/aioa-agents-for-humans-publication-candidate.zip",
+    "sha256": "297136b4d166661608e0e9c0a332b428ffdefe187f6810b177d57b68ae63610a",
     "uploaded": false
   },
   "aws_calls": 0,
@@ -13,19 +13,19 @@
   },
   "b6_report": {
     "path_in_archive": "B6_REPRODUCIBILITY_REPORT.json",
-    "sha256": "318cfc5dde379e9f5c8806f7c68e662581a7d7ee1e8b50ff7a375ecc51d9f416",
+    "sha256": "39aba73cb8633ac9b84a8f70f7b44f4acc95aacf33e132e3b362db9811470398",
     "status": "PASS"
   },
   "candidate": {
-    "files": 333,
+    "files": 338,
     "git_metadata_present": false,
-    "source_commit": "c7fa5a5c2509cccf071a9e58477776c1a1e00aea"
+    "source_commit": "46ce221e81f88d82df75d67e144d9a2231c54d64"
   },
   "classifications": {
     "GENERATED": 1,
     "LEGAL_REVIEW": 2,
-    "PRIVATE_INTERNAL": 79,
-    "PUBLIC_ALLOWED": 147,
+    "PRIVATE_INTERNAL": 87,
+    "PUBLIC_ALLOWED": 152,
     "PUBLIC_REQUIRED": 178
   },
   "deterministic_rebuild": {
@@ -35,23 +35,23 @@
   },
   "document_type": "AIOA_B6_LOCAL_PUBLICATION_BUNDLE",
   "external_deployments": 0,
-  "inventory_count": 407,
+  "inventory_count": 420,
   "outer_files": {
     "PUBLICATION_EXCLUSIONS.md": "f50d82d35cce11fc7894fc6191db3ae800a4f2f784fab88359e5c656db4b4672",
-    "PUBLICATION_MANIFEST.json": "b0a89730d24cba4208e3f69c35ffccc453a1fe6e6c49c6e4ca2287cc93af8624",
-    "PUBLIC_PRIVACY_SCAN.json": "e45d6668c16c62512268e542e13a71cf833ea16cee44d2b6ac31de7a4ec8db57",
-    "SHA256SUMS": "f1964eb855e630b6e0dbf49626bc320e2508c397c6f86f00c248b5097b9bbe65"
+    "PUBLICATION_MANIFEST.json": "2b48008e30f805174551171959d71096d6ee480631fc44be83bc9083670a82b3",
+    "PUBLIC_PRIVACY_SCAN.json": "e93d3d1083df923020ab1a915d0c24157e33c57a7584c95103ad3a59b11718ce",
+    "SHA256SUMS": "82e4fa8d66746ef296fd59f028cb5ba561fbe211001baebec4debf0ffc61df78"
   },
-  "payload_count_before_manifest_and_sums": 331,
-  "payload_tree_sha256": "248a692e4e797b44d5f4f4e2747ea77b4a1bffa975a3370c61c2069e5b2b916a",
+  "payload_count_before_manifest_and_sums": 336,
+  "payload_tree_sha256": "a8d9c3ba89edb06ba503135c8e2f017f17ac46f7010886a0b8239b02f61ffdfe",
   "privacy_scan": {
-    "file_sha256": "e45d6668c16c62512268e542e13a71cf833ea16cee44d2b6ac31de7a4ec8db57",
+    "file_sha256": "e93d3d1083df923020ab1a915d0c24157e33c57a7584c95103ad3a59b11718ce",
     "findings": 0,
-    "receipt_sha256": "91ff2b8262b516bc6ddc0065b88adedd002e7dded95a9008e51786ac6f7fe6e8",
+    "receipt_sha256": "ea92b8840474de8fa44e472df990e1506cd6f29b4fd8829460277fbd4a9b7534",
     "status": "PASS"
   },
   "publication_actions": 0,
-  "publication_manifest_internal_sha256": "11e601648880a0927cf654b8f37b6f86a076f15de845d5c65e9e8136986d13a3",
+  "publication_manifest_internal_sha256": "a1b8661ae3cf9c8c38455e2ee61f4634408351d08c051c8fdf3bfb81a38e7f13",
   "publication_ready": "PASS",
   "remote_pushes": 0,
   "schema_version": 1,

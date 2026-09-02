@@ -1,11 +1,12 @@
-# Portable B6 publication-ready audit
+# Portable B6 publication-ready audit — CMD recertified 2026-09-02
 
 ## Result
 
 ```text
-PHASE=B6_PUBLICATION_READY_LOCAL
+PHASE=B6_PUBLICATION_READY_LOCAL_CMD_RECERTIFICATION
 PUBLICATION_READY=PASS
-PUBLIC_SOURCE_COMMIT=c7fa5a5c2509cccf071a9e58477776c1a1e00aea
+PUBLIC_SOURCE_COMMIT=46ce221e81f88d82df75d67e144d9a2231c54d64
+B6_REPRODUCIBILITY_COMMIT=986c5b2d174e9e745338b141e3f37b1c28ca2997
 LICENSE=MIT_CONFIRMED_FROM_INITIAL_COMMIT
 AWS_CALLS=0
 AWS_MUTATIONS=0
@@ -16,44 +17,47 @@ PUBLIC_BUNDLE_UPLOADED=NO
 ```
 
 B6 produced and certified a local, sanitized hackathon candidate. It did not publish a repository,
-push a Git branch or image, upload an archive, create an endpoint, deploy infrastructure, contact
-AWS, record a video, send an email, or submit a Devpost entry.
+push a branch or image, upload an archive, create an endpoint, deploy infrastructure, contact AWS,
+record a video, send an email, or submit a Devpost entry.
 
 ## Sanitized source
 
-The deterministic builder read Git blobs from exact Commit 4
-`c7fa5a5c2509cccf071a9e58477776c1a1e00aea`. It classified every one of 407 tracked files:
+The deterministic builder read only Git blobs from exact source commit
+`46ce221e81f88d82df75d67e144d9a2231c54d64`. It classified all 420 tracked files:
 
 | Classification | Count | Export behavior |
 | --- | ---: | --- |
 | `PUBLIC_REQUIRED` | 178 | included |
-| `PUBLIC_ALLOWED` | 147 | included |
+| `PUBLIC_ALLOWED` | 152 | included |
 | `LEGAL_REVIEW` | 2 | included after MIT/prior-art review |
-| `PRIVATE_INTERNAL` | 79 | excluded |
-| `GENERATED` | 1 | frozen root README replaced by reviewed public overlay |
+| `PRIVATE_INTERNAL` | 87 | excluded |
+| `GENERATED` | 1 | root README replaced by reviewed public overlay |
 | `SECRET_RISK` | 0 | none present |
 
-The source project was not deleted or rewritten. The exported root README is the reviewed B6
-overlay; the manifest records that transformation. The resulting image is therefore not claimed
+The first candidate scan correctly stopped on `operator@example.test` inside a URL-policy unit test.
+The scanner was not weakened: source commit `46ce221…` adds only the IANA-reserved `.test` suffix to
+the existing test-directory synthetic-email classification and adds focused coverage. Real-domain
+email values and the same reserved value outside `tests/` still fail closed. Both initial exports
+were rebuilt from the new exact commit before any certification evidence was accepted.
+
+The exported README is the reviewed B6 overlay. The resulting B6 image is therefore not claimed
 byte-identical to B5 even though runtime source, Dockerfile, locks, and safety behavior are unchanged.
 
-The final cross-phase regression found that the first public Devpost rewrite had dropped three
-historical Phase 3 document-contract markers. Commit 4 was repaired to preserve the canonical name,
-`DEPLOYMENT_READY_LOCAL_RC` status, and audited no-live-AWS sentence. The full B6 export, privacy
-scan, no-cache build, runtime checks, two judge flows, and deterministic final build were then rerun
-from the repaired exact commit; none of the prior B6 hashes is reused here.
+## Deterministic clean-room reproduction
 
-## Clean-room reproduction
-
-The initial archive was unpacked into a separate directory without `.git`. Only public
-`README.md` and `docs/submission/REPRODUCIBILITY.md` were used.
+Two initial exports were byte-identical. The selected archive was unpacked into a separate directory
+with no `.git`, private audits, deployment evidence, or submission evidence. Only the candidate
+README and reproducibility guide were used.
 
 ```text
-CANDIDATE_SHA256SUMS=PASS 331/331
+INITIAL_ARCHIVE_SHA256=070709bcf07168fad533d248cce89587ab14a3ed4605990bbe906c838f1043cb
+INITIAL_MANIFEST_FILE_SHA256=2cc3bdf547a846baa591b21c7fa48edc71f096ba705c77620cd3282d00aeb776
+INITIAL_PAYLOAD_TREE_SHA256=1c9048d7ffd09e58fec551ba089e661edc04605160339d588d4a8a4769ade723
+CANDIDATE_SHA256SUMS=PASS 336/336
 SANITIZED_CLEAN_ROOM_BUILD=PASS NO_CACHE
 HASH_PINNED_DEPENDENCIES=PASS
 PIP_CHECK_IN_CONTAINER=PASS
-SANITIZED_CLEAN_ROOM_START=PASS
+DEFAULT_CMD_START=PASS
 HEALTH=PASS HTTP_200
 READINESS=PASS HTTP_200
 SANITIZED_APPROVE=PASS
@@ -63,23 +67,25 @@ SANITIZED_REPLAY=PASS
 CLAIMS_PROOF_AUDIT=PASS 29/29
 ```
 
-Two isolated container invocations emitted identical bytes and the same inner receipt SHA-256
-`f365b07702e43c3848b3470453910b2239d640e8e9ec22a917790a702c110ba3`. Each proved one approved
-mock mutation after decision, terminal denial with zero mutation, restart recovery, reconciliation,
-replay and binding rejection with zero mutation delta, five fail-closed probes, zero external
-connections, zero provider calls, zero AWS calls, and zero AWS mutations.
+Two isolated, network-disabled judge invocations emitted identical bytes and inner receipt SHA-256
+`f365b07702e43c3848b3470453910b2239d640e8e9ec22a917790a702c110ba3`; the complete JSON file
+SHA-256 was `f829b18ff509c40288b134579c0c01a650628780a9ccc15f016b14a47346bb73`.
+Each proved one approved mock mutation only after decision, denial with zero mutation, restart
+recovery/reconciliation, replay and binding rejection with zero mutation delta, five fail-closed
+probes, zero external connections, zero provider calls, zero AWS calls, and zero AWS mutations.
 
 ## Container identity and host limitation
 
 ```text
-LOCAL_REFERENCE=localhost/aioa-portable:b6-public-c4-r1
-RUNTIME_IMAGE_ID=05ae93a9efa117d7fe27b5f8dbc08b511ee8618754a4c3630e7c0ba6a689a225
-BUILD_MANIFEST_DIGEST=sha256:2acaf338711940cd2d0318659df3dd3cb06d9ce2a0fb8767eac167e22a8be613
-LOCAL_MANIFEST_DIGEST=sha256:aa40e619414ba81bf1c5e5964f991505f17a78f884a767a60fa547382c462a9d
-OCI_ARCHIVE_SHA256=f5b082e0976ff8e5cf8084d5e018dae152bd482c65e51ee2c10650a214c052ca
-IMAGE_SIZE_BYTES=219807803
+LOCAL_REFERENCE=localhost/aioa-portable:b6-public-cmd-46ce221e81f8
+RUNTIME_IMAGE_ID=a5627d4a90a4d5aeb596f1028b2f1923d6bd23e407f02c042ef3c70365cdfda7
+BUILD_MANIFEST_DIGEST=sha256:d3a1e9994487af1067ab5b296deef9a727eb9a21073cabeff6c131e0d03fbc0d
+LOCAL_MANIFEST_DIGEST=sha256:e810c00a2f79bd4404e19a28096c4fae53154594a46d9e6224f71e2a33543e70
+OCI_ARCHIVE_SHA256=c15d896412d14d0fce5ac5f42ede06ec3af866fdc8e1e4ae5ca83f7a3acfbe36
+IMAGE_SIZE_BYTES=219807733
 CONFIGURED_USER=aioa
-ENTRYPOINT=python -m aioa_cloudops_agent.portable_server
+CONFIGURED_ENTRYPOINT=NONE
+DEFAULT_CMD=python -m aioa_cloudops_agent.portable_server
 NETWORK=none
 ROOT_FILESYSTEM=read-only
 CAP_EFF=0000000000000000
@@ -87,70 +93,69 @@ NO_NEW_PRIVS=1
 TOKEN_MODE=0600
 ```
 
-The host's Podman runtime has no usable subordinate-ID helper for the declared UID/GID 65532. A
-direct run failed before application startup, so the B6 runtime invocations used the disclosed local
-`0:0` compatibility override. They are not represented as a non-root proof. Non-root authority
-remains the exact, image-bound B5 receipt for the frozen image, which proves UID/GID 65532, zero
-capabilities, `NoNewPrivs=1`, health/readiness, PID 1, and token mode `0600`. B6 did not change the
-Dockerfile or runtime source.
+The image was first run with no command or Entrypoint override; the default CMD emitted `READY` and
+stopped cleanly on `SIGTERM`. Because this constrained rootless host cannot `exec` into the child
+mount namespace, the endpoint proof used a single in-container supervisor under network `none` to
+launch the exact same `python -m aioa_cloudops_agent.portable_server` argv, probe `/health` and
+`/ready`, verify token mode `0600`, and stop it cleanly. This combines a real default-CMD start proof
+with endpoint evidence; it does not replace the image configuration assertion.
 
-## Privacy and claim audit
+The host has no usable subordinate-ID mapping for image UID/GID 65532. B6 process invocations used
+the disclosed local `0:0` compatibility override and are not represented as a B6 non-root proof.
+Non-root authority remains the fresh, source/image/digest-bound B5 exact-root-filesystem receipt,
+which proves UID/GID 65532, zero capabilities, `NoNewPrivs=1`, health/readiness, server PID 1, and
+token mode `0600`. The operator-local mount-namespace wrapper changes neither image nor host path and
+is not a deployment configuration.
 
-The final candidate, including its B6 report, contained 333 regular files. The final scan read 330
+## Privacy and claims audit
+
+The final candidate, including its B6 report, contains 338 regular files. The final scan read 335
 text files and reviewed three expected image assets. It found no secret, private key, credential
 file, personal PDF, real email, phone number, local user path, browser/session file, or AWS account
-identifier. Thirteen synthetic fixtures in tests were classified rather than hidden; their values
-were not emitted.
+identifier. Fourteen synthetic test fixtures were classified without emitting matched values.
 
 ```text
 PUBLIC_SECRET_SCAN=PASS
 PUBLIC_PRIVATE_DATA_SCAN=PASS
 FINDINGS=0
-SCAN_RECEIPT_SHA256=91ff2b8262b516bc6ddc0065b88adedd002e7dded95a9008e51786ac6f7fe6e8
+SCAN_FILE_SHA256=e93d3d1083df923020ab1a915d0c24157e33c57a7584c95103ad3a59b11718ce
+SCAN_RECEIPT_SHA256=ea92b8840474de8fa44e472df990e1506cd6f29b4fd8829460277fbd4a9b7534
 CLAIMS_PROOF_AUDIT=PASS 29/29
 UNSUPPORTED_CLAIMS=0
 ```
 
 The claims matrix forbids promotion to live AWS, live Bedrock, production readiness, public
-availability, real cloud mutation, registry publication, or final submission. The exact MIT License
-and prior-art disclosure originate in initial commit
+availability, real cloud mutation, registry publication, or final submission. The MIT license and
+prior-art disclosure originate in initial commit
 `d813290727b89017bd348c04f68a7f07156652f7`; no human license decision remains open.
 
 ## Frozen local bundle
 
+Two final exports built from unchanged B6 source commit `46ce221…` and injected the committed
+reproducibility report byte-for-byte. Their complete candidate trees and archives were identical.
+
 ```text
-PUBLIC_BUNDLE=dist/submission/portable-b6-2026-09-01/aioa-agents-for-humans-publication-candidate.zip
-ARCHIVE_BYTES=4408888
-ARCHIVE_SHA256=c69baf9322cfcd234ca6610f733f5a8de4ae6a463f3e2a66ce8e78664b4c43de
-MANIFEST_FILE_SHA256=b0a89730d24cba4208e3f69c35ffccc453a1fe6e6c49c6e4ca2287cc93af8624
-PAYLOAD_TREE_SHA256=248a692e4e797b44d5f4f4e2747ea77b4a1bffa975a3370c61c2069e5b2b916a
-B6_REPORT_SHA256=318cfc5dde379e9f5c8806f7c68e662581a7d7ee1e8b50ff7a375ecc51d9f416
+PUBLIC_BUNDLE=dist/submission/portable-b6-2026-09-02/aioa-agents-for-humans-publication-candidate.zip
+ARCHIVE_BYTES=4473912
+ARCHIVE_SHA256=297136b4d166661608e0e9c0a332b428ffdefe187f6810b177d57b68ae63610a
+MANIFEST_FILE_SHA256=2b48008e30f805174551171959d71096d6ee480631fc44be83bc9083670a82b3
+PAYLOAD_TREE_SHA256=a8d9c3ba89edb06ba503135c8e2f017f17ac46f7010886a0b8239b02f61ffdfe
+B6_REPORT_SHA256=39aba73cb8633ac9b84a8f70f7b44f4acc95aacf33e132e3b362db9811470398
 DETERMINISTIC_REBUILDS=2/2 IDENTICAL
 ARCHIVE_UPLOADED=NO
 ```
 
-The archive contains the sanitized source tree, `PUBLICATION_MANIFEST.json`,
+The archive contains the sanitized source, `PUBLICATION_MANIFEST.json`,
 `PUBLICATION_EXCLUSIONS.md`, `SHA256SUMS`, `B5_BUILD_COMPLETE_REFERENCE.json`, and
-`B6_REPRODUCIBILITY_REPORT.json`. The committed bundle receipt is
+`B6_REPRODUCIBILITY_REPORT.json`. The committed local-bundle authority is
 `docs/evidence/submission/portable-b6-publication-bundle.json`.
 
-## Host diagnostics
-
-The first no-cache build exhausted the small system filesystem while creating VFS layers. No source
-or product gate failed. The build was repeated from the same source on a graphroot located on the
-project disk and passed. Four verified incomplete layers and then dangling build caches were removed;
-all tagged B5 images were preserved. A local OCI archive moved the resulting image into the proven
-runtime storage. Registry transports remained denied.
-
-The optional native venv path was not run because the host Python lacks `ensurepip`. This does not
-block B6: the canonical no-cache container build, package wheel, `pip check`, server, judge flows,
-checksums, claims audit, and privacy gates passed from the sanitized candidate.
-
-## Commit 5 gate
+## Final B6 gate
 
 ```text
 SANITIZED_CLEAN_ROOM_BUILD=PASS
-SANITIZED_CLEAN_ROOM_START=PASS
+SANITIZED_DEFAULT_CMD_START=PASS
+SANITIZED_HEALTH_READINESS=PASS
 SANITIZED_APPROVE=PASS
 SANITIZED_DENY=PASS
 SANITIZED_RECOVERY=PASS
@@ -165,8 +170,7 @@ PUBLICATION_ACTIONS=0
 EXTERNAL_DEPLOYMENTS=0
 PUBLICATION_READY=PASS
 HARD_BLOCKER=NONE
-HUMAN_ACTION_REQUIRED=NONE_FOR_LOCAL_B6
 ```
 
-B6 stops at local publication readiness. Deployment, push, upload, repository visibility change,
-video publication, and submission require a later explicit human-authorized phase.
+B6 stops at local publication readiness. Deployment, registry push, upload, repository visibility
+change, video publication, and submission require a later explicit human-authorized phase.

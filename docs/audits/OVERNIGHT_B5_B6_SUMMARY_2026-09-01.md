@@ -22,8 +22,10 @@ identity must not be reused for the CMD-recertified release.
 | Render-compatible Docker start contract and focused proof | `5d10229d9ca0d243068c0ee77a0c90a4e722689c` | PASS |
 | frozen B5 image source and re-anchored reviewer evidence | `c262c9f25bbe069f17a05da7221dbce606edb7b8` | PASS |
 | regenerated B5 machine evidence | `dc09bfb0e8d9d265fe592882713d3c156bcd01ff` | PASS |
-| regenerated B6 public source | pending exact commit | IN_PROGRESS |
-| regenerated B6 reproducibility and final bundle | pending | IN_PROGRESS |
+| public-document rebase on CMD-certified B5 | `00f57217b74f3e3c1afa271ea102b7d744b9dbce` | PASS |
+| final sanitized B6 source and reserved-test-TLD scanner proof | `46ce221e81f88d82df75d67e144d9a2231c54d64` | PASS |
+| clean-room reproducibility receipt | `986c5b2d174e9e745338b141e3f37b1c28ca2997` | PASS |
+| final scan, bundle receipt, and audits | this commit | PASS |
 
 ## Current B5 outcome
 
@@ -49,11 +51,27 @@ The Render bootstrap proof passed locally: a synthetic operator token was writte
 file with mode `0600`, removed from the child environment, and followed by the exact canonical
 server process reaching `/health` and `/ready`. Missing-token startup failed closed.
 
-## Current boundary
+## Current B6 outcome
 
-B6 is deliberately marked in progress until two deterministic sanitized builds, a clean-room
-no-cache image build, start/health/readiness, judge flows, final privacy scan, and regenerated hashes
-all pass. No old B6 archive or receipt is authoritative for this recertification.
+```text
+B6=PASS
+PUBLICATION_READY=PASS
+PUBLIC_SOURCE_COMMIT=46ce221e81f88d82df75d67e144d9a2231c54d64
+CONFIGURED_ENTRYPOINT=NONE
+DEFAULT_CMD=python -m aioa_cloudops_agent.portable_server
+CLEAN_ROOM_NO_CACHE_BUILD=PASS
+DEFAULT_CMD_START=PASS
+HEALTH_READY=PASS
+APPROVE_DENY_RECOVERY_REPLAY=PASS
+PUBLIC_SCAN=PASS 0 findings
+FINAL_ARCHIVE_SHA256=297136b4d166661608e0e9c0a332b428ffdefe187f6810b177d57b68ae63610a
+DETERMINISTIC_FINAL_BUILDS=2/2 IDENTICAL
+```
+
+All old B6 identities are superseded. The authoritative B6 report, final scan, and bundle receipt
+are the CMD-recertified files under `docs/evidence/submission/`.
+
+## External-action boundary
 
 ```text
 AWS_CALLS=0
@@ -64,4 +82,5 @@ PUBLICATION_ACTIONS=0
 ```
 
 No AWS account, Render resource, registry, public endpoint, browser session, email, video platform,
-or submission portal was touched.
+or submission portal was touched. The branch can be pushed after final regression, but deployment
+remains a separate owner-authorized step.

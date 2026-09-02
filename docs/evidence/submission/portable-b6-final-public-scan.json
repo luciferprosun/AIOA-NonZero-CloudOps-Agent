@@ -2,16 +2,16 @@
   "aws_account_values_emitted": false,
   "aws_mutations": 0,
   "binary_files_reviewed": 3,
-  "bytes_scanned": 2999975,
+  "bytes_scanned": 3063817,
   "emails_emitted": false,
   "external_deployments": 0,
-  "files_scanned": 330,
+  "files_scanned": 335,
   "findings": [],
   "findings_count": 0,
   "personal_values_emitted": false,
   "publication_actions": 0,
-  "receipt_sha256": "91ff2b8262b516bc6ddc0065b88adedd002e7dded95a9008e51786ac6f7fe6e8",
-  "regular_files": 333,
+  "receipt_sha256": "ea92b8840474de8fa44e472df990e1506cd6f29b4fd8829460277fbd4a9b7534",
+  "regular_files": 338,
   "remote_pushes": 0,
   "reviewed_synthetic_fixtures": [
     {
@@ -29,6 +29,10 @@
     {
       "category": "URL_EMBEDDED_CREDENTIAL",
       "path": "tests/unit/test_evidence_security.py"
+    },
+    {
+      "category": "EMAIL_ADDRESS",
+      "path": "tests/unit/test_live_acceptance.py"
     },
     {
       "category": "AWS_ACCOUNT_IDENTIFIER",
@@ -67,7 +71,7 @@
       "path": "tests/unit/test_reviewer_evidence_manifest.py"
     }
   ],
-  "reviewed_synthetic_fixtures_count": 13,
+  "reviewed_synthetic_fixtures_count": 14,
   "schema_version": 1,
   "secret_values_emitted": false,
   "status": "PASS"
