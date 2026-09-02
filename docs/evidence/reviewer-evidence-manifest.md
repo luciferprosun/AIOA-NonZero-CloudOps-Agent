@@ -6,7 +6,7 @@ This judge-facing view is generated from the canonical JSON. It is reviewer proo
 - Day 15 local candidate snapshot: `197db56f828b8ab0b9139a1d3708fb8a58ca336a` (`LOCAL_IMPLEMENTATION_CANDIDATE`)
 - Day 15 additive recovery lineage: `aa941a989a8b8cd0e40367bb130472e9f3c082a7` -> `17d5f4637dbd69a33eff1cbb46282c36b19ce6ad` -> `8e4583ac9341cb7b66de47cf0e7b2a442ac67b32` -> `30c2a30cda0ac6d6e2003166daf6c29bf2c764f0` -> `f2ee79c09ba174ba72cb527b70c095f412151758` -> `36fd17df981dfa593d4e63f6a143410317410763` -> `ce35a67f6491ea92aeef534d0dc4f5dc4a8da7ff` -> `5a6127f43a9251a72203c0eb6c7a903d817599f7` -> `3464bc869e7a11acb5aab61ae279cf196a1ebd0f` -> `41ba5586180e9aa3a25fc5469d42815073a0bbf8` -> `858770d5e5c7b59fa883cc56e06f4a9e915d70c1` -> `5e1904408d402c1e6492d6b2e153a7f1a5c56b58` -> `99f70c43a26ce9715e9b57fde81ca265382dd5f2` -> `197db56f828b8ab0b9139a1d3708fb8a58ca336a`
 - Day 15 gates: `D15-G01, D15-G02, D15-G03, D15-G04, D15-G05, D15-G06, D15-G07, D15-G08, D15-G09, D15-G10`
-- Manifest SHA-256: `faf488e3547175af87b6a921d504fd3e1e976cdeb497fe2a2dacd2568d063554`
+- Manifest SHA-256: `68c76008517df9e4de943dd685c50f358d42af85c8357bd5a329a3f55de01e77`
 - Primary agents: `1`
 - Canonical tools: `inspect_instance, read_utilization_metrics, build_remediation_evidence, stop_sandbox_instance, verify_instance_state`
 - Bedrock model: `eu.amazon.nova-2-lite-v1:0` in `eu-central-1`
@@ -34,7 +34,7 @@ This judge-facing view is generated from the canonical JSON. It is reviewer proo
 | IDEMPOTENCY-01 | PROVEN | TEST | mocked AWS | A duplicate logical action cannot silently execute twice while durable idempotency state is acknowledged or unresolved. |
 | LIVE-EC2-01 | NOT_YET_PROVEN | DOC | live AWS | A live EC2 StopInstances event is not yet proven by this repository. |
 | LOCAL2-HITL-EXECUTION-01 | PROVEN | TEST | Local deterministic | Local mock execution requires an exact authenticated approval, durable idempotency ownership, one atomic receipt, and independent verification before evidenced success. |
-| LOCAL2-LOOPBACK-API-01 | PROVEN | TEST | Local deterministic | The Local-2 judge surface defaults to loopback and rejects non-loopback binding unless the canonical container entrypoint supplies explicit container intent; it remains bearer-bootstrapped into an HttpOnly same-site session, schema-bounded, non-cacheable, and exposes only a sanitized durable evidence timeline. |
+| LOCAL2-LOOPBACK-API-01 | PROVEN | TEST | Local deterministic | The Local-2 judge surface defaults to loopback and rejects non-loopback binding unless the canonical container server launch supplies explicit container intent; it remains bearer-bootstrapped into an HttpOnly same-site session, schema-bounded, non-cacheable, and exposes only a sanitized durable evidence timeline. |
 | MODEL-AUTHORITY-01 | PROVEN | TEST | Local deterministic | Model output cannot itself authorize mutation; execution requires deterministic policy and durable human authority. |
 | MODEL-PIN-01 | PROVEN | STATIC | Local deterministic | The default Bedrock model configuration selects Amazon Nova 2 Lite in eu-central-1. |
 | P0-GATE-01 | PROVEN | TEST | Local deterministic | The canonical P0 matrix passed all 15 gates with 136 proof cases at its reviewed commit anchor. |
@@ -362,10 +362,10 @@ Local mock execution requires an exact authenticated approval, durable idempoten
 
 ### LOCAL2-LOOPBACK-API-01
 
-The Local-2 judge surface defaults to loopback and rejects non-loopback binding unless the canonical container entrypoint supplies explicit container intent; it remains bearer-bootstrapped into an HttpOnly same-site session, schema-bounded, non-cacheable, and exposes only a sanitized durable evidence timeline.
+The Local-2 judge surface defaults to loopback and rejects non-loopback binding unless the canonical container server launch supplies explicit container intent; it remains bearer-bootstrapped into an HttpOnly same-site session, schema-bounded, non-cacheable, and exposes only a sanitized durable evidence timeline.
 
 - Status / kind / scope: `PROVEN` / `TEST` / `Local deterministic`
-- Commit anchor: `d18f945a1484a1255339a3b4bcb1560c58d06d9b`
+- Commit anchor: `5d10229d9ca0d243068c0ee77a0c90a4e722689c`
 - Authority source:
   - `src/aioa_cloudops_agent/config/portable_server.py::PortableServerSettings`
   - `src/aioa_cloudops_agent/local_api/application.py::LocalApiApplication`
@@ -386,7 +386,7 @@ The Local-2 judge surface defaults to loopback and rejects non-loopback binding 
   - `tests/unit/test_local_hitl_api.py::test_run_view_is_sanitized_and_exposes_bounded_audit_evidence`
   - `tests/unit/test_portable_container_runtime.py::test_container_binding_requires_explicit_intent`
 - Limitations: Proves a local single-operator demo boundary and deterministic sandbox behavior. The container binds internally to all interfaces, so safe host publication still depends on the documented loopback or isolated-network launch command. It does not attest to a deployed identity provider, public endpoint, production authorization service, or provider-backed operation.
-- Claim SHA-256: `bab38399be11102e4a3291c8c6ae2a93756c7f3bcd6b346fa8fcacede4ea0447`
+- Claim SHA-256: `89a70af1bea16d693926ed736e91d9d8b13447b7ffed631244095b74ff8f45d5`
 
 ### MODEL-AUTHORITY-01
 

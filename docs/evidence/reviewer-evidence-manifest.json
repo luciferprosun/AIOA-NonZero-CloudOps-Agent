@@ -368,11 +368,11 @@
         "src/aioa_cloudops_agent/local_api/views.py::run_view",
         "src/aioa_cloudops_agent/portable_server.py::main"
       ],
-      "claim": "The Local-2 judge surface defaults to loopback and rejects non-loopback binding unless the canonical container entrypoint supplies explicit container intent; it remains bearer-bootstrapped into an HttpOnly same-site session, schema-bounded, non-cacheable, and exposes only a sanitized durable evidence timeline.",
+      "claim": "The Local-2 judge surface defaults to loopback and rejects non-loopback binding unless the canonical container server launch supplies explicit container intent; it remains bearer-bootstrapped into an HttpOnly same-site session, schema-bounded, non-cacheable, and exposes only a sanitized durable evidence timeline.",
       "claim_id": "LOCAL2-LOOPBACK-API-01",
-      "commit_anchor": "d18f945a1484a1255339a3b4bcb1560c58d06d9b",
+      "commit_anchor": "5d10229d9ca0d243068c0ee77a0c90a4e722689c",
       "evidence_kind": "TEST",
-      "hash": "bab38399be11102e4a3291c8c6ae2a93756c7f3bcd6b346fa8fcacede4ea0447",
+      "hash": "89a70af1bea16d693926ed736e91d9d8b13447b7ffed631244095b74ff8f45d5",
       "limitations": "Proves a local single-operator demo boundary and deterministic sandbox behavior. The container binds internally to all interfaces, so safe host publication still depends on the documented loopback or isolated-network launch command. It does not attest to a deployed identity provider, public endpoint, production authorization service, or provider-backed operation.",
       "proof_nodes": [
         "tests/integration/test_local_hitl_http_server.py::test_real_loopback_server_exposes_health_and_authenticated_start",
@@ -672,6 +672,6 @@
     "strands_version": "1.53.0"
   },
   "live_receipts": [],
-  "manifest_hash": "faf488e3547175af87b6a921d504fd3e1e976cdeb497fe2a2dacd2568d063554",
+  "manifest_hash": "68c76008517df9e4de943dd685c50f358d42af85c8357bd5a329a3f55de01e77",
   "schema_version": "2.0"
 }

@@ -63,7 +63,7 @@ PHASE3_RC_COMMIT = "5ac15d30a604434713490d77edb573d14a8f1dcd"
 PORTABLE_B1_COMMIT = "a2e16d0f1d625b34916440d6740a486f73cf2bb1"
 PORTABLE_B3_COMMIT = "1882089fbb41a3f7f3cbad821ed9d6d8c6c2e9a5"
 PORTABLE_B4_COMMIT = "a455379eb3de73bf6c1780b3c4726b0778873dd4"
-PORTABLE_B5_CONTAINER_COMMIT = "d18f945a1484a1255339a3b4bcb1560c58d06d9b"
+PORTABLE_B5_CONTAINER_COMMIT = "5d10229d9ca0d243068c0ee77a0c90a4e722689c"
 DAY15_RECOVERY_LINEAGE = (
     DAY15_START_COMMIT,
     DAY15_ORIGINAL_M1_COMMIT,
@@ -331,7 +331,7 @@ def build_claims() -> list[dict[str, Any]]:
         ),
         _claim(
             "LOCAL2-LOOPBACK-API-01",
-            "The Local-2 judge surface defaults to loopback and rejects non-loopback binding unless the canonical container entrypoint supplies explicit container intent; it remains bearer-bootstrapped into an HttpOnly same-site session, schema-bounded, non-cacheable, and exposes only a sanitized durable evidence timeline.",
+            "The Local-2 judge surface defaults to loopback and rejects non-loopback binding unless the canonical container server launch supplies explicit container intent; it remains bearer-bootstrapped into an HttpOnly same-site session, schema-bounded, non-cacheable, and exposes only a sanitized durable evidence timeline.",
             "TEST",
             (
                 "src/aioa_cloudops_agent/config/portable_server.py::PortableServerSettings",
