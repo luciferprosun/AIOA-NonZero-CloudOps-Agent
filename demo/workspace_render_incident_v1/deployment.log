@@ -1,0 +1,6 @@
+2026-08-31T21:14:00Z [build] image build completed
+2026-08-31T21:14:03Z [runtime] starting configured Docker command (sanitized)
+2026-08-31T21:14:03Z [runtime] operator bootstrap value present: yes (value suppressed)
+2026-08-31T21:14:03Z [runtime] /bin/sh: 1: /bin/sh -eu -c 'umask 077; test -n "${AIOA_OPERATOR_TOKEN:-}"; printf ...; chmod 0600 ...; unset AIOA_OPERATOR_TOKEN; exec python -m aioa_cloudops_agent.portable_server': File name too long
+2026-08-31T21:14:03Z [runtime] process exited with status 127
+2026-08-31T21:14:05Z [probe] GET /ready could not connect because the process had exited
