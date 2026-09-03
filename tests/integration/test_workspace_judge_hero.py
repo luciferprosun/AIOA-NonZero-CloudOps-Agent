@@ -7,6 +7,7 @@ import stat
 from pathlib import Path
 
 import pytest
+from scripts.w4_render_start_profile import RenderStartContractV1Profile
 
 from aioa_cloudops_agent.agent import create_local_hitl_runtime
 from aioa_cloudops_agent.config import LocalHitlSettings
@@ -23,9 +24,6 @@ from aioa_cloudops_agent.local_api.judge_ui import (
 )
 from aioa_cloudops_agent.local_api.workspace_hero_contracts import (
     WORKSPACE_HERO_RESPONSE_MAX_BYTES,
-)
-from aioa_cloudops_agent.local_api.workspace_hero_profile import (
-    WorkspaceHeroRenderStartProfile,
 )
 from aioa_cloudops_agent.workspace import TrustedRenderStartProfileResult
 
@@ -610,7 +608,7 @@ def test_hero_ui_is_refresh_safe_busy_safe_and_responsive() -> None:
 
 
 def test_fixed_render_start_profile_proves_local_boot_contract() -> None:
-    result = WorkspaceHeroRenderStartProfile().run()
+    result = RenderStartContractV1Profile().run()
 
     assert result == TrustedRenderStartProfileResult()
     assert result.missing_token_fails_closed is True

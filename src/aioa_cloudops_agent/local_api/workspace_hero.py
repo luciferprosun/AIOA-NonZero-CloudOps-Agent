@@ -66,7 +66,6 @@ from .workspace_hero_contracts import (
     WorkspaceHeroVerificationView,
 )
 from .workspace_hero_fixture import ensure_workspace_hero_fixture
-from .workspace_hero_profile import WorkspaceHeroRenderStartProfile
 
 _MANIFEST_PAYLOAD_TYPE = "AIOA_W5_WORKSPACE_HERO_V1"
 _ROOT_CAUSE = (
@@ -95,6 +94,20 @@ class WorkspaceHeroFailure(RuntimeError):
         self.status = status
         self.retryable = retryable
         super().__init__(code)
+
+
+def _certified_w4_profile() -> object:
+    """Load the exact repository-owned W4 profile only when verification begins."""
+
+    try:
+        from scripts.w4_render_start_profile import RenderStartContractV1Profile
+    except ImportError as error:
+        raise WorkspaceHeroFailure(
+            "WORKSPACE_HERO_TRUSTED_PROFILE_UNAVAILABLE",
+            status=503,
+            retryable=True,
+        ) from error
+    return RenderStartContractV1Profile()
 
 
 class _WorkspaceHeroManifest(NonZeroContract):
@@ -134,7 +147,7 @@ class WorkspaceHeroOrchestrator:
         runtime_settings: RuntimeSettings,
         *,
         nonce_deriver: Callable[[str], str],
-        profile_factory: Callable[[], object] = WorkspaceHeroRenderStartProfile,
+        profile_factory: Callable[[], object] = _certified_w4_profile,
         clock: Callable[[], datetime] | None = None,
         run_id_factory: Callable[[], UUID] = generate_run_id,
         trace_id_factory: Callable[[], UUID] = generate_trace_id,
