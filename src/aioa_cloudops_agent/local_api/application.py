@@ -42,11 +42,28 @@ from .contracts import (
 )
 from .judge_ui import JUDGE_UI_BODY, judge_ui_headers
 from .views import run_view, runtime_view
+from .workspace_hero import WorkspaceHeroFailure, WorkspaceHeroOrchestrator
+from .workspace_hero_contracts import (
+    WorkspaceHeroDecisionRequest,
+    WorkspaceHeroResumeRequest,
+    WorkspaceHeroStartRequest,
+)
 
 _RUN_PATH = re.compile(r"^/api/runs/([^/]+)$")
 _APPROVAL_PATH = re.compile(r"^/api/runs/([^/]+)/approval-request$")
 _DECISION_PATH = re.compile(r"^/api/runs/([^/]+)/decision$")
 _RESUME_PATH = re.compile(r"^/api/runs/([^/]+)/resume$")
+_WORKSPACE_HERO_RUN_PATH = re.compile(r"^/api/workspace-demo/runs/([^/]+)$")
+_WORKSPACE_HERO_APPROVAL_PATH = re.compile(
+    r"^/api/workspace-demo/runs/([^/]+)/approval-request$"
+)
+_WORKSPACE_HERO_DECISION_PATH = re.compile(
+    r"^/api/workspace-demo/runs/([^/]+)/decision$"
+)
+_WORKSPACE_HERO_RESUME_PATH = re.compile(r"^/api/workspace-demo/runs/([^/]+)/resume$")
+_WORKSPACE_HERO_VERIFY_PATH = re.compile(
+    r"^/api/workspace-demo/runs/([^/]+)/verify-or-reconcile$"
+)
 _SESSION_COOKIE = (
     f"{LOCAL_API_SESSION_COOKIE}={{value}}; HttpOnly; SameSite=Strict; Path=/"
 )
@@ -217,6 +234,7 @@ class LocalApiApplication:
         clock: Callable[[], datetime] = _utc_now,
         run_id_factory: Callable[[], UUID] = generate_run_id,
         trace_id_factory: Callable[[], UUID] = generate_trace_id,
+        workspace_hero: WorkspaceHeroOrchestrator | None = None,
     ) -> None:
         if not isinstance(runtime, LocalHitlRuntime):
             raise TypeError("runtime must be LocalHitlRuntime")
@@ -229,6 +247,11 @@ class LocalApiApplication:
         self._clock = clock
         self._run_id_factory = run_id_factory
         self._trace_id_factory = trace_id_factory
+        if workspace_hero is not None and not isinstance(
+            workspace_hero, WorkspaceHeroOrchestrator
+        ):
+            raise TypeError("workspace_hero must be WorkspaceHeroOrchestrator")
+        self._workspace_hero = workspace_hero
 
     def handle(self, event: object) -> dict[str, object]:
         try:
@@ -250,8 +273,20 @@ class LocalApiApplication:
             )
         if request.path == "/api/session":
             return self._session(request)
+        if request.path == "/api/workspace-demo/runs":
+            return self._workspace_hero_start(request)
         if request.path == "/api/runs":
             return self._start(request)
+        for pattern, handler in (
+            (_WORKSPACE_HERO_APPROVAL_PATH, self._workspace_hero_approval_request),
+            (_WORKSPACE_HERO_DECISION_PATH, self._workspace_hero_decision),
+            (_WORKSPACE_HERO_RESUME_PATH, self._workspace_hero_resume),
+            (_WORKSPACE_HERO_VERIFY_PATH, self._workspace_hero_verify),
+            (_WORKSPACE_HERO_RUN_PATH, self._workspace_hero_status),
+        ):
+            match = pattern.fullmatch(request.path)
+            if match is not None:
+                return handler(request, match.group(1))
         for pattern, handler in (
             (_APPROVAL_PATH, self._approval_request),
             (_DECISION_PATH, self._decision),
@@ -262,6 +297,165 @@ class LocalApiApplication:
             if match is not None:
                 return handler(request, match.group(1))
         return self._error(LocalApiErrorCode.NOT_FOUND, 404)
+
+    def _hero(self) -> WorkspaceHeroOrchestrator:
+        if self._workspace_hero is None:
+            state_path = self._runtime.repository.path
+            self._workspace_hero = WorkspaceHeroOrchestrator(
+                state_path.parent / f"{state_path.stem}-workspace-hero",
+                self._runtime.runtime_settings,
+                nonce_deriver=self._authorizer.derive_workspace_decision_nonce,
+            )
+        return self._workspace_hero
+
+    def _workspace_hero_start(self, request: _Request) -> dict[str, object]:
+        protected = self._protected(request, method="POST")
+        if isinstance(protected, dict):
+            return protected
+        try:
+            start = _json_model(request, WorkspaceHeroStartRequest)
+            view = self._hero().start(start)
+        except _Rejected as rejection:
+            return self._error(rejection.code, rejection.status)
+        except WorkspaceHeroFailure as error:
+            return self._workspace_hero_failure(error)
+        except Exception:
+            return self._error(LocalApiErrorCode.INTERNAL_ERROR, 500)
+        return _ok(201, view)
+
+    def _workspace_hero_status(
+        self,
+        request: _Request,
+        raw_run_id: str,
+    ) -> dict[str, object]:
+        protected = self._protected(request, method="GET")
+        if isinstance(protected, dict):
+            return protected
+        if request.query or request.body not in (None, ""):
+            return self._error(LocalApiErrorCode.BAD_REQUEST, 400)
+        run_id = self._run_id(raw_run_id)
+        if run_id is None:
+            return self._error(LocalApiErrorCode.BAD_REQUEST, 400)
+        try:
+            view = self._hero().get(run_id)
+        except WorkspaceHeroFailure as error:
+            return self._workspace_hero_failure(error)
+        except Exception:
+            return self._error(LocalApiErrorCode.INTERNAL_ERROR, 500)
+        return _ok(200, view)
+
+    def _workspace_hero_approval_request(
+        self,
+        request: _Request,
+        raw_run_id: str,
+    ) -> dict[str, object]:
+        protected = self._protected(request, method="POST")
+        if isinstance(protected, dict):
+            return protected
+        run_id = self._run_id(raw_run_id)
+        if run_id is None:
+            return self._error(LocalApiErrorCode.BAD_REQUEST, 400)
+        try:
+            _json_model(request, _EmptyRequest)
+            view = self._hero().request_approval(run_id, protected)
+        except _Rejected as rejection:
+            return self._error(rejection.code, rejection.status)
+        except WorkspaceHeroFailure as error:
+            return self._workspace_hero_failure(error)
+        except Exception:
+            return self._error(LocalApiErrorCode.INTERNAL_ERROR, 500)
+        return _ok(200, view)
+
+    def _workspace_hero_decision(
+        self,
+        request: _Request,
+        raw_run_id: str,
+    ) -> dict[str, object]:
+        protected = self._protected(request, method="POST")
+        if isinstance(protected, dict):
+            return protected
+        run_id = self._run_id(raw_run_id)
+        if run_id is None:
+            return self._error(LocalApiErrorCode.BAD_REQUEST, 400)
+        try:
+            decision = _json_model(request, WorkspaceHeroDecisionRequest)
+            view = self._hero().decide(run_id, decision, protected)
+        except _Rejected as rejection:
+            return self._error(rejection.code, rejection.status)
+        except WorkspaceHeroFailure as error:
+            return self._workspace_hero_failure(error)
+        except Exception:
+            return self._error(LocalApiErrorCode.INTERNAL_ERROR, 500)
+        return _ok(200, view)
+
+    def _workspace_hero_resume(
+        self,
+        request: _Request,
+        raw_run_id: str,
+    ) -> dict[str, object]:
+        protected = self._protected(request, method="POST")
+        if isinstance(protected, dict):
+            return protected
+        run_id = self._run_id(raw_run_id)
+        if run_id is None:
+            return self._error(LocalApiErrorCode.BAD_REQUEST, 400)
+        try:
+            resume = _json_model(request, WorkspaceHeroResumeRequest)
+            view = self._hero().resume(run_id, resume, protected)
+        except _Rejected as rejection:
+            return self._error(rejection.code, rejection.status)
+        except WorkspaceHeroFailure as error:
+            return self._workspace_hero_failure(error)
+        except Exception:
+            return self._error(LocalApiErrorCode.INTERNAL_ERROR, 500)
+        return _ok(200, view)
+
+    def _workspace_hero_verify(
+        self,
+        request: _Request,
+        raw_run_id: str,
+    ) -> dict[str, object]:
+        protected = self._protected(request, method="POST")
+        if isinstance(protected, dict):
+            return protected
+        run_id = self._run_id(raw_run_id)
+        if run_id is None:
+            return self._error(LocalApiErrorCode.BAD_REQUEST, 400)
+        try:
+            _json_model(request, _EmptyRequest)
+            view = self._hero().verify_or_reconcile(run_id, protected)
+        except _Rejected as rejection:
+            return self._error(rejection.code, rejection.status)
+        except WorkspaceHeroFailure as error:
+            return self._workspace_hero_failure(error)
+        except Exception:
+            return self._error(LocalApiErrorCode.INTERNAL_ERROR, 500)
+        return _ok(200, view)
+
+    def _workspace_hero_failure(
+        self,
+        failure: WorkspaceHeroFailure,
+    ) -> dict[str, object]:
+        if failure.status == 404:
+            code = LocalApiErrorCode.NOT_FOUND
+        elif failure.status == 401:
+            code = LocalApiErrorCode.UNAUTHORIZED
+        elif failure.status == 403:
+            code = LocalApiErrorCode.POLICY_DENIED
+        elif failure.status == 503:
+            code = LocalApiErrorCode.DEPENDENCY_UNAVAILABLE
+        elif failure.status == 422:
+            code = LocalApiErrorCode.WORKFLOW_FAILED
+        elif failure.status == 400:
+            code = LocalApiErrorCode.BAD_REQUEST
+        else:
+            code = LocalApiErrorCode.CONFLICT
+        return self._error(
+            code,
+            failure.status,
+            failure_code=failure.code,
+            retryable=failure.retryable,
+        )
 
     def _ready(self, request: _Request) -> dict[str, object]:
         if request.method != "GET":

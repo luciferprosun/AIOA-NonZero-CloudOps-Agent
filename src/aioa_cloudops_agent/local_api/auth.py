@@ -11,6 +11,7 @@ from .contracts import LOCAL_API_TOKEN_MAX_LENGTH, LOCAL_API_TOKEN_MIN_LENGTH
 LOCAL_API_SESSION_COOKIE = "aioa_operator_session"
 _COOKIE_HEADER_MAX_LENGTH = 4_096
 _SESSION_DOMAIN_SEPARATOR = b"aioa-local-browser-session-v1\0"
+_WORKSPACE_DECISION_DOMAIN_SEPARATOR = b"aioa-w5-workspace-decision-v1\0"
 
 
 class LocalApiTokenAuthorizer:
@@ -88,3 +89,18 @@ class LocalApiTokenAuthorizer:
         if not accepted:
             return None
         return self._principal
+
+    def derive_workspace_decision_nonce(self, request_hash: str) -> str:
+        """Derive a server-only W3 nonce without exposing token or nonce to the browser."""
+
+        if (
+            not isinstance(request_hash, str)
+            or len(request_hash) != 64
+            or any(character not in "0123456789abcdef" for character in request_hash)
+        ):
+            raise ValueError("workspace request hash is invalid")
+        return hmac.new(
+            self._token_digest,
+            _WORKSPACE_DECISION_DOMAIN_SEPARATOR + bytes.fromhex(request_hash),
+            hashlib.sha256,
+        ).hexdigest()

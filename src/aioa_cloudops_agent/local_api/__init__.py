@@ -23,6 +23,15 @@ from .contracts import (
     LocalStartRunRequest,
 )
 from .server import create_local_http_server, load_or_create_local_token
+from .workspace_hero import WorkspaceHeroFailure, WorkspaceHeroOrchestrator
+from .workspace_hero_contracts import (
+    WORKSPACE_HERO_RESPONSE_MAX_BYTES,
+    WORKSPACE_HERO_SCENARIO_ID,
+    WorkspaceHeroDecisionRequest,
+    WorkspaceHeroProjection,
+    WorkspaceHeroResumeRequest,
+    WorkspaceHeroStartRequest,
+)
 
 __all__ = [
     "LOCAL_API_BODY_MAX_BYTES",
@@ -33,6 +42,8 @@ __all__ = [
     "LOCAL_API_SOCKET_TIMEOUT_SECONDS",
     "LOCAL_API_TOKEN_MAX_LENGTH",
     "LOCAL_API_TOKEN_MIN_LENGTH",
+    "WORKSPACE_HERO_RESPONSE_MAX_BYTES",
+    "WORKSPACE_HERO_SCENARIO_ID",
     "LocalApiApplication",
     "LocalApiErrorCode",
     "LocalApiErrorResponse",
@@ -46,6 +57,12 @@ __all__ = [
     "LocalRunView",
     "LocalRuntimeView",
     "LocalStartRunRequest",
+    "WorkspaceHeroDecisionRequest",
+    "WorkspaceHeroFailure",
+    "WorkspaceHeroOrchestrator",
+    "WorkspaceHeroProjection",
+    "WorkspaceHeroResumeRequest",
+    "WorkspaceHeroStartRequest",
     "create_local_http_server",
     "load_or_create_local_token",
 ]
