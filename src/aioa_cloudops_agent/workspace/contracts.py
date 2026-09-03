@@ -1,7 +1,10 @@
-"""Strict contracts for the W1 sealed read-only workspace boundary."""
+"""Strict contracts for the sealed workspace evidence and inert proposal boundary."""
 
 from __future__ import annotations
 
+import difflib
+import hashlib
+import json
 import re
 import unicodedata
 from datetime import datetime, timedelta
@@ -29,6 +32,53 @@ _SENSITIVE_NAMES = frozenset(
         "secrets",
     }
 )
+
+W2_TARGET_PATH = "render.yaml"
+W2_FIELD_PATH = "services[0].dockerCommand"
+W2_AFTER_VALUE = "/usr/local/bin/aioa-render-start"
+W2_DIFF_FROM = "a/render.yaml"
+W2_DIFF_TO = "b/render.yaml"
+W2_VERIFICATION_PROFILE_ID = "render_start_contract_v1"
+W2_ROLLBACK_STRATEGY = (
+    "Restore the exact render.yaml before bytes bound by target_before_sha256; "
+    "re-run render_start_contract_v1 before any deployment."
+)
+W2_BEFORE_BLOCK = (
+    "    dockerCommand: >-\n"
+    "      /bin/sh -eu -c 'umask 077; test -n \"${AIOA_OPERATOR_TOKEN:-}\" || { "
+    "printf \"%s\\n\" \"operator bootstrap missing\" >&2; exit 2; }; printf \"%s\\n\" "
+    "\"$AIOA_OPERATOR_TOKEN\" > \"$AIOA_LOCAL_API_TOKEN_PATH\"; chmod 0600 "
+    "\"$AIOA_LOCAL_API_TOKEN_PATH\"; unset AIOA_OPERATOR_TOKEN; exec python -m "
+    "aioa_cloudops_agent.portable_server'\n"
+)
+W2_AFTER_LINE = f"    dockerCommand: {W2_AFTER_VALUE}\n"
+
+
+def canonical_workspace_json_digest(payload: object) -> str:
+    """Hash canonical JSON used only for workspace evidence/proposal identity."""
+
+    encoded = json.dumps(
+        payload,
+        allow_nan=False,
+        ensure_ascii=True,
+        separators=(",", ":"),
+        sort_keys=True,
+    ).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def canonical_workspace_unified_diff(before_text: str, after_text: str) -> str:
+    """Render the stable UI preview; this rendering is not the patch identity."""
+
+    return "".join(
+        difflib.unified_diff(
+            before_text.splitlines(keepends=True),
+            after_text.splitlines(keepends=True),
+            fromfile=W2_DIFF_FROM,
+            tofile=W2_DIFF_TO,
+            lineterm="\n",
+        )
+    )
 
 
 def normalize_workspace_relative_path(value: object) -> str:
@@ -95,6 +145,27 @@ class WorkspaceEvidenceOutcome(StrEnum):
     SUCCESS = "SUCCESS"
     DENIED = "DENIED"
     FAILURE = "FAILURE"
+
+
+class WorkspaceRemediationKind(StrEnum):
+    """The single server-known remediation supported by W2."""
+
+    USE_FIXED_RENDER_START_EXECUTABLE = "USE_FIXED_RENDER_START_EXECUTABLE"
+
+
+class WorkspacePatchProposalOutcome(StrEnum):
+    """Closed W2 outcome taxonomy; every non-ready outcome fails closed."""
+
+    PROPOSAL_READY = "PROPOSAL_READY"
+    UNSUPPORTED_REMEDIATION = "UNSUPPORTED_REMEDIATION"
+    STALE_WORKSPACE = "STALE_WORKSPACE"
+    STALE_EVIDENCE = "STALE_EVIDENCE"
+    BASE_DIGEST_MISMATCH = "BASE_DIGEST_MISMATCH"
+    TARGET_DIGEST_MISMATCH = "TARGET_DIGEST_MISMATCH"
+    SUPPORTING_ARTIFACT_MISMATCH = "SUPPORTING_ARTIFACT_MISMATCH"
+    AMBIGUOUS_TARGET = "AMBIGUOUS_TARGET"
+    POLICY_DENIED = "POLICY_DENIED"
+    VALIDATION_FAILURE = "VALIDATION_FAILURE"
 
 
 class WorkspaceRef(NonZeroContract):
@@ -280,3 +351,271 @@ class WorkspaceObservation(NonZeroContract):
         if set(self.recommended_review_order) != set(allowed):
             raise ValueError("review order must cover exactly the allowed artifacts")
         return self
+
+
+class WorkspacePatchTarget(NonZeroContract):
+    """Exact sealed artifact and before identity targeted by the inert proposal."""
+
+    relative_path: Literal["render.yaml"] = W2_TARGET_PATH
+    artifact: WorkspaceArtifactRef
+    before_sha256: Sha256Digest
+
+    @model_validator(mode="after")
+    def validate_target_binding(self) -> Self:
+        if self.artifact.relative_path != self.relative_path:
+            raise ValueError("patch target artifact path does not match target path")
+        if self.artifact.sha256 != self.before_sha256:
+            raise ValueError("patch target before digest does not match artifact identity")
+        return self
+
+
+class WorkspacePatchChange(NonZeroContract):
+    """Closed field-level replacement; it cannot carry arbitrary file content or diff text."""
+
+    remediation_kind: Literal[
+        WorkspaceRemediationKind.USE_FIXED_RENDER_START_EXECUTABLE
+    ] = WorkspaceRemediationKind.USE_FIXED_RENDER_START_EXECUTABLE
+    target_path: Literal["render.yaml"] = W2_TARGET_PATH
+    field_path: Literal["services[0].dockerCommand"] = W2_FIELD_PATH
+    expected_before_block_sha256: Sha256Digest
+    replacement_value: Literal["/usr/local/bin/aioa-render-start"] = W2_AFTER_VALUE
+
+    def canonical_payload(self) -> dict[str, object]:
+        """Return stable structured change data with no UI rendering."""
+
+        return {
+            "expected_before_block_sha256": self.expected_before_block_sha256,
+            "field_path": self.field_path,
+            "remediation_kind": self.remediation_kind.value,
+            "replacement_value": self.replacement_value,
+            "target_path": self.target_path,
+        }
+
+
+class WorkspacePatchPreview(NonZeroContract):
+    """Canonical before/after bytes and a deterministic server-rendered unified diff."""
+
+    target_path: Literal["render.yaml"] = W2_TARGET_PATH
+    before_text: str = Field(max_length=32 * 1024)
+    after_text: str = Field(max_length=32 * 1024)
+    before_sha256: Sha256Digest
+    after_sha256: Sha256Digest
+    unified_diff: str = Field(min_length=1, max_length=64 * 1024)
+    diff_from: Literal["a/render.yaml"] = W2_DIFF_FROM
+    diff_to: Literal["b/render.yaml"] = W2_DIFF_TO
+    line_endings: Literal["LF"] = "LF"
+    change: WorkspacePatchChange
+    patch_digest: Sha256Digest
+
+    @model_validator(mode="after")
+    def validate_canonical_preview(self) -> Self:
+        if "\r" in self.before_text or "\r" in self.after_text or "\r" in self.unified_diff:
+            raise ValueError("patch preview permits canonical LF line endings only")
+        if not self.before_text.endswith("\n") or not self.after_text.endswith("\n"):
+            raise ValueError("patch preview texts must end with LF")
+        before_digest = hashlib.sha256(self.before_text.encode("utf-8")).hexdigest()
+        after_digest = hashlib.sha256(self.after_text.encode("utf-8")).hexdigest()
+        if self.before_sha256 != before_digest or self.after_sha256 != after_digest:
+            raise ValueError("patch preview content digest mismatch")
+        if self.before_text.count(W2_BEFORE_BLOCK) != 1:
+            raise ValueError("patch preview before text lacks the exact canonical target")
+        expected_after = self.before_text.replace(W2_BEFORE_BLOCK, W2_AFTER_LINE, 1)
+        if self.after_text != expected_after:
+            raise ValueError("patch preview changes bytes outside the canonical replacement")
+        if self.after_text.count(W2_AFTER_LINE) != 1:
+            raise ValueError("patch preview after text lacks the exact startup executable")
+        if self.change.expected_before_block_sha256 != hashlib.sha256(
+            W2_BEFORE_BLOCK.encode("utf-8")
+        ).hexdigest():
+            raise ValueError("structured change does not bind the exact before block")
+        if self.unified_diff != canonical_workspace_unified_diff(
+            self.before_text,
+            self.after_text,
+        ):
+            raise ValueError("unified diff is not the canonical server rendering")
+        if self.patch_digest != self.canonical_patch_digest():
+            raise ValueError("patch digest does not match canonical structured content")
+        return self
+
+    def canonical_patch_payload(self) -> dict[str, object]:
+        """Return the patch identity independent of UI/diff whitespace."""
+
+        return {
+            "after_sha256": self.after_sha256,
+            "before_sha256": self.before_sha256,
+            "change": self.change.canonical_payload(),
+            "schema_version": 1,
+            "target_path": self.target_path,
+        }
+
+    def canonical_patch_digest(self) -> str:
+        return canonical_workspace_json_digest(self.canonical_patch_payload())
+
+
+class WorkspaceProposalEvidenceRef(NonZeroContract):
+    """Exact W1 receipt/artifact identity supporting one W2 proposal."""
+
+    event_id: Uuid7Identifier
+    run_id: Uuid7Identifier
+    trace_id: Uuid7Identifier
+    workspace_id: Uuid7Identifier
+    fixture_version: str = Field(pattern=r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
+    operation: Literal[
+        WorkspaceOperation.INSPECT,
+        WorkspaceOperation.READ,
+        WorkspaceOperation.HASH,
+    ]
+    artifact_path: str | None = None
+    artifact_sha256: Sha256Digest
+    receipt_sha256: Sha256Digest
+
+    @field_validator("artifact_path")
+    @classmethod
+    def validate_evidence_artifact_path(cls, value: object) -> str | None:
+        if value is None:
+            return None
+        return normalize_workspace_relative_path(value)
+
+    @model_validator(mode="after")
+    def validate_evidence_shape(self) -> Self:
+        if self.operation is WorkspaceOperation.INSPECT:
+            if self.artifact_path is not None:
+                raise ValueError("inspection evidence cannot name one artifact")
+        elif self.artifact_path is None:
+            raise ValueError("read/hash evidence must name its exact artifact")
+        return self
+
+
+class WorkspacePatchProposal(NonZeroContract):
+    """Durable-ready, evidence-bound patch proposal with no apply authority."""
+
+    outcome: Literal[WorkspacePatchProposalOutcome.PROPOSAL_READY] = (
+        WorkspacePatchProposalOutcome.PROPOSAL_READY
+    )
+    proposal_id: Uuid7Identifier
+    run_id: Uuid7Identifier
+    trace_id: Uuid7Identifier
+    workspace_id: Uuid7Identifier
+    fixture_version: Literal["workspace_render_incident_v1"]
+    root_digest: Sha256Digest
+    base_root_digest: Sha256Digest
+    target_path: Literal["render.yaml"] = W2_TARGET_PATH
+    target_before_sha256: Sha256Digest
+    remediation_kind: Literal[
+        WorkspaceRemediationKind.USE_FIXED_RENDER_START_EXECUTABLE
+    ] = WorkspaceRemediationKind.USE_FIXED_RENDER_START_EXECUTABLE
+    canonical_after_sha256: Sha256Digest
+    patch_digest: Sha256Digest
+    evidence_digest: Sha256Digest
+    evidence_references: tuple[WorkspaceProposalEvidenceRef, ...] = Field(
+        min_length=5,
+        max_length=8,
+    )
+    supporting_start_script_sha256: Sha256Digest
+    expected_runtime_contract_sha256: Sha256Digest
+    verification_profile_id: Literal["render_start_contract_v1"] = (
+        W2_VERIFICATION_PROFILE_ID
+    )
+    risk_class: Literal[AuthorityGate.PLAN_AND_CONFIRM] = AuthorityGate.PLAN_AND_CONFIRM
+    rollback_strategy: Literal[
+        "Restore the exact render.yaml before bytes bound by target_before_sha256; re-run render_start_contract_v1 before any deployment."
+    ] = W2_ROLLBACK_STRATEGY
+    diagnosis_evidence_paths: tuple[str, ...]
+    target: WorkspacePatchTarget
+    change: WorkspacePatchChange
+    preview: WorkspacePatchPreview
+    created_at: datetime
+    expires_at: datetime
+    proposal_digest: Sha256Digest
+    version: Literal[1] = 1
+    authorizes_execution: Literal[False] = False
+    apply_authority_granted: Literal[False] = False
+    mutation_allowed: Literal[False] = False
+    process_execution_allowed: Literal[False] = False
+    network_allowed: Literal[False] = False
+
+    @field_validator("created_at", "expires_at")
+    @classmethod
+    def validate_proposal_timestamp(cls, value: datetime) -> datetime:
+        return _utc(value)
+
+    @model_validator(mode="after")
+    def validate_proposal_binding(self) -> Self:
+        if self.expires_at <= self.created_at:
+            raise ValueError("proposal expiry must follow creation")
+        if self.root_digest != self.base_root_digest:
+            raise ValueError("proposal root and base root digests must match")
+        if (
+            self.target_path != self.target.relative_path
+            or self.target_before_sha256 != self.target.before_sha256
+            or self.target_before_sha256 != self.preview.before_sha256
+        ):
+            raise ValueError("proposal target identity is inconsistent")
+        if self.remediation_kind is not self.change.remediation_kind:
+            raise ValueError("proposal remediation kind is inconsistent")
+        if self.change != self.preview.change:
+            raise ValueError("proposal change and preview change must match")
+        if (
+            self.canonical_after_sha256 != self.preview.after_sha256
+            or self.patch_digest != self.preview.patch_digest
+        ):
+            raise ValueError("proposal patch identity is inconsistent")
+        refs = self.evidence_references
+        if len({ref.receipt_sha256 for ref in refs}) != len(refs):
+            raise ValueError("proposal evidence references must be unique")
+        if any(
+            ref.run_id != self.run_id
+            or ref.trace_id != self.trace_id
+            or ref.workspace_id != self.workspace_id
+            or ref.fixture_version != self.fixture_version
+            for ref in refs
+        ):
+            raise ValueError("proposal evidence identity does not match the workspace")
+        if self.evidence_digest != canonical_workspace_json_digest(
+            [ref.model_dump(mode="json") for ref in refs]
+        ):
+            raise ValueError("proposal evidence digest mismatch")
+        by_path = {ref.artifact_path: ref.artifact_sha256 for ref in refs}
+        if by_path.get("scripts/render_start.sh") != self.supporting_start_script_sha256:
+            raise ValueError("proposal does not bind the startup script evidence")
+        if (
+            by_path.get("expected_runtime_contract.json")
+            != self.expected_runtime_contract_sha256
+        ):
+            raise ValueError("proposal does not bind the runtime contract evidence")
+        expected_paths = (
+            "deployment.log",
+            "expected_runtime_contract.json",
+            "render.yaml",
+            "scripts/render_start.sh",
+        )
+        if self.diagnosis_evidence_paths != expected_paths:
+            raise ValueError("proposal diagnosis paths must be exact and canonical")
+        if self.proposal_digest != canonical_workspace_json_digest(self.content_payload()):
+            raise ValueError("proposal digest does not match canonical bound content")
+        return self
+
+    def content_payload(self) -> dict[str, object]:
+        """Return durable proposal identity without model text or UI rendering."""
+
+        return {
+            "base_root_digest": self.base_root_digest,
+            "canonical_after_sha256": self.canonical_after_sha256,
+            "diagnosis_evidence_paths": list(self.diagnosis_evidence_paths),
+            "evidence_digest": self.evidence_digest,
+            "expected_runtime_contract_sha256": self.expected_runtime_contract_sha256,
+            "fixture_version": self.fixture_version,
+            "patch_digest": self.patch_digest,
+            "remediation_kind": self.remediation_kind.value,
+            "risk_class": self.risk_class.value,
+            "rollback_strategy": self.rollback_strategy,
+            "root_digest": self.root_digest,
+            "run_id": str(self.run_id),
+            "schema_version": self.version,
+            "supporting_start_script_sha256": self.supporting_start_script_sha256,
+            "target_before_sha256": self.target_before_sha256,
+            "target_path": self.target_path,
+            "trace_id": str(self.trace_id),
+            "verification_profile_id": self.verification_profile_id,
+            "workspace_id": str(self.workspace_id),
+        }
