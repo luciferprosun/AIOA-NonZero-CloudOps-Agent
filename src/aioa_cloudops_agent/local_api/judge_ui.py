@@ -163,6 +163,25 @@ h2 { margin: 5px 0 0; font-size: clamp(1.45rem, 3vw, 2.2rem); letter-spacing: -.
 .scenario.deny .scenario-tag { color: var(--amber); }
 .scenario h3 { max-width: 380px; margin: 24px 0 10px; font-size: clamp(1.4rem, 3vw, 2rem); letter-spacing: -.035em; }
 .scenario p { max-width: 480px; margin: 0; color: var(--muted); line-height: 1.55; }
+.hero-scenario {
+  width: 100%;
+  min-height: 300px;
+  margin-bottom: 14px;
+  border-color: #b9f87d66;
+  background:
+    linear-gradient(115deg, #1c3021 0%, #131b17 54%, #211a35 100%);
+}
+.hero-scenario h3 { max-width: 760px; font-size: clamp(1.8rem, 4vw, 3.2rem); }
+.hero-scenario p { max-width: 760px; font-size: 1.02rem; }
+.hero-scenario .scenario-tag { color: var(--mint); }
+.secondary-story-label {
+  margin: 22px 0 10px;
+  color: var(--dim);
+  font-size: .74rem;
+  font-weight: 800;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+}
 .session-strip {
   display: flex;
   align-items: center;
@@ -210,7 +229,10 @@ h2 { margin: 5px 0 0; font-size: clamp(1.45rem, 3vw, 2.2rem); letter-spacing: -.
 .pipeline li.done span { color: var(--mint); }
 .pipeline li.current { border-color: #bba6ff88; background: #211b34; color: var(--ink); }
 .pipeline li.safe-stop { border-color: #ffbe5866; background: var(--amber-dark); color: #ffe0ac; }
+.hero-pipeline { grid-template-columns: repeat(10, minmax(108px, 1fr)); overflow-x: auto; }
+.hero-pipeline li { min-width: 108px; }
 .workspace-grid { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(300px, .75fr); gap: 14px; }
+.hero-workspace-grid { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(330px, .8fr); gap: 14px; }
 .stack { display: grid; gap: 14px; align-content: start; }
 .panel {
   border: 1px solid var(--line);
@@ -299,6 +321,53 @@ h2 { margin: 5px 0 0; font-size: clamp(1.45rem, 3vw, 2.2rem); letter-spacing: -.
 .timeline .category { display: inline-block; margin-bottom: 4px; color: var(--mint); font: 750 .62rem ui-monospace, monospace; letter-spacing: .08em; }
 .timeline time { display: block; margin: 3px 0; color: var(--dim); font-size: .72rem; }
 .timeline code { color: var(--violet); font-size: .68rem; overflow-wrap: anywhere; }
+.timeline .pending::before { border-color: var(--dim); }
+.timeline .safe-stop::before { border-color: var(--amber); }
+.timeline-summary { display: block; margin-top: 4px; color: var(--muted); font-size: .78rem; line-height: 1.45; }
+.timeline-source { display: block; margin-top: 4px; color: var(--dim); font: .66rem ui-monospace, monospace; }
+.diff-panel {
+  max-width: 100%;
+  margin: 0;
+  padding: 16px;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: #060906;
+  color: #d8e5dd;
+  font: .75rem/1.55 ui-monospace, SFMono-Regular, Menlo, monospace;
+  white-space: pre;
+}
+.proof-list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.proof-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: #0b100d;
+  color: var(--muted);
+}
+.proof-list strong { color: var(--ink); font: .72rem ui-monospace, monospace; }
+.proof-list strong.pass { color: var(--mint); }
+.approval-warning {
+  margin-top: 14px;
+  padding: 13px;
+  border: 1px solid #ffbe5855;
+  border-radius: 12px;
+  background: var(--amber-dark);
+  color: #ffe1af;
+  line-height: 1.45;
+}
+.stage-truth {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.stage-truth article { padding: 14px; border: 1px solid var(--line); border-radius: 13px; background: #0b100d; }
+.stage-truth h4 { margin: 0 0 10px; color: var(--muted); font-size: .76rem; letter-spacing: .08em; text-transform: uppercase; }
+.stage-truth p { margin: 0; color: var(--ink); line-height: 1.5; }
+.recovery-badge { color: var(--violet); border-color: #bba6ff55; }
 .empty { color: var(--dim); line-height: 1.55; }
 details.technical { border-top: 1px solid var(--line); }
 .technical-wrap { margin-top: 14px; }
@@ -339,7 +408,9 @@ details.technical pre {
 [hidden] { display: none !important; }
 @media (max-width: 980px) {
   .pipeline { grid-template-columns: repeat(4, 1fr); }
-  .workspace-grid { grid-template-columns: 1fr; }
+  .workspace-grid, .hero-workspace-grid { grid-template-columns: 1fr; }
+  .hero-pipeline { display: flex; grid-template-columns: none; }
+  .hero-pipeline li { flex: 0 0 132px; }
 }
 @media (max-width: 700px) {
   .shell { width: min(100% - 24px, 1240px); }
@@ -347,7 +418,7 @@ details.technical pre {
   .brand-sub { display: none; }
   .mode-cluster .pill:nth-child(2) { display: none; }
   .hero { padding-top: 48px; }
-  .truth-grid, .scenario-grid, .facts, .resource-diff { grid-template-columns: 1fr; }
+  .truth-grid, .scenario-grid, .facts, .resource-diff, .stage-truth { grid-template-columns: 1fr; }
   .fact.wide { grid-column: auto; }
   .section-heading { display: block; }
   .section-note { margin: 10px 0 0; text-align: left; }
@@ -372,8 +443,10 @@ JUDGE_UI_SCRIPT: Final = r"""
     connected: false,
     busy: false,
     runId: '',
+    heroRunId: '',
     challenge: null,
     view: null,
+    heroView: null,
     replayProven: false,
   };
   const labels = {
@@ -422,7 +495,11 @@ JUDGE_UI_SCRIPT: Final = r"""
   }
 
   function setRunHash() {
-    const target = ui.runId ? '#run=' + encodeURIComponent(ui.runId) : location.pathname;
+    const target = ui.heroRunId
+      ? '#hero_run=' + encodeURIComponent(ui.heroRunId)
+      : ui.runId
+        ? '#run=' + encodeURIComponent(ui.runId)
+        : location.pathname;
     history.replaceState(null, '', target);
   }
 
@@ -453,6 +530,9 @@ JUDGE_UI_SCRIPT: Final = r"""
     dot.classList.toggle('connected', ui.connected);
     setText('session-state', ui.connected ? 'Protected local session connected' : 'Local session required');
     document.querySelectorAll('[data-scenario]').forEach((button) => {
+      button.disabled = !ui.connected || ui.busy;
+    });
+    document.querySelectorAll('[data-workspace-hero]').forEach((button) => {
       button.disabled = !ui.connected || ui.busy;
     });
   }
@@ -506,6 +586,152 @@ JUDGE_UI_SCRIPT: Final = r"""
       item.append(category, title, time, digest);
       list.append(item);
     });
+  }
+
+  function replaceTextList(id, values) {
+    const list = byId(id);
+    list.replaceChildren();
+    (Array.isArray(values) ? values : []).forEach((value) => {
+      const item = document.createElement('li');
+      item.textContent = String(value);
+      list.append(item);
+    });
+  }
+
+  function setHeroProof(id, value) {
+    setText(id, value);
+    const normalized = String(value || 'PENDING');
+    byId(id).classList.toggle('pass', !['PENDING', 'FAIL'].includes(normalized));
+  }
+
+  function renderHeroTimeline(items) {
+    const list = byId('hero-timeline');
+    list.replaceChildren();
+    (Array.isArray(items) ? items : []).forEach((event) => {
+      const item = document.createElement('li');
+      const category = document.createElement('span');
+      const title = document.createElement('strong');
+      const summary = document.createElement('span');
+      const source = document.createElement('span');
+      const digest = document.createElement('code');
+      item.classList.toggle('pending', event.status === 'PENDING');
+      item.classList.toggle('safe-stop', event.status === 'SAFE_STOP');
+      category.className = 'category';
+      category.textContent = event.category || 'FACT';
+      title.textContent = event.title || event.stage;
+      summary.className = 'timeline-summary';
+      summary.textContent = event.summary || '—';
+      source.className = 'timeline-source';
+      source.textContent = (event.status || 'PENDING') + ' · ' + (event.authority_source || 'durable truth');
+      digest.textContent = shortHash(event.evidence_fingerprint);
+      digest.title = event.evidence_fingerprint || '';
+      item.append(category, title, summary, source, digest);
+      list.append(item);
+    });
+  }
+
+  function markHeroPipeline(items) {
+    const statusByStage = new Map((Array.isArray(items) ? items : []).map((item) => [item.stage, item.status]));
+    document.querySelectorAll('[data-hero-stage]').forEach((stage) => {
+      const status = statusByStage.get(stage.dataset.heroStage) || 'PENDING';
+      stage.classList.toggle('done', status === 'COMPLETE');
+      stage.classList.toggle('current', status === 'CURRENT');
+      stage.classList.toggle('safe-stop', status === 'SAFE_STOP');
+    });
+  }
+
+  function renderHero(view) {
+    ui.heroView = view;
+    const card = view.approval_card || {};
+    const after = view.after || {};
+    const verification = view.verification || null;
+    const replay = view.replay || null;
+    const state = view.state;
+    const denied = state === 'DENIED_BY_HUMAN';
+    const succeeded = state === 'SUCCESS_WITH_EVIDENCE'
+      && view.success_with_evidence === true
+      && view.verification_receipt_present === true
+      && verification !== null;
+
+    byId('workspace-hero').hidden = false;
+    setText('hero-state', state);
+    byId('hero-state').className = 'state-badge' + (succeeded ? ' success' : denied ? ' denied' : '');
+    setText('hero-run-id', shortHash(view.run_id), view.run_id);
+    replaceTextList('hero-incident-facts', view.incident_facts);
+    setText('hero-root-cause', view.root_cause);
+    setText('hero-alternative', view.alternative_hypothesis);
+    setText('hero-card-scenario', card.scenario);
+    setText('hero-card-target', card.target);
+    setText('hero-card-field', card.field_path);
+    setText('hero-card-change', card.proposed_change);
+    setText('hero-workspace-hash', shortHash(card.workspace_fingerprint), card.workspace_fingerprint);
+    setText('hero-proposal-hash', shortHash(card.proposal_fingerprint), card.proposal_fingerprint);
+    setText('hero-patch-hash', shortHash(card.patch_fingerprint), card.patch_fingerprint);
+    setText('hero-request-hash', card.request_fingerprint ? shortHash(card.request_fingerprint) : 'Not issued', card.request_fingerprint || '');
+    setText('hero-risk', card.risk);
+    setText('hero-rollback', card.rollback);
+    setText('hero-evidence', Array.isArray(card.evidence) ? card.evidence.join(' · ') : '—');
+    setText('hero-expected', Array.isArray(card.expected_verification) ? card.expected_verification.join(' · ') : '—');
+    setText('hero-warning', card.warning);
+    byId('hero-diff').textContent = view.patch_diff || 'No patch selected.';
+    setText('hero-before-contract', view.before?.deployment_start_contract);
+    setText('hero-before-error', view.before?.error);
+    setHeroProof('hero-after-scope', after.patch_scope);
+    setHeroProof('hero-after-hash', after.target_hash);
+    setHeroProof('hero-after-startup', after.startup_executable);
+    setHeroProof('hero-after-token', after.token_mode);
+    setHeroProof('hero-after-env', after.bootstrap_secret_in_child_env);
+    setHeroProof('hero-after-health', after.health);
+    setHeroProof('hero-after-ready', after.ready);
+    setHeroProof('hero-after-network', String(after.external_egress) + ' / ' + String(after.aws_calls));
+    setText('hero-proof-status', succeeded ? 'VERIFIED' : denied ? 'SAFE STOP' : 'PENDING');
+    byId('hero-proof-status').className = 'state-badge' + (succeeded ? ' success' : denied ? ' denied' : '');
+    setText('hero-mutation-count', view.workspace_mutation_count);
+    setText('hero-human-decision', view.human_decision);
+    setText('hero-receipt-present', view.verification_receipt_present ? 'YES' : 'NO');
+    setText('hero-profile', verification?.profile_id || 'Not run');
+    setText('hero-checks', verification ? verification.checks_passed + ' / ' + verification.checks_total : '0 / 0');
+    setText('hero-proof-origin', verification?.proof_origin);
+    setText('hero-report-hash', verification ? shortHash(verification.report_fingerprint) : '—', verification?.report_fingerprint || '');
+    setText('hero-verification-hash', verification ? shortHash(verification.receipt_fingerprint) : '—', verification?.receipt_fingerprint || '');
+    setText('hero-recovery-badge', view.recovery_badge);
+    setText('hero-replay-state', replay?.status || 'Not available');
+    renderHeroTimeline(view.timeline);
+    markHeroPipeline(view.timeline);
+
+    const hasRequest = typeof card.request_fingerprint === 'string';
+    byId('hero-review').disabled = ui.busy || !ui.connected || state !== 'PATCH_PROPOSED';
+    byId('hero-approve').disabled = ui.busy || !ui.connected || state !== 'AWAITING_APPROVAL' || !hasRequest;
+    byId('hero-deny').disabled = ui.busy || !ui.connected || state !== 'AWAITING_APPROVAL' || !hasRequest;
+    byId('hero-execute').disabled = ui.busy || !ui.connected || state !== 'APPROVED';
+    byId('hero-verify').disabled = ui.busy || !ui.connected || !['PATCH_APPLIED_UNVERIFIED', 'RECONCILIATION_REQUIRED', 'VERIFICATION_FAILED', 'DEPENDENCY_UNAVAILABLE'].includes(state);
+    byId('hero-replay').disabled = ui.busy || !ui.connected || !succeeded || replay?.status !== 'AVAILABLE';
+
+    const decisionCopy = denied
+      ? 'DENIED_BY_HUMAN is a successful safety stop. No patch effect or verification receipt exists.'
+      : succeeded
+        ? 'Independent disk read-back and the fixed startup profile created the only success-authorizing receipt.'
+        : state === 'PATCH_APPLIED_UNVERIFIED'
+          ? 'The exact patch was applied once, but this is not success. Independent verification is still required.'
+          : state === 'APPROVED'
+            ? 'Approval is durable, but it is not success and it has not executed anything. A separate gesture is required.'
+            : state === 'AWAITING_APPROVAL'
+              ? 'Review the exact workspace, base-state, proposal, patch and request fingerprints before deciding.'
+              : 'The proposal is inert. Open one exact durable approval request.';
+    setText('hero-decision-copy', decisionCopy);
+
+    const outcome = byId('hero-outcome');
+    outcome.className = 'outcome' + (succeeded ? ' success' : denied ? ' denied' : '');
+    if (succeeded) {
+      outcome.textContent = replay?.status === 'REPLAY_REJECTED_RECONCILED'
+        ? 'REPLAY_REJECTED_RECONCILED: the consumed approval produced zero additional mutations and zero profile executions.'
+        : 'SUCCESS_WITH_EVIDENCE: one exact mutation is backed by a persisted independent verification receipt.';
+    } else if (denied) {
+      outcome.textContent = 'DENIED_BY_HUMAN: workspace mutation count is zero; execution and verification were safely skipped.';
+    } else {
+      outcome.textContent = decisionCopy;
+    }
+    byId('hero-raw-output').textContent = JSON.stringify(view, null, 2);
   }
 
   function markPipeline(view) {
@@ -629,17 +855,42 @@ JUDGE_UI_SCRIPT: Final = r"""
     }
   }
 
+  async function refreshHero(silent = false) {
+    if (!ui.heroRunId) return;
+    try {
+      const view = await request('/api/workspace-demo/runs/' + encodeURIComponent(ui.heroRunId));
+      ui.connected = true;
+      renderSession();
+      renderHero(view);
+      if (!silent) announce('Authoritative hero state restored from durable receipts.');
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401) {
+        ui.connected = false;
+        renderSession();
+        announce('Reconnect the protected local session to resume this hero run.', true);
+        return;
+      }
+      throw error;
+    }
+  }
+
+  async function refreshActive(silent = false) {
+    if (ui.heroRunId) return refreshHero(silent);
+    return refresh(silent);
+  }
+
   async function guarded(action) {
     if (ui.busy) return;
     ui.busy = true;
     renderSession();
     if (ui.view) renderView(ui.view);
+    if (ui.heroView) renderHero(ui.heroView);
     try { await action(); }
     catch (error) {
       const stale = error instanceof ApiError && [403, 409].includes(error.status);
-      if (stale && ui.runId) {
+      if (stale && (ui.runId || ui.heroRunId)) {
         ui.challenge = null;
-        await refresh(true).catch(() => {});
+        await refreshActive(true).catch(() => {});
         announce('A stale or conflicting action was rejected. Durable truth has been reloaded.', true);
       } else {
         announce(error instanceof ApiError ? error.message : 'Local request failed safely.', true);
@@ -648,6 +899,7 @@ JUDGE_UI_SCRIPT: Final = r"""
       ui.busy = false;
       renderSession();
       if (ui.view) renderView(ui.view);
+      if (ui.heroView) renderHero(ui.heroView);
     }
   }
 
@@ -655,6 +907,86 @@ JUDGE_UI_SCRIPT: Final = r"""
     await request('/api/session', { method: 'POST', body: {}, token });
     ui.connected = true;
     renderSession();
+  }
+
+  async function startWorkspaceHero() {
+    await guarded(async () => {
+      const result = await request('/api/workspace-demo/runs', {
+        method: 'POST',
+        body: { scenario_id: 'FAILED_RENDER_DEPLOYMENT_VERIFIED_FIX_V1' },
+      });
+      ui.heroRunId = result.run_id;
+      ui.heroView = result;
+      ui.runId = '';
+      ui.view = null;
+      ui.challenge = null;
+      byId('workspace').hidden = true;
+      setRunHash();
+      renderHero(result);
+      byId('workspace-hero').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      announce('Sealed evidence inspected. One exact non-applying patch is ready for review.');
+    });
+  }
+
+  async function reviewWorkspaceHero() {
+    await guarded(async () => {
+      ui.heroView = await request('/api/workspace-demo/runs/' + encodeURIComponent(ui.heroRunId) + '/approval-request', { method: 'POST', body: {} });
+      renderHero(ui.heroView);
+      announce('Exact durable request loaded. Approval remains bound to every displayed fingerprint.');
+    });
+  }
+
+  async function decideWorkspaceHero(decision) {
+    await guarded(async () => {
+      const requestFingerprint = ui.heroView?.approval_card?.request_fingerprint;
+      if (!requestFingerprint) throw new Error('Reload the exact approval request first.');
+      ui.heroView = await request('/api/workspace-demo/runs/' + encodeURIComponent(ui.heroRunId) + '/decision', {
+        method: 'POST',
+        body: { decision, request_fingerprint: requestFingerprint },
+      });
+      renderHero(ui.heroView);
+      announce(decision === 'APPROVED'
+        ? 'Exact approval recorded. Nothing has executed; use the separate effect control.'
+        : 'Human denial recorded. The durable mutation count remains zero.');
+    });
+  }
+
+  async function executeWorkspaceHero() {
+    await guarded(async () => {
+      ui.heroView = await request('/api/workspace-demo/runs/' + encodeURIComponent(ui.heroRunId) + '/resume', {
+        method: 'POST',
+        body: { confirm_execution: true },
+      });
+      renderHero(ui.heroView);
+      announce('Exact patch applied once. State is PATCH_APPLIED_UNVERIFIED, not success.');
+    });
+  }
+
+  async function verifyWorkspaceHero() {
+    await guarded(async () => {
+      ui.heroView = await request('/api/workspace-demo/runs/' + encodeURIComponent(ui.heroRunId) + '/verify-or-reconcile', { method: 'POST', body: {} });
+      renderHero(ui.heroView);
+      announce(ui.heroView.success_with_evidence === true
+        ? 'Independent verification persisted. SUCCESS_WITH_EVIDENCE is now proven.'
+        : 'Verification stopped safely without claiming success.', ui.heroView.success_with_evidence !== true);
+    });
+  }
+
+  async function replayWorkspaceHero() {
+    await guarded(async () => {
+      const before = ui.heroView?.workspace_mutation_count;
+      ui.heroView = await request('/api/workspace-demo/runs/' + encodeURIComponent(ui.heroRunId) + '/resume', {
+        method: 'POST',
+        body: { confirm_execution: true },
+      });
+      renderHero(ui.heroView);
+      const zeroDelta = ui.heroView.workspace_mutation_count === before
+        && ui.heroView.replay?.additional_mutation_delta === 0
+        && ui.heroView.replay?.additional_profile_executions === 0;
+      announce(zeroDelta
+        ? 'Replay rejected and reconciled: zero new mutations, zero profile reruns.'
+        : 'Replay proof did not satisfy its fail-closed invariants.', !zeroDelta);
+    });
   }
 
   async function startScenario(button) {
@@ -667,8 +999,11 @@ JUDGE_UI_SCRIPT: Final = r"""
         },
       });
       ui.runId = result.run_id;
+      ui.heroRunId = '';
+      ui.heroView = null;
       ui.challenge = null;
       ui.replayProven = false;
+      byId('workspace-hero').hidden = true;
       setRunHash();
       await refresh(true);
       byId('workspace').scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -721,7 +1056,8 @@ JUDGE_UI_SCRIPT: Final = r"""
   async function boot() {
     const fragment = new URLSearchParams(location.hash.slice(1));
     const bootstrapToken = fragment.get('access_token') || '';
-    ui.runId = fragment.get('run') || '';
+    ui.heroRunId = fragment.get('hero_run') || '';
+    ui.runId = ui.heroRunId ? '' : (fragment.get('run') || '');
     setRunHash();
     try {
       const ready = await request('/ready');
@@ -732,20 +1068,27 @@ JUDGE_UI_SCRIPT: Final = r"""
         ui.connected = true;
       }
       renderSession();
-      if (ui.runId) await refresh(true);
+      if (ui.heroRunId || ui.runId) await refreshActive(true);
     } catch (_) {
       ui.connected = false;
       renderSession();
-      if (ui.runId) announce('Run identity restored. Connect the local session to resume.', true);
+      if (ui.heroRunId || ui.runId) announce('Run identity restored. Connect the local session to resume.', true);
     }
   }
 
+  byId('workspace-hero-start').addEventListener('click', startWorkspaceHero);
+  byId('hero-review').addEventListener('click', reviewWorkspaceHero);
+  byId('hero-approve').addEventListener('click', () => decideWorkspaceHero('APPROVED'));
+  byId('hero-deny').addEventListener('click', () => decideWorkspaceHero('DENIED'));
+  byId('hero-execute').addEventListener('click', executeWorkspaceHero);
+  byId('hero-verify').addEventListener('click', verifyWorkspaceHero);
+  byId('hero-replay').addEventListener('click', replayWorkspaceHero);
   document.querySelectorAll('[data-scenario]').forEach((button) => button.addEventListener('click', () => startScenario(button)));
   byId('review').addEventListener('click', reviewProposal);
   byId('approve').addEventListener('click', () => decide('APPROVED'));
   byId('deny').addEventListener('click', () => decide('DENIED'));
   byId('execute').addEventListener('click', executeOrReplay);
-  byId('refresh').addEventListener('click', () => guarded(() => refresh(true)));
+  byId('refresh').addEventListener('click', () => guarded(() => refreshActive(true)));
   byId('connect-form').addEventListener('submit', (event) => {
     event.preventDefault();
     const input = byId('token');
@@ -753,7 +1096,7 @@ JUDGE_UI_SCRIPT: Final = r"""
     input.value = '';
     guarded(async () => {
       await connect(token);
-      if (ui.runId) await refresh(true);
+      if (ui.heroRunId || ui.runId) await refreshActive(true);
       announce('Protected browser session established.');
     });
   });
@@ -816,8 +1159,8 @@ JUDGE_UI_BODY: Final = f"""<!doctype html>
   <main id="main" class="shell">
     <section class="hero" aria-labelledby="hero-title">
       <div class="kicker">Non-Zero control plane · human authority preserved</div>
-      <h1 id="hero-title">Evidence first.<br>Humans decide.</h1>
-      <p class="hero-copy">A CloudOps agent can investigate and propose. It cannot turn model output into authority. Review one exact action, approve or deny it, and watch the system prove what happened.</p>
+      <h1 id="hero-title">The model proposes.<br>The human authorizes.<br>Evidence decides.</h1>
+      <p class="hero-copy">AIOA turns a failed deployment into one exact human-approved fix, executes it once, and independently proves the service can start. Evidence first: model output never becomes authority.</p>
       <div class="truth-grid" aria-label="Safety facts">
         <div class="truth"><strong>0 real cloud writes</strong><span>Bounded local state only</span></div>
         <div class="truth"><strong><span id="network-count">0</span> network calls</strong><span>No hidden service dependency</span></div>
@@ -834,6 +1177,20 @@ JUDGE_UI_BODY: Final = f"""<!doctype html>
         <div class="session-copy"><span id="session-dot" class="session-dot" aria-hidden="true"></span><span id="session-state">Local session required</span></div>
         <button id="refresh" class="quiet-button" type="button">Refresh durable state</button>
       </div>
+      <button id="workspace-hero-start" class="scenario hero-scenario" type="button" data-workspace-hero disabled>
+        <span class="scenario-tag">Featured judge journey · fixed scenario</span>
+        <h3>Fix a Failed Deployment Safely</h3>
+        <p>Trace one failed Render start from observed evidence to an exact patch, human authority, one atomic effect, independent verification and replay-safe receipts.</p>
+        <span class="mode-cluster" aria-label="Scenario guarantees">
+          <span class="pill safe">Demo sandbox</span>
+          <span class="pill safe">Portable / mock</span>
+          <span class="pill">Strands</span>
+          <span class="pill">Human authority required</span>
+          <span class="pill">No live AWS writes</span>
+          <span class="pill">No external egress</span>
+        </span>
+      </button>
+      <div class="secondary-story-label">Secondary CloudOps regression stories</div>
       <div class="scenario-grid">
         <button class="scenario" type="button" data-scenario data-resource-type="AWS::EC2::EIP" data-resource-id="eipalloc-0123456789abcdef0">
           <span class="scenario-tag">Primary · approval path</span>
@@ -848,9 +1205,120 @@ JUDGE_UI_BODY: Final = f"""<!doctype html>
       </div>
     </section>
 
+    <section id="workspace-hero" class="section" aria-labelledby="workspace-hero-title" hidden>
+      <div class="section-heading">
+        <div><div class="section-number">02 / FIX + PROVE</div><h2 id="workspace-hero-title">Failed deployment → verified fix</h2></div>
+        <span id="hero-state" class="state-badge">PATCH_PROPOSED</span>
+      </div>
+      <ol class="pipeline hero-pipeline" aria-label="Fixed workspace remediation stages">
+        <li data-hero-stage="OBSERVE"><span>01</span>Observe</li>
+        <li data-hero-stage="EVIDENCE"><span>02</span>Evidence</li>
+        <li data-hero-stage="ROOT_CAUSE"><span>03</span>Root cause</li>
+        <li data-hero-stage="PATCH_PROPOSAL"><span>04</span>Exact patch</li>
+        <li data-hero-stage="POLICY"><span>05</span>Policy</li>
+        <li data-hero-stage="HUMAN_DECISION"><span>06</span>Human</li>
+        <li data-hero-stage="PATCH_EFFECT"><span>07</span>Apply once</li>
+        <li data-hero-stage="VERIFICATION"><span>08</span>Verify</li>
+        <li data-hero-stage="RECEIPT"><span>09</span>Receipt</li>
+        <li data-hero-stage="RECOVERY_REPLAY"><span>10</span>Replay</li>
+      </ol>
+
+      <div class="hero-workspace-grid">
+        <div class="stack">
+          <article class="panel panel-pad">
+            <div class="panel-head"><h3>Observed incident + bounded inference</h3><span class="state-badge">W1 · READ ONLY</span></div>
+            <ul id="hero-incident-facts" class="proof-list"><li>Loading sealed evidence…</li></ul>
+            <dl class="facts">
+              <div class="fact wide"><dt>Root cause</dt><dd id="hero-root-cause">—</dd></div>
+              <div class="fact wide"><dt>Alternative considered</dt><dd id="hero-alternative">—</dd></div>
+            </dl>
+          </article>
+
+          <article class="panel panel-pad">
+            <div class="panel-head"><h3>Exact non-applying patch proposal</h3><span class="state-badge">W2 · INERT</span></div>
+            <pre id="hero-diff" class="diff-panel" aria-label="Exact unified patch diff">No patch selected.</pre>
+          </article>
+
+          <article class="panel panel-pad">
+            <div class="panel-head"><h3>Before → independently verified after</h3><span id="hero-proof-status" class="state-badge">PENDING</span></div>
+            <div class="stage-truth">
+              <article><h4>Before</h4><p><strong id="hero-before-contract">FAIL</strong><br><span id="hero-before-error">File name too long / exit 127</span></p></article>
+              <article><h4>After</h4><ul class="proof-list">
+                <li><span>Exact patch scope</span><strong id="hero-after-scope">PENDING</strong></li>
+                <li><span>Target hash</span><strong id="hero-after-hash">PENDING</strong></li>
+                <li><span>Startup executable</span><strong id="hero-after-startup">PENDING</strong></li>
+                <li><span>Token file mode</span><strong id="hero-after-token">PENDING</strong></li>
+                <li><span>Bootstrap secret in child env</span><strong id="hero-after-env">PENDING</strong></li>
+                <li><span>/health</span><strong id="hero-after-health">PENDING</strong></li>
+                <li><span>/ready</span><strong id="hero-after-ready">PENDING</strong></li>
+                <li><span>External egress / AWS calls</span><strong id="hero-after-network">0 / 0</strong></li>
+              </ul></article>
+            </div>
+          </article>
+        </div>
+
+        <aside class="stack">
+          <section class="panel panel-pad" aria-labelledby="hero-authority-title">
+            <div class="panel-head"><h3 id="hero-authority-title">Exact human approval card</h3><span class="state-badge">W3</span></div>
+            <dl class="facts">
+              <div class="fact wide"><dt>Scenario</dt><dd id="hero-card-scenario">—</dd></div>
+              <div class="fact"><dt>Target</dt><dd id="hero-card-target">—</dd></div>
+              <div class="fact"><dt>Field</dt><dd id="hero-card-field">—</dd></div>
+              <div class="fact wide"><dt>Proposed change</dt><dd id="hero-card-change">—</dd></div>
+              <div class="fact"><dt>Workspace fingerprint</dt><dd id="hero-workspace-hash" class="hash">—</dd></div>
+              <div class="fact"><dt>Proposal fingerprint</dt><dd id="hero-proposal-hash" class="hash">—</dd></div>
+              <div class="fact"><dt>Patch fingerprint</dt><dd id="hero-patch-hash" class="hash">—</dd></div>
+              <div class="fact"><dt>Request fingerprint</dt><dd id="hero-request-hash" class="hash">Not issued</dd></div>
+              <div class="fact"><dt>Risk</dt><dd id="hero-risk">—</dd></div>
+              <div class="fact wide"><dt>Rollback</dt><dd id="hero-rollback">—</dd></div>
+            </dl>
+            <div class="authority-callout"><strong>Bound evidence</strong><span id="hero-evidence">—</span></div>
+            <div class="authority-callout"><strong>Expected verification</strong><span id="hero-expected">—</span></div>
+            <div id="hero-warning" class="approval-warning">This approval is valid only for this exact proposal, workspace, base state and patch.</div>
+            <p id="hero-decision-copy" class="decision-state">Review the durable request before deciding.</p>
+            <div class="controls">
+              <button id="hero-review" class="button secondary" type="button" disabled>Review exact request</button>
+              <div class="button-row"><button id="hero-approve" class="button" type="button" disabled>Approve exact patch</button><button id="hero-deny" class="button deny" type="button" disabled>Deny</button></div>
+              <button id="hero-execute" class="button secondary" type="button" disabled>Execute approved patch once</button>
+              <button id="hero-verify" class="button secondary" type="button" disabled>Independently verify</button>
+              <button id="hero-replay" class="button secondary" type="button" disabled>Prove replay rejection</button>
+            </div>
+            <div class="proof"><div><strong id="hero-mutation-count">0</strong><span>workspace mutations</span></div><div><strong id="hero-human-decision">PENDING</strong><span>human decision</span></div><div><strong id="hero-receipt-present">NO</strong><span>verification receipt</span></div><div><strong>0</strong><span>live AWS writes</span></div></div>
+            <div id="hero-outcome" class="outcome">The proposal is inert. Human approval is not success, and applying the patch is not success.</div>
+          </section>
+
+          <section class="panel panel-pad" aria-labelledby="hero-receipt-title">
+            <div class="panel-head"><h3 id="hero-receipt-title">Independent verification receipt</h3><span class="state-badge">W4</span></div>
+            <dl class="facts">
+              <div class="fact wide"><dt>Profile</dt><dd id="hero-profile">Not run</dd></div>
+              <div class="fact"><dt>Checks</dt><dd id="hero-checks">0 / 0</dd></div>
+              <div class="fact"><dt>Origin</dt><dd id="hero-proof-origin">—</dd></div>
+              <div class="fact"><dt>Report fingerprint</dt><dd id="hero-report-hash" class="hash">—</dd></div>
+              <div class="fact"><dt>Receipt fingerprint</dt><dd id="hero-verification-hash" class="hash">—</dd></div>
+            </dl>
+            <div id="hero-recovery-badge" class="state-badge recovery-badge">W4 RECOVERY / RECONCILIATION CERTIFIED</div>
+          </section>
+
+          <section class="panel panel-pad" aria-labelledby="hero-timeline-title">
+            <div class="panel-head"><h3 id="hero-timeline-title">Evidence and authority timeline</h3></div>
+            <ol id="hero-timeline" class="timeline"><li class="empty">The durable timeline appears after the fixed scenario starts.</li></ol>
+          </section>
+
+          <section class="panel panel-pad">
+            <div class="panel-head"><h3>Hero run identity</h3></div>
+            <dl class="facts"><div class="fact wide"><dt>Run ID</dt><dd id="hero-run-id" class="hash">—</dd></div><div class="fact wide"><dt>Replay</dt><dd id="hero-replay-state">Not available</dd></div></dl>
+          </section>
+        </aside>
+      </div>
+
+      <div class="panel technical-wrap">
+        <details class="technical"><summary>Inspect sanitized hero projection</summary><pre id="hero-raw-output">No hero run selected.</pre></details>
+      </div>
+    </section>
+
     <section id="workspace" class="section" aria-labelledby="workspace-title" hidden>
       <div class="section-heading">
-        <div><div class="section-number">02 / INSPECT + DECIDE</div><h2 id="workspace-title">The complete authority path</h2></div>
+        <div><div class="section-number">03 / CLOUDOPS REGRESSION</div><h2 id="workspace-title">The complete authority path</h2></div>
         <span id="run-state" class="state-badge">READY</span>
       </div>
       <ol class="pipeline" aria-label="Workflow stages">
