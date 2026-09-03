@@ -5,10 +5,13 @@ from __future__ import annotations
 from uuid import UUID
 
 from strands.hooks.events import BeforeToolCallEvent
-from strands.interventions import Confirm, Deny, InterventionAction
+from strands.interventions import Confirm, Deny, InterventionAction, Proceed
 from strands.vended_interventions.hitl import HumanInTheLoop
 
+from aioa_cloudops_agent.nz import ApprovalDecision
+
 from .authority import WorkspaceAuthorityDenied, WorkspaceAuthorityService
+from .authority_contracts import WorkspaceAuthorityState
 
 
 class WorkspacePatchHumanInTheLoop(HumanInTheLoop):
@@ -58,6 +61,21 @@ class WorkspacePatchHumanInTheLoop(HumanInTheLoop):
             return Deny(reason="Patch apply accepts exactly one durable proposal_id.")
         try:
             proposal_id = UUID(str(tool_input["proposal_id"]))
+            record = self._authority.repository.get_proposal_record(proposal_id)
+            if record is not None and record.state in {
+                WorkspaceAuthorityState.APPROVED,
+                WorkspaceAuthorityState.APPLYING,
+                WorkspaceAuthorityState.PATCH_APPLIED_UNVERIFIED,
+                WorkspaceAuthorityState.RECONCILIATION_REQUIRED,
+            }:
+                decision = self._authority.repository.get_decision(proposal_id)
+                if decision is not None and decision.decision is ApprovalDecision.APPROVED:
+                    self._last_denial_code = None
+                    return Proceed()
+                raise WorkspaceAuthorityDenied(
+                    "WORKSPACE_APPROVAL_MISSING",
+                    "Durable approved decision could not be proven.",
+                )
             payload = self._authority.durable_payload_for_interrupt(proposal_id)
         except (TypeError, ValueError, WorkspaceAuthorityDenied):
             self._last_denial_code = "WORKSPACE_DURABLE_PAYLOAD_DENIED"
