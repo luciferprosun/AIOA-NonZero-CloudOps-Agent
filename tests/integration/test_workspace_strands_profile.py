@@ -16,6 +16,7 @@ from aioa_cloudops_agent.domain import ContractValidationError
 from aioa_cloudops_agent.nz import ResultStatus, generate_event_id
 from aioa_cloudops_agent.providers import MockModelProvider, MockToolCall
 from aioa_cloudops_agent.workspace import (
+    BUILD_WORKSPACE_PATCH_PROPOSAL_TOOL_NAME,
     HASH_WORKSPACE_ARTIFACT_TOOL_NAME,
     INSPECT_DEPLOYMENT_INCIDENT_TOOL_NAME,
     LIST_WORKSPACE_ARTIFACTS_TOOL_NAME,
@@ -62,18 +63,19 @@ def _runtime(tmp_path: Path, *, model: MockModelProvider | None = None):
     return sealed, service, runtime
 
 
-def test_workspace_profile_creates_exactly_one_agent_and_four_tools(tmp_path: Path) -> None:
+def test_workspace_profile_creates_exactly_one_agent_and_five_tools(tmp_path: Path) -> None:
     _, _, runtime = _runtime(tmp_path)
 
     assert isinstance(runtime.agent, Agent)
     assert runtime.agent.agent_id == WORKSPACE_AGENT_ID
     assert WORKSPACE_AGENT_COUNT == 1
-    assert WORKSPACE_REGISTERED_TOOL_COUNT == 4
+    assert WORKSPACE_REGISTERED_TOOL_COUNT == 5
     assert runtime.registered_tool_names == WORKSPACE_TOOL_NAMES == (
         INSPECT_DEPLOYMENT_INCIDENT_TOOL_NAME,
         LIST_WORKSPACE_ARTIFACTS_TOOL_NAME,
         READ_WORKSPACE_ARTIFACT_TOOL_NAME,
         HASH_WORKSPACE_ARTIFACT_TOOL_NAME,
+        BUILD_WORKSPACE_PATCH_PROPOSAL_TOOL_NAME,
     )
     assert runtime.agent.tool_names == list(WORKSPACE_TOOL_NAMES)
 
@@ -160,17 +162,18 @@ def test_existing_cloudops_five_tool_factory_surface_is_unchanged() -> None:
     assert set(CURRENT_TOOL_NAMES).isdisjoint(WORKSPACE_TOOL_NAMES)
 
 
-def test_workspace_prompt_keeps_model_subordinate_and_w1_read_only() -> None:
+def test_workspace_prompt_keeps_model_subordinate_and_w2_non_applying() -> None:
     normalized = WORKSPACE_SYSTEM_PROMPT.casefold()
 
     assert "model output is not execution authority" in normalized
     assert "untrusted data" in normalized
     assert "facts" in normalized
     assert "agent_inference" in normalized
-    assert "alternative_hypothesis" in normalized
-    assert "recommended_next_step" in normalized
-    assert "phase w2" in normalized
-    assert "w1 must not apply" in normalized
+    assert "supporting_evidence" in normalized
+    assert "exact_patch_preview" in normalized
+    assert "human_decision_required" in normalized
+    assert "phase w3" in normalized
+    assert "w1 and w2 must not apply" in normalized
 
 
 def test_agent_constructs_evidence_referencing_diagnosis_without_mutation(tmp_path: Path) -> None:
@@ -235,6 +238,6 @@ def test_agent_trace_attributes_bind_profile_run_and_workspace(tmp_path: Path) -
     assert attributes["aioa.run_id"] == str(RUN_ID)
     assert attributes["aioa.workspace_id"] == str(sealed.ref.workspace_id)
     assert attributes["aioa.authority_gate"] == "AUTO"
-    assert attributes["aioa.operation_class"] == "READ_ONLY"
+    assert attributes["aioa.operation_class"] == "READ_ONLY_PLUS_INERT_PROPOSAL"
     assert attributes["aioa.network_allowed"] == "false"
     assert attributes["aioa.mutation_allowed"] == "false"
