@@ -1,0 +1,130 @@
+{
+  "apply_authority_granted": false,
+  "authorizes_execution": false,
+  "base_root_digest": "84172797b4203b01e7404649449ac7b6468e94b88e7aba9b2104d18c01668db8",
+  "canonical_after_sha256": "91eb20346909ca23779cdaf773586a9a925ebf59e90113615ecedcd24dc05314",
+  "change": {
+    "expected_before_block_sha256": "2e31fa8eff5756e9afb5bd4510a6064afd491d4cc604222e0ea8f758197e0707",
+    "field_path": "services[0].dockerCommand",
+    "remediation_kind": "USE_FIXED_RENDER_START_EXECUTABLE",
+    "replacement_value": "/usr/local/bin/aioa-render-start",
+    "target_path": "render.yaml"
+  },
+  "created_at": "2026-09-03T04:30:00Z",
+  "diagnosis_evidence_paths": [
+    "deployment.log",
+    "expected_runtime_contract.json",
+    "render.yaml",
+    "scripts/render_start.sh"
+  ],
+  "evidence_digest": "4de8a59272f4f9cf57e2ad3c679897c2a9610d3fef858d0139268bb852ff6675",
+  "evidence_references": [
+    {
+      "artifact_path": null,
+      "artifact_sha256": "84172797b4203b01e7404649449ac7b6468e94b88e7aba9b2104d18c01668db8",
+      "event_id": "01890f6c-3311-7abc-8f4a-000000000001",
+      "fixture_version": "workspace_render_incident_v1",
+      "operation": "INSPECT",
+      "receipt_sha256": "64e83973a1c9e89f092c8d61a03672fc0adf5071d6f87a5bb3a0feae9cf6252c",
+      "run_id": "01890f6c-3311-7abc-8f4a-6e4f7f0b9b3a",
+      "trace_id": "01890f6c-3311-7abc-8f4a-6e4f7f0b9b3b",
+      "workspace_id": "01890f6c-3311-7abc-8f4a-6e4f7f0b9b3e"
+    },
+    {
+      "artifact_path": "deployment.log",
+      "artifact_sha256": "cbfd8d343ccfb07b665befe4720d388cebaf16d935445cc0421cafbc938ea14a",
+      "event_id": "01890f6c-3311-7abc-8f4a-000000000002",
+      "fixture_version": "workspace_render_incident_v1",
+      "operation": "READ",
+      "receipt_sha256": "f3b2511ee0810d516ebb2bb030f98e1721e804d2784f1382dac185596283b2e6",
+      "run_id": "01890f6c-3311-7abc-8f4a-6e4f7f0b9b3a",
+      "trace_id": "01890f6c-3311-7abc-8f4a-6e4f7f0b9b3b",
+      "workspace_id": "01890f6c-3311-7abc-8f4a-6e4f7f0b9b3e"
+    },
+    {
+      "artifact_path": "render.yaml",
+      "artifact_sha256": "b957bbf10af3d711fbfeda271f8ba3b362894f4b02bb8d88239985769a3968db",
+      "event_id": "01890f6c-3311-7abc-8f4a-000000000003",
+      "fixture_version": "workspace_render_incident_v1",
+      "operation": "HASH",
+      "receipt_sha256": "85e89e008a701314b569158138e332d720a787f34c4657288a1de923fbbfba0b",
+      "run_id": "01890f6c-3311-7abc-8f4a-6e4f7f0b9b3a",
+      "trace_id": "01890f6c-3311-7abc-8f4a-6e4f7f0b9b3b",
+      "workspace_id": "01890f6c-3311-7abc-8f4a-6e4f7f0b9b3e"
+    },
+    {
+      "artifact_path": "scripts/render_start.sh",
+      "artifact_sha256": "d350917c132a338605f630fde97a2ac017e1664fe9cf413a7153827326e6d250",
+      "event_id": "01890f6c-3311-7abc-8f4a-000000000004",
+      "fixture_version": "workspace_render_incident_v1",
+      "operation": "HASH",
+      "receipt_sha256": "803f21044664892b18bfed8836e788710eb02c33c5fad4bd5be30d5d9464c6a4",
+      "run_id": "01890f6c-3311-7abc-8f4a-6e4f7f0b9b3a",
+      "trace_id": "01890f6c-3311-7abc-8f4a-6e4f7f0b9b3b",
+      "workspace_id": "01890f6c-3311-7abc-8f4a-6e4f7f0b9b3e"
+    },
+    {
+      "artifact_path": "expected_runtime_contract.json",
+      "artifact_sha256": "8bf5a36539ea313a578e194e1c84568586770cc792d60709ebde106df9325178",
+      "event_id": "01890f6c-3311-7abc-8f4a-000000000005",
+      "fixture_version": "workspace_render_incident_v1",
+      "operation": "HASH",
+      "receipt_sha256": "ee0a006b065f80ebba5bb1c5fb6c976eb686dabc66c7017a3a1fa323311d873f",
+      "run_id": "01890f6c-3311-7abc-8f4a-6e4f7f0b9b3a",
+      "trace_id": "01890f6c-3311-7abc-8f4a-6e4f7f0b9b3b",
+      "workspace_id": "01890f6c-3311-7abc-8f4a-6e4f7f0b9b3e"
+    }
+  ],
+  "expected_runtime_contract_sha256": "8bf5a36539ea313a578e194e1c84568586770cc792d60709ebde106df9325178",
+  "expires_at": "2026-09-04T04:30:00Z",
+  "fixture_version": "workspace_render_incident_v1",
+  "mutation_allowed": false,
+  "network_allowed": false,
+  "outcome": "PROPOSAL_READY",
+  "patch_digest": "73be5422645433ca51371ab992854e028149c9a06753b61e1d66bfe5ed0ee5f0",
+  "preview": {
+    "after_sha256": "91eb20346909ca23779cdaf773586a9a925ebf59e90113615ecedcd24dc05314",
+    "after_text": "services:\n  - type: web\n    name: synthetic-aioa-workspace-incident\n    runtime: docker\n    plan: free\n    region: frankfurt\n    healthCheckPath: /ready\n    dockerCommand: /usr/local/bin/aioa-render-start\n    envVars:\n      - key: AIOA_RUNTIME_MODE\n        value: portable\n      - key: AIOA_MODEL_PROVIDER\n        value: mock\n      - key: AIOA_AWS_INTEGRATION_ENABLED\n        value: \"false\"\n      - key: AIOA_PORT\n        value: \"10000\"\n      - key: AIOA_LOCAL_API_TOKEN_PATH\n        value: /var/lib/aioa/operator.token\n      - key: AIOA_OPERATOR_TOKEN\n        sync: false\n",
+    "before_sha256": "b957bbf10af3d711fbfeda271f8ba3b362894f4b02bb8d88239985769a3968db",
+    "before_text": "services:\n  - type: web\n    name: synthetic-aioa-workspace-incident\n    runtime: docker\n    plan: free\n    region: frankfurt\n    healthCheckPath: /ready\n    dockerCommand: >-\n      /bin/sh -eu -c 'umask 077; test -n \"${AIOA_OPERATOR_TOKEN:-}\" || { printf \"%s\\n\" \"operator bootstrap missing\" >&2; exit 2; }; printf \"%s\\n\" \"$AIOA_OPERATOR_TOKEN\" > \"$AIOA_LOCAL_API_TOKEN_PATH\"; chmod 0600 \"$AIOA_LOCAL_API_TOKEN_PATH\"; unset AIOA_OPERATOR_TOKEN; exec python -m aioa_cloudops_agent.portable_server'\n    envVars:\n      - key: AIOA_RUNTIME_MODE\n        value: portable\n      - key: AIOA_MODEL_PROVIDER\n        value: mock\n      - key: AIOA_AWS_INTEGRATION_ENABLED\n        value: \"false\"\n      - key: AIOA_PORT\n        value: \"10000\"\n      - key: AIOA_LOCAL_API_TOKEN_PATH\n        value: /var/lib/aioa/operator.token\n      - key: AIOA_OPERATOR_TOKEN\n        sync: false\n",
+    "change": {
+      "expected_before_block_sha256": "2e31fa8eff5756e9afb5bd4510a6064afd491d4cc604222e0ea8f758197e0707",
+      "field_path": "services[0].dockerCommand",
+      "remediation_kind": "USE_FIXED_RENDER_START_EXECUTABLE",
+      "replacement_value": "/usr/local/bin/aioa-render-start",
+      "target_path": "render.yaml"
+    },
+    "diff_from": "a/render.yaml",
+    "diff_to": "b/render.yaml",
+    "line_endings": "LF",
+    "patch_digest": "73be5422645433ca51371ab992854e028149c9a06753b61e1d66bfe5ed0ee5f0",
+    "target_path": "render.yaml",
+    "unified_diff": "--- a/render.yaml\n+++ b/render.yaml\n@@ -5,8 +5,7 @@\n     plan: free\n     region: frankfurt\n     healthCheckPath: /ready\n-    dockerCommand: >-\n-      /bin/sh -eu -c 'umask 077; test -n \"${AIOA_OPERATOR_TOKEN:-}\" || { printf \"%s\\n\" \"operator bootstrap missing\" >&2; exit 2; }; printf \"%s\\n\" \"$AIOA_OPERATOR_TOKEN\" > \"$AIOA_LOCAL_API_TOKEN_PATH\"; chmod 0600 \"$AIOA_LOCAL_API_TOKEN_PATH\"; unset AIOA_OPERATOR_TOKEN; exec python -m aioa_cloudops_agent.portable_server'\n+    dockerCommand: /usr/local/bin/aioa-render-start\n     envVars:\n       - key: AIOA_RUNTIME_MODE\n         value: portable\n"
+  },
+  "process_execution_allowed": false,
+  "proposal_digest": "c9d9537e49e8388ba2ca5b92538383ca8c69d0d7fd2f704d2240002414736499",
+  "proposal_id": "01890f6c-3311-7abc-8f4a-6e4f7f0b9b3c",
+  "remediation_kind": "USE_FIXED_RENDER_START_EXECUTABLE",
+  "risk_class": "PLAN_AND_CONFIRM",
+  "rollback_strategy": "Restore the exact render.yaml before bytes bound by target_before_sha256; re-run render_start_contract_v1 before any deployment.",
+  "root_digest": "84172797b4203b01e7404649449ac7b6468e94b88e7aba9b2104d18c01668db8",
+  "run_id": "01890f6c-3311-7abc-8f4a-6e4f7f0b9b3a",
+  "supporting_start_script_sha256": "d350917c132a338605f630fde97a2ac017e1664fe9cf413a7153827326e6d250",
+  "target": {
+    "artifact": {
+      "nlink": 1,
+      "relative_path": "render.yaml",
+      "sha256": "b957bbf10af3d711fbfeda271f8ba3b362894f4b02bb8d88239985769a3968db",
+      "size": 864,
+      "type": "YAML"
+    },
+    "before_sha256": "b957bbf10af3d711fbfeda271f8ba3b362894f4b02bb8d88239985769a3968db",
+    "relative_path": "render.yaml"
+  },
+  "target_before_sha256": "b957bbf10af3d711fbfeda271f8ba3b362894f4b02bb8d88239985769a3968db",
+  "target_path": "render.yaml",
+  "trace_id": "01890f6c-3311-7abc-8f4a-6e4f7f0b9b3b",
+  "verification_profile_id": "render_start_contract_v1",
+  "version": 1,
+  "workspace_id": "01890f6c-3311-7abc-8f4a-6e4f7f0b9b3e"
+}
