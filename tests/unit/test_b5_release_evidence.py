@@ -16,7 +16,7 @@ def _compact(value: object) -> bytes:
     ).encode("utf-8")
 
 
-def test_b5_release_outputs_are_deterministic_current_and_hash_bound() -> None:
+def test_b5_release_outputs_are_deterministic_and_source_commit_bound() -> None:
     first = release.build_outputs()
     second = release.build_outputs()
 

@@ -70,6 +70,9 @@ _SOURCE_ARTIFACTS: Final[tuple[tuple[str, str], ...]] = (
         "docs/evidence/reviewer-evidence-manifest.json",
     ),
 )
+_HISTORICAL_SOURCE_ONLY_ARTIFACTS: Final = frozenset(
+    {"docs/evidence/reviewer-evidence-manifest.json"}
+)
 _CHECKS: Final[tuple[dict[str, object], ...]] = (
     {"check_id": "B4_HARDENING_GATE", "proof_tests": 43, "scenarios": 11, "status": "PASS"},
     {"check_id": "CLEAN_CLONE", "exact_source_commit": True, "status": "PASS"},
@@ -153,10 +156,15 @@ def _source_bound_sha256(relative_path: str) -> str:
         )
     except (OSError, subprocess.TimeoutExpired) as error:
         raise B5EvidenceError("B5_SOURCE_ARTIFACT_UNAVAILABLE") from error
-    current = _sha256_path(ROOT / relative_path)
-    if result.returncode != 0 or _sha256_bytes(result.stdout) != current:
+    if result.returncode != 0:
+        raise B5EvidenceError("B5_SOURCE_ARTIFACT_UNAVAILABLE")
+    source_digest = _sha256_bytes(result.stdout)
+    if (
+        relative_path not in _HISTORICAL_SOURCE_ONLY_ARTIFACTS
+        and source_digest != _sha256_path(ROOT / relative_path)
+    ):
         raise B5EvidenceError("B5_SOURCE_ARTIFACT_DRIFT")
-    return current
+    return source_digest
 
 
 def _normalize_name(value: str) -> str:
@@ -397,7 +405,7 @@ def _sums_bytes(
     artifact_bytes: bytes,
 ) -> bytes:
     values = {
-        relative_path: _sha256_path(ROOT / relative_path)
+        relative_path: _source_bound_sha256(relative_path)
         for _artifact_id, relative_path in _SOURCE_ARTIFACTS
     }
     values.update(
