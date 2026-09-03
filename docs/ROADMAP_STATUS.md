@@ -113,7 +113,11 @@
 - REQUIRED_CORE_AWS_INTEGRATIONS = 0
 - PORTABLE_ONE_COMMAND_DEMO = python -m aioa_cloudops_agent.portable
 - PORTABLE_SOURCE_CHECKOUT_COMPATIBILITY_LAUNCHER = scripts/run_portable_demo.py
-- NEXT_MACRO_STEP = W2_STRUCTURED_NON_APPLYING_PATCH_PROPOSAL_REQUIRES_AUDITED_PROMPT
+- W2_STRUCTURED_NON_APPLYING_PATCH_PROPOSAL = COMPLETE_GATE_PASS
+- W2_EXACT_TOOL_SURFACE = 5_OF_5
+- W2_WORKSPACE_MUTATION_DELTA = 0
+- W2_FULL_REGRESSION = 1549_OF_1549
+- NEXT_MACRO_STEP = W3_HUMAN_BOUND_PATCH_AUTHORITY_REQUIRES_SEPARATE_AUDITED_PROMPT
 
 ## W1 sealed workspace foundation
 
@@ -128,8 +132,26 @@ capability. The existing CloudOps five-tool factory and deployment startup input
 See `docs/architecture/workspace-remediation-v1.md` and
 `docs/audits/W1_HERITAGE_WORKSPACE_FOUNDATION_2026-09-02.md`.
 
-W2 is not authorized by this status. The next safe phase may define a typed, non-applying patch
-proposal only after a separate reviewed prompt preserves the current Non-Zero boundary.
+## W2 structured non-applying patch proposal
+
+W2 is complete on `codex/w2-structured-patch-proposal`. It adds one closed remediation enum, exact
+target/change/preview/proposal/evidence contracts, a pure server-owned transform, deterministic
+content addressing, and the fifth `build_workspace_patch_proposal` tool. The canonical candidate
+replaces only the sealed fixture's long inline `dockerCommand` with
+`/usr/local/bin/aioa-render-start` in memory.
+
+No patch was applied. No approval was requested or consumed. The sealed workspace mutation delta,
+process executions, registered network/mutation/package/Git capabilities, AWS calls/mutations,
+Render actions, external deployments, and paid resources are all zero. The explicit W2 suite is
+34/34, the retained W1 suite is 50/50, full pytest is 1549/1549, and P0/P1/B4 all pass.
+
+Repository-root deployment/runtime inputs remain hash-identical to W1, so B5/B6 recertification is
+not required. See `docs/audits/W2_STRUCTURED_PATCH_PROPOSAL_2026-09-03.md` and
+`docs/evidence/workspace/w2-patch-proposal.json`.
+
+W3 is not authorized by this status. `READY_FOR_W3_HUMAN_BOUND_PATCH_AUTHORITY=YES` records only a
+certified prerequisite. A separate reviewed W3 prompt is required before any patch application,
+approval consumption, workspace process, Git operation, provider action, or deployment.
 
 ## Known Nonblocking Items
 

@@ -3,18 +3,23 @@
 ## Status and purpose
 
 Phase W1 provides a sealed, deterministic, read-only workspace for investigating one sanitized
-deployment incident. It is an additive runtime profile. It does not migrate or alter the canonical
-CloudOps agent, does not apply a patch, and does not expose a general execution platform.
+deployment incident. Phase W2 extends only that additive profile with one deterministic,
+proof-carrying patch proposal. The proposal is constructed in memory and is inert: it neither
+applies bytes nor grants authority to do so. Neither phase migrates or alters the canonical
+CloudOps agent or exposes a general execution platform.
 
 The governing invariant is unchanged:
 
 ```text
 MODEL_OUTPUT != EXECUTION_AUTHORITY
+PATCH_PROPOSAL != PATCH_AUTHORITY
+PATCH_PREVIEW != FILE_MUTATION
 ```
 
-The W1 authority envelope contains only inspect, list, bounded read, and SHA-256 hash operations.
-All path scope, identity, quotas, clocks, fixture selection, and policy decisions remain
-server-owned.
+The sealed workspace authority envelope still contains only inspect, list, bounded read, and
+SHA-256 hash operations. W2 composes those observations into proposal data without adding a
+workspace mutation operation. All path scope, identity, quotas, fixture selection, transformation,
+canonical serialization, and policy decisions remain server-owned.
 
 ## Component boundary
 
@@ -25,10 +30,14 @@ trusted sanitized fixture
 server materializer -> WorkspaceRef + private immutable copy
         |
         v
-WorkspaceJail -> WorkspaceEvidenceService -> four fixed Strands tools -> one W1 agent
-        |                    |
-        |                    +-> typed result + identity-bound receipt/timeline
+WorkspaceJail -> WorkspaceEvidenceService -> four evidence tools ---+
+        |                    |                                      |
+        |                    +-> typed receipt/timeline              v
         +-> canonical path, inode, type, size, link and digest revalidation
+                                                     W2 proposal builder
+                                                             |
+                                                             v
+                                    fifth inert Strands tool -> exact preview
 ```
 
 The model sees opaque run/workspace identity and relative artifact names. It never receives or
@@ -70,6 +79,44 @@ or a model-selectable profile.
 
 All external service outcomes use existing typed `ControlResult` / `FailureDetail` conventions.
 Invalid or unavailable evidence never becomes an ambiguous `None` success.
+
+## W2 proposal contracts and identity
+
+The W2 contracts are deliberately narrower than a general patch format:
+
+- `WorkspaceRemediationKind` has one value: `USE_FIXED_RENDER_START_EXECUTABLE`.
+- `WorkspacePatchTarget` fixes the target to `render.yaml` and binds its W1 artifact identity and
+  exact before SHA-256.
+- `WorkspacePatchChange` fixes the field to `services[0].dockerCommand` and the replacement value
+  to `/usr/local/bin/aioa-render-start`; it has no arbitrary content or diff field.
+- `WorkspacePatchPreview` contains canonical LF before/after text and a server-rendered unified
+  diff. Validation recomputes both content hashes, the transform, and the preview.
+- `WorkspaceProposalEvidenceRef` binds exact W1 event, run, trace, workspace, fixture, operation,
+  artifact, artifact hash, and canonical receipt hash.
+- `WorkspacePatchProposal` binds the base root, target, canonical candidate, patch digest, evidence
+  digest, startup script, expected runtime contract, rollback, verification profile, and
+  `PLAN_AND_CONFIRM` risk class. Literal false fields deny execution, apply, mutation, process, and
+  network authority.
+
+The patch digest hashes a canonical structured payload containing the base/candidate hashes and
+closed field replacement. It intentionally excludes UI diff rendering. The proposal digest binds
+the complete decision-relevant workspace/evidence/patch content while excluding generated display
+text, ID, and timestamps. Re-rendering whitespace cannot change either authority identity.
+
+## Canonical W2 transform
+
+The builder accepts only a sealed `WorkspaceRef`, the closed remediation enum, and server-retained
+W1 receipts. It requires an incident inspection, a deployment-log read, and independent hashes of
+`render.yaml`, `scripts/render_start.sh`, and `expected_runtime_contract.json`. Cross-workspace,
+stale, missing, or changed receipts fail closed.
+
+Trusted code then reads `render.yaml` through the existing descriptor-confined W1 service. The
+certified root and three relevant artifact hashes must match the frozen W1 fixture. Exactly one
+known folded `dockerCommand` block must exist. The builder replaces only that byte span in memory,
+verifies the fixed after line occurs once, computes before/after SHA-256 values, renders stable
+`a/render.yaml` / `b/render.yaml` diff headers, and returns the proposal. It has no writable file
+handle, apply method, process runner, Git client, package manager, socket, provider, or deployment
+adapter.
 
 ## Fixture materialization and integrity
 
@@ -114,8 +161,8 @@ and fixture-tamper cases. It does not claim containment against a host-privilege
 
 ## Evidence services and tool surface
 
-The service exposes four operations and records every successful one in a lock-protected in-memory
-timeline:
+The evidence service exposes four read operations and records every successful one in a
+lock-protected in-memory timeline:
 
 1. `inspect_deployment_incident`
 2. `list_workspace_artifacts`
@@ -127,31 +174,40 @@ the configured bound, and explicitly reports truncation while retaining the full
 performs a separate full descriptor read and emits its own receipt. Denials return typed,
 non-retryable failure information and do not echo raw exceptions.
 
+W2 adds exactly one composition tool:
+
+5. `build_workspace_patch_proposal`
+
+Its only model-controlled argument is the closed remediation enum. It snapshots retained evidence,
+calls the pure builder, and returns exact proposal data.
+
 No write, delete, move, chmod, process, package, Git, browser, MCP, URL, network, or arbitrary host
 path operation is registered.
 
-## Strands investigation profile
+## Strands investigation and proposal profile
 
 `create_workspace_investigation_agent` creates exactly one Strands agent for this runtime profile,
 only in portable mock mode with AWS integration disabled. Its `HumanInTheLoop` allowlist is exactly
-the four fixed W1 tools, dynamic directory loading is disabled, and runtime trace attributes bind
-profile, run, workspace, authority class, and the no-network/no-mutation flags.
+the four W1 evidence tools plus the inert W2 proposal tool, dynamic directory loading is disabled,
+and runtime trace attributes bind profile, run, workspace, authority class, and the
+no-network/no-mutation flags.
 
-The system prompt treats artifacts as untrusted data and requires a diagnosis with `FACTS`,
-`AGENT_INFERENCE`, `ALTERNATIVE_HYPOTHESIS`, and `RECOMMENDED_NEXT_STEP`. The tool outputs provide
-evidence; the model interprets it. A deterministic mock integration test exercises a seven-turn
-tool/reasoning path and proves the answer references observed artifacts while fixture content stays
-unchanged.
+The system prompt treats artifacts as untrusted data and requires `FACTS`, `AGENT_INFERENCE`,
+`SUPPORTING_EVIDENCE`, `EXACT_PATCH_PREVIEW`, `RISK_CLASS`,
+`EXPECTED_VERIFICATION_PROFILE`, and `HUMAN_DECISION_REQUIRED`. The model compares the primary and
+alternative hypotheses, but only server code constructs the patch. A deterministic mock integration
+test exercises the complete evidence/proposal path and proves the answer references observed
+artifacts while fixture content stays unchanged.
 
-The canonical CloudOps factory and its five tools remain byte-for-byte unchanged. W1 uses its own
-explicit factory and does not expand the CloudOps runtime profile.
+The canonical CloudOps factory and its five tools remain byte-for-byte unchanged. W1/W2 use their
+own explicit factory and do not expand the CloudOps runtime profile.
 
 ## Authority classification
 
-| Class | W1 operations |
+| Class | W1/W2 operations |
 | --- | --- |
-| `AUTO` | inspect sealed metadata; list allowlisted artifacts; bounded read; SHA-256 hash |
-| `PLAN_AND_CONFIRM` | none |
+| `AUTO` | inspect sealed metadata; list allowlisted artifacts; bounded read; SHA-256 hash; build inert proposal data |
+| `PLAN_AND_CONFIRM` | any future application of the exact proposal; not implemented or authorized in W2 |
 | `NEVER_AUTONOMOUS` | arbitrary paths/URLs; network; filesystem mutation; process execution; package install; Git mutation; deployment |
 
 ## Threat model and known limits
@@ -162,14 +218,17 @@ explicit factory and does not expand the CloudOps runtime profile.
   fails closed if they are absent.
 - Receipts are typed and content-bound, but the W1 timeline is process-local and in memory. Durable
   workspace evidence is a future design decision.
-- The W1 agent is deliberately portable/mock-only and has no external provider or network path.
+- The workspace agent is deliberately portable/mock-only and has no external provider or network path.
 - The profile is a library foundation, not a new public HTTP route and not part of the current
   Render startup path.
-- W1 cannot propose a typed patch, mutate a workspace, run tests, operate Git, install packages, or
-  deploy. Structured patch proposals belong to a separately reviewed W2 phase.
+- W2 can propose only the one frozen structured patch. It cannot apply a patch, mutate a workspace,
+  run a process/test, operate Git, install packages, browse, call MCP, access a provider, or deploy.
+- Evidence remains in memory. The tracked JSON is a deterministic sanitized demonstration receipt,
+  not durable approval and not proof that a patch was applied.
 
 ## Frozen deployment boundary
 
-W1 does not modify `render.yaml`, `Dockerfile`, `scripts/render_start.sh`, deployment secrets,
-provider resources, AWS state, DNS, or custom domains. Existing B5/B6 evidence therefore remains
-historical release evidence and was not regenerated for this build-only phase.
+W1 and W2 do not modify repository-root `render.yaml`, `Dockerfile`, `scripts/render_start.sh`,
+dependency/lock files, portable startup, deployment secrets, provider resources, AWS state, DNS, or
+custom domains. Existing B5/B6 evidence therefore remains valid historical release evidence and is
+not regenerated. W3 patch authority is a separate future audit and is not implied by this document.
