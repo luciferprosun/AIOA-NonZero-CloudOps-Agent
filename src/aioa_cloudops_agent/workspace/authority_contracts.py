@@ -42,7 +42,7 @@ def _utc(name: str, value: datetime) -> datetime:
 
 
 class WorkspaceAuthorityState(StrEnum):
-    """Closed W3 lifecycle; no member represents verified runtime success."""
+    """Closed W3/W4 lifecycle with evidence-gated verified success."""
 
     PATCH_PROPOSED = "PATCH_PROPOSED"
     AWAITING_APPROVAL = "AWAITING_APPROVAL"
@@ -51,6 +51,10 @@ class WorkspaceAuthorityState(StrEnum):
     APPLYING = "APPLYING"
     PATCH_APPLIED_UNVERIFIED = "PATCH_APPLIED_UNVERIFIED"
     RECONCILIATION_REQUIRED = "RECONCILIATION_REQUIRED"
+    VERIFYING = "VERIFYING"
+    SUCCESS_WITH_EVIDENCE = "SUCCESS_WITH_EVIDENCE"
+    VERIFICATION_FAILED = "VERIFICATION_FAILED"
+    DEPENDENCY_UNAVAILABLE = "DEPENDENCY_UNAVAILABLE"
 
 
 class WorkspaceApplyStatus(StrEnum):
@@ -482,6 +486,10 @@ class WorkspaceAuthorityAuditEvent(NonZeroContract):
         "EFFECT_OWNED",
         "APPLY_RECORDED",
         "RECONCILIATION_REQUIRED",
+        "RECOVERY_OBSERVED",
+        "VERIFICATION_STARTED",
+        "VERIFICATION_RECORDED",
+        "VERIFICATION_SUCCEEDED",
     ]
     payload_sha256: Sha256Digest
     recorded_at: datetime

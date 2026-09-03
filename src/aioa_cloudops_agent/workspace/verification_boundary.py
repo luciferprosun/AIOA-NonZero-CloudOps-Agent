@@ -240,6 +240,7 @@ class WorkspaceVerificationBoundary:
             if (
                 not stat.S_ISDIR(opened.st_mode)
                 or opened.st_uid != os.getuid()
+                or stat.S_IMODE(opened.st_mode) != 0o700
                 or (opened.st_dev, opened.st_ino)
                 != (binding.root_device, binding.root_inode)
             ):
@@ -275,6 +276,20 @@ class WorkspaceVerificationBoundary:
             relative_path = f"{prefix}/{name}" if prefix else name
             metadata = os.stat(name, dir_fd=descriptor, follow_symlinks=False)
             if stat.S_ISDIR(metadata.st_mode) and not stat.S_ISLNK(metadata.st_mode):
+                expected_directory = relative_path == "scripts"
+                if not expected_directory:
+                    secure = False
+                    artifacts.append(
+                        _DiskArtifact(
+                            relative_path=relative_path,
+                            sha256=None,
+                            size=metadata.st_size,
+                            mode=stat.S_IMODE(metadata.st_mode),
+                            nlink=metadata.st_nlink,
+                            regular=False,
+                            owned=metadata.st_uid == os.getuid(),
+                        )
+                    )
                 flags = (
                     os.O_RDONLY
                     | getattr(os, "O_CLOEXEC", 0)
