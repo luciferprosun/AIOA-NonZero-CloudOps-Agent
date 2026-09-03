@@ -446,7 +446,7 @@ class WorkspaceReconciliationMarker(NonZeroContract):
     run_id: Uuid7Identifier
     workspace_id: Uuid7Identifier
     target_path: Literal["render.yaml"] = W2_TARGET_PATH
-    observed_sha256: Sha256Digest
+    observed_sha256: Sha256Digest | None = None
     before_sha256: Sha256Digest
     after_sha256: Sha256Digest
     reason_code: Literal[
@@ -489,3 +489,32 @@ class WorkspaceAuthorityAuditEvent(NonZeroContract):
     @classmethod
     def validate_event_time(cls, value: datetime) -> datetime:
         return _utc("recorded_at", value)
+
+
+class WorkspaceApprovalResolution(NonZeroContract):
+    """Caller result after a decision is durable and native resume is attempted."""
+
+    proposal_id: Uuid7Identifier
+    run_id: Uuid7Identifier
+    workspace_id: Uuid7Identifier
+    request_hash: Sha256Digest
+    decision: ApprovalDecision
+    state: Literal[
+        WorkspaceAuthorityState.APPROVED,
+        WorkspaceAuthorityState.DENIED_BY_HUMAN,
+        WorkspaceAuthorityState.APPLYING,
+        WorkspaceAuthorityState.PATCH_APPLIED_UNVERIFIED,
+        WorkspaceAuthorityState.RECONCILIATION_REQUIRED,
+    ]
+    native_resume_completed: bool
+    reconciled: bool = False
+    verified_success: Literal[False] = False
+
+    @model_validator(mode="after")
+    def validate_resolution(self) -> Self:
+        if self.decision is ApprovalDecision.DENIED:
+            if self.state is not WorkspaceAuthorityState.DENIED_BY_HUMAN:
+                raise ValueError("denial resolution must be terminal denied state")
+        elif self.state is WorkspaceAuthorityState.DENIED_BY_HUMAN:
+            raise ValueError("approval resolution cannot claim a denied state")
+        return self
