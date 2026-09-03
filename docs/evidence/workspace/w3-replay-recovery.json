@@ -1,0 +1,68 @@
+{
+  "ambiguous_target": {
+    "durable_state": "RECONCILIATION_REQUIRED",
+    "extra_mutations": 0,
+    "failure_code": "WORKSPACE_TARGET_STATE_AMBIGUOUS",
+    "marker": {
+      "after_sha256": "91eb20346909ca23779cdaf773586a9a925ebf59e90113615ecedcd24dc05314",
+      "before_sha256": "b957bbf10af3d711fbfeda271f8ba3b362894f4b02bb8d88239985769a3968db",
+      "effect_id": "01890f6c-3311-7abc-8f4a-6e4f7f0b9b3e",
+      "observed_sha256": "a163d50c2e1cc570bf3f1da6033e37fd6154cc9ea2a9197574a17e3a11b43618",
+      "proposal_id": "01890f6c-3311-7abc-8f4a-6e4f7f0b9b3c",
+      "reason_code": "TARGET_DIGEST_AMBIGUOUS",
+      "recorded_at": "2026-09-03T04:30:00Z",
+      "run_id": "01890f6c-3311-7abc-8f4a-6e4f7f0b9b3a",
+      "status": "RECONCILIATION_REQUIRED",
+      "success_with_evidence": false,
+      "target_path": "render.yaml",
+      "verification_required": true,
+      "workspace_id": "01890f6c-3311-7abc-8f4a-6e4f7f0b9b3e"
+    },
+    "status": "FAILURE"
+  },
+  "aws_calls": 0,
+  "aws_mutations": 0,
+  "crash_after_effect_before_receipt": {
+    "first_mutations": 1,
+    "first_status": "FAILURE",
+    "marker": {
+      "after_sha256": "91eb20346909ca23779cdaf773586a9a925ebf59e90113615ecedcd24dc05314",
+      "before_sha256": "b957bbf10af3d711fbfeda271f8ba3b362894f4b02bb8d88239985769a3968db",
+      "effect_id": "01890f6c-3311-7abc-8f4a-6e4f7f0b9b3e",
+      "observed_sha256": "91eb20346909ca23779cdaf773586a9a925ebf59e90113615ecedcd24dc05314",
+      "proposal_id": "01890f6c-3311-7abc-8f4a-6e4f7f0b9b3c",
+      "reason_code": "TARGET_ALREADY_AFTER_WITHOUT_RECEIPT",
+      "recorded_at": "2026-09-03T04:30:00Z",
+      "run_id": "01890f6c-3311-7abc-8f4a-6e4f7f0b9b3a",
+      "status": "RECONCILIATION_REQUIRED",
+      "success_with_evidence": false,
+      "target_path": "render.yaml",
+      "verification_required": true,
+      "workspace_id": "01890f6c-3311-7abc-8f4a-6e4f7f0b9b3e"
+    },
+    "recovery_extra_mutations": 0,
+    "recovery_failure_code": "WORKSPACE_EFFECT_RECEIPT_MISSING",
+    "recovery_status": "FAILURE",
+    "target_is_exact_after": true
+  },
+  "crash_after_ownership_before_effect": {
+    "final_state": "PATCH_APPLIED_UNVERIFIED",
+    "first_mutations": 0,
+    "first_status": "FAILURE",
+    "resume_mutations": 1,
+    "resume_status": "SUCCESS",
+    "state_after_crash": "APPLYING",
+    "target_is_exact_before": true
+  },
+  "duplicate_completed_apply": {
+    "durable_state": "PATCH_APPLIED_UNVERIFIED",
+    "extra_mutations": 0,
+    "first_receipt_equals_second": true,
+    "total_mutations": 1
+  },
+  "network_connection_count": 0,
+  "process_execution_count": 0,
+  "schema": "AIOA_W3_REPLAY_RECOVERY_EVIDENCE_V1",
+  "source_w2_proposal_digest": "c9d9537e49e8388ba2ca5b92538383ca8c69d0d7fd2f704d2240002414736499",
+  "verified_success_count": 0
+}

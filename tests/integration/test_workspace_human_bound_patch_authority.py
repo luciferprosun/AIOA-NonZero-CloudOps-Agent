@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import json
 import os
 import stat
 from dataclasses import dataclass
@@ -58,6 +59,7 @@ OTHER_WORKSPACE_ID = UUID("01890f6c-3311-7abc-8f4a-6e4f7f0b9b4c")
 PROPOSAL_ID = UUID("01890f6c-3311-7abc-8f4a-6e4f7f0b9b3d")
 EFFECT_ID = UUID("01890f6c-3311-7abc-8f4a-6e4f7f0b9b3e")
 NOW = datetime(2026, 9, 3, 8, 0, tzinfo=UTC)
+CERTIFIED_NOW = datetime(2026, 9, 3, 4, 30, tzinfo=UTC)
 
 
 class MutableClock:
@@ -146,9 +148,58 @@ def _context(tmp_path: Path) -> W3Context:
     )
 
 
+def _certified_context(tmp_path: Path) -> W3Context:
+    proposal = WorkspacePatchProposal.model_validate(
+        json.loads(
+            (ROOT / "docs/evidence/workspace/w2-patch-proposal.json").read_text(
+                encoding="utf-8"
+            )
+        )
+    )
+    clock = MutableClock(CERTIFIED_NOW)
+    materialized = materialize_sealed_fixture(
+        run_id=proposal.run_id,
+        fixture_source=FIXTURE_ROOT,
+        workspace_parent=tmp_path,
+        profile=WORKSPACE_REMEDIATION_V1,
+        workspace_id_factory=lambda: proposal.workspace_id,
+    )
+    jail = WorkspaceJail(materialized)
+    service = WorkspaceEvidenceService(
+        jail,
+        trace_id=proposal.trace_id,
+        clock=clock,
+        event_id_factory=UuidFactory(400),
+    )
+    repository = LocalFileWorkspaceAuthorityRepository(
+        tmp_path / "authority" / "state.json",
+        clock=clock,
+        event_id_factory=UuidFactory(500),
+    )
+    authority = WorkspaceAuthorityService(repository, clock=clock)
+    authority.persist_proposal(proposal)
+    executor = WorkspaceAtomicPatchExecutor(
+        jail,
+        repository,
+        clock=clock,
+        effect_id_factory=lambda: EFFECT_ID,
+    )
+    return W3Context(
+        root=materialized.root,
+        jail=jail,
+        service=service,
+        proposal=proposal,
+        repository=repository,
+        authority=authority,
+        executor=executor,
+        clock=clock,
+    )
+
+
 def _request(context: W3Context, interrupt_id: str = "v1:before_tool_call:w3-patch-1"):
-    context.authority.begin_approval(PROPOSAL_ID)
-    return context.authority.record_interrupt(PROPOSAL_ID, interrupt_id)
+    proposal_id = context.proposal.proposal_id
+    context.authority.begin_approval(proposal_id)
+    return context.authority.record_interrupt(proposal_id, interrupt_id)
 
 
 def _decide(context: W3Context, decision: ApprovalDecision):
@@ -192,6 +243,33 @@ def test_payload_is_exactly_derived_from_durable_w2_proposal(tmp_path: Path) -> 
         context.proposal.preview.unified_diff.encode()
     ).hexdigest()
     assert "model" not in payload.model_dump_json().casefold()
+
+
+def test_certified_w2_identity_anchors_apply_without_hardcoded_executor_values(
+    tmp_path: Path,
+) -> None:
+    context = _certified_context(tmp_path)
+    request, _, _ = _decide(context, ApprovalDecision.APPROVED)
+
+    result = context.executor.apply(context.proposal.proposal_id)
+
+    assert result.status is ResultStatus.SUCCESS and result.value is not None
+    assert request.payload.base_root_digest == (
+        "84172797b4203b01e7404649449ac7b6468e94b88e7aba9b2104d18c01668db8"
+    )
+    assert request.payload.target_before_sha256 == (
+        "b957bbf10af3d711fbfeda271f8ba3b362894f4b02bb8d88239985769a3968db"
+    )
+    assert request.payload.canonical_after_sha256 == (
+        "91eb20346909ca23779cdaf773586a9a925ebf59e90113615ecedcd24dc05314"
+    )
+    assert request.payload.patch_digest == (
+        "73be5422645433ca51371ab992854e028149c9a06753b61e1d66bfe5ed0ee5f0"
+    )
+    assert request.payload.evidence_digest == (
+        "4de8a59272f4f9cf57e2ad3c679897c2a9610d3fef858d0139268bb852ff6675"
+    )
+    assert result.value.after_sha256 == request.payload.canonical_after_sha256
 
 
 @pytest.mark.parametrize(
@@ -844,3 +922,33 @@ def test_audit_timeline_records_authority_order_without_verified_success(
         "APPLY_RECORDED",
     )
     assert all("SUCCESS" not in event.event_type for event in snapshot.audit_events)
+
+
+def test_tracked_w3_evidence_is_sanitized_and_binds_certified_w2() -> None:
+    evidence_root = ROOT / "docs/evidence/workspace"
+    approve = json.loads((evidence_root / "w3-approve-apply.json").read_text())
+    deny = json.loads((evidence_root / "w3-deny.json").read_text())
+    recovery = json.loads((evidence_root / "w3-replay-recovery.json").read_text())
+    certified = "c9d9537e49e8388ba2ca5b92538383ca8c69d0d7fd2f704d2240002414736499"
+
+    assert approve["source_w2_proposal_digest"] == certified
+    assert approve["approval_payload"]["evidence_digest"] == (
+        "4de8a59272f4f9cf57e2ad3c679897c2a9610d3fef858d0139268bb852ff6675"
+    )
+    assert approve["workspace_mutation_count"] == 1
+    assert approve["changed_paths"] == ["render.yaml"]
+    assert approve["receipt"]["status"] == "APPLIED_UNVERIFIED"
+    assert approve["receipt"]["success_with_evidence"] is False
+    assert deny["source_w2_proposal_digest"] == certified
+    assert deny["workspace_mutation_count"] == 0
+    assert deny["tree_unchanged"] is True
+    assert recovery["source_w2_proposal_digest"] == certified
+    assert recovery["duplicate_completed_apply"]["extra_mutations"] == 0
+    assert recovery["crash_after_effect_before_receipt"][
+        "recovery_extra_mutations"
+    ] == 0
+    rendered = json.dumps((approve, deny, recovery), sort_keys=True).casefold()
+    assert "/media/" not in rendered
+    assert "/home/" not in rendered
+    assert "aioa_operator_token" not in rendered
+    assert "w3-decision-nonce-0001" not in rendered
