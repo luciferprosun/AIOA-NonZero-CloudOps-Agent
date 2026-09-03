@@ -4,9 +4,10 @@
 
 Phase W1 provides a sealed, deterministic, read-only workspace for investigating one sanitized
 deployment incident. Phase W2 extends only that additive profile with one deterministic,
-proof-carrying patch proposal. The proposal is constructed in memory and is inert: it neither
-applies bytes nor grants authority to do so. Neither phase migrates or alters the canonical
-CloudOps agent or exposes a general execution platform.
+proof-carrying patch proposal. Phase W3 adds a separate exact-six-tool runtime that can apply only
+that proposal after a durable native human decision. It mutates only a disposable materialized
+workspace copy and stops at `PATCH_APPLIED_UNVERIFIED`. None of these phases migrates or alters the
+canonical CloudOps agent or exposes a general execution platform.
 
 The governing invariant is unchanged:
 
@@ -14,6 +15,8 @@ The governing invariant is unchanged:
 MODEL_OUTPUT != EXECUTION_AUTHORITY
 PATCH_PROPOSAL != PATCH_AUTHORITY
 PATCH_PREVIEW != FILE_MUTATION
+HUMAN_APPROVAL != VERIFIED_SUCCESS
+PATCH_APPLIED != VERIFIED_SUCCESS
 ```
 
 The sealed workspace authority envelope still contains only inspect, list, bounded read, and
@@ -38,6 +41,12 @@ WorkspaceJail -> WorkspaceEvidenceService -> four evidence tools ---+
                                                              |
                                                              v
                                     fifth inert Strands tool -> exact preview
+                                                             |
+                                  durable proposal + native human approval
+                                                             |
+                         proposal-id-only sixth tool -> private atomic executor
+                                                             |
+                                           PATCH_APPLIED_UNVERIFIED
 ```
 
 The model sees opaque run/workspace identity and relative artifact names. It never receives or
@@ -181,8 +190,14 @@ W2 adds exactly one composition tool:
 Its only model-controlled argument is the closed remediation enum. It snapshots retained evidence,
 calls the pure builder, and returns exact proposal data.
 
-No write, delete, move, chmod, process, package, Git, browser, MCP, URL, network, or arbitrary host
-path operation is registered.
+W3's separate authority runtime adds exactly one tool:
+
+6. `apply_approved_workspace_patch`
+
+Its input schema contains only `proposal_id`. It cannot accept target, path, patch, before/after
+content, diff, command, argv, cwd, environment, verifier, provider, or deployment data. There is no
+write, delete, move, arbitrary chmod, process, package, Git, browser, MCP, URL, network, or
+arbitrary host-path tool.
 
 ## Strands investigation and proposal profile
 
@@ -199,15 +214,74 @@ alternative hypotheses, but only server code constructs the patch. A determinist
 test exercises the complete evidence/proposal path and proves the answer references observed
 artifacts while fixture content stays unchanged.
 
-The canonical CloudOps factory and its five tools remain byte-for-byte unchanged. W1/W2 use their
-own explicit factory and do not expand the CloudOps runtime profile.
+The canonical CloudOps factory and its five tools remain byte-for-byte unchanged. The historical
+W1/W2 investigation factory retains its five-tool behavior for compatibility. W3 composes the same
+five tools in `create_workspace_authority_agent` and adds only the exact approval-bound sixth tool.
+The native intervention freely allows the read/proposal tools and generates a confirmation for the
+sixth only while durable state is `AWAITING_APPROVAL`. Its prompt is rendered from the stored W2
+proposal. On resume, the application persists the exact human decision before allowing Strands to
+re-evaluate the pending tool call.
+
+## W3 durable authority
+
+`LocalFileWorkspaceAuthorityRepository` uses the same local persistence discipline as AIOA's
+existing durable store: a strict versioned payload, canonical SHA-256 integrity envelope,
+owner-only state and lock files, process locking, private temporary output, `fsync`, atomic
+replacement, and directory `fsync`. Records are workspace-specific; no patch fact is placed in an
+EC2 `ActionTarget`.
+
+The durable sequence is:
+
+```text
+PATCH_PROPOSED
+  -> AWAITING_APPROVAL
+     -> DENIED_BY_HUMAN
+     -> APPROVED
+        -> APPLYING
+           -> PATCH_APPLIED_UNVERIFIED
+           -> RECONCILIATION_REQUIRED
+```
+
+The repository retains the complete validated W2 proposal and digest, the native interrupt plus
+canonical request hash, actor-session and decision-nonce-hash-bound human decision, effect
+ownership, apply receipt or reconciliation marker, and a content-addressed audit timeline.
+Identical requests/decisions reconcile; conflicting identities or nonces fail closed. Request and
+decision contracts echo run, trace, workspace, fixture, base, target-before, candidate-after,
+patch, evidence, support, version, expiry, and verification-profile identities. UI layout and
+model rationale are outside the hash.
+
+## W3 private atomic executor
+
+The executor receives only `proposal_id` and reloads every mutation fact from durable state. Before
+effect it verifies exact approval, expiry, workspace/run/fixture/base identity, single-link regular
+target, complete sealed manifest, target-before digest, supporting startup script and runtime
+contract, canonical candidate, structured patch digest, and unchanged scope. It then durably
+transitions to `APPLYING` with an idempotency/effect owner before opening any writable candidate.
+
+The candidate is created in the target directory with `O_CREAT|O_EXCL|O_NOFOLLOW`, mode `0600`,
+written from `proposal.preview.after_text`, normalized to the documented canonical target mode
+`0400`, and `fsync`ed. The target is independently reopened and rechecked immediately before
+`os.replace`. The directory is `fsync`ed; the target is independently reopened and hashed; the
+complete post-apply artifact set must show exactly `render.yaml` changed. Temporary filenames are
+hidden and never part of the allowlisted tool surface.
+
+The resulting `PatchApplyReceipt` binds effect/idempotency/proposal/run/trace/workspace/fixture,
+before/after/patch/request identities, changed path, post-root digest, and timestamps. Its literal
+fields require `APPLIED_UNVERIFIED`, `verification_required=true`,
+`success_with_evidence=false`, and `verified_success=false`.
+
+Crash recovery never blindly repeats an ambiguous effect. `APPROVED` before ownership can proceed.
+`APPLYING` plus exact before bytes may resume under the same ownership; exact after bytes without a
+receipt or any other target state becomes `RECONCILIATION_REQUIRED`. A persisted receipt always
+returns existing effect truth without rewriting. W4 owns independent runtime verification and
+reconciliation.
 
 ## Authority classification
 
 | Class | W1/W2 operations |
 | --- | --- |
 | `AUTO` | inspect sealed metadata; list allowlisted artifacts; bounded read; SHA-256 hash; build inert proposal data |
-| `PLAN_AND_CONFIRM` | any future application of the exact proposal; not implemented or authorized in W2 |
+| `PLAN_AND_CONFIRM` | W3 application of the exact durable proposal after native human confirmation |
 | `NEVER_AUTONOMOUS` | arbitrary paths/URLs; network; filesystem mutation; process execution; package install; Git mutation; deployment |
 
 ## Threat model and known limits
@@ -221,14 +295,17 @@ own explicit factory and do not expand the CloudOps runtime profile.
 - The workspace agent is deliberately portable/mock-only and has no external provider or network path.
 - The profile is a library foundation, not a new public HTTP route and not part of the current
   Render startup path.
-- W2 can propose only the one frozen structured patch. It cannot apply a patch, mutate a workspace,
-  run a process/test, operate Git, install packages, browse, call MCP, access a provider, or deploy.
+- W2 can propose only the one frozen structured patch. W3 can apply it only to the private
+  materialized copy after durable approval. Neither can run a process/test, operate Git, install
+  packages, browse, call MCP, access a provider, or deploy.
+- W3 is intentionally not connected to the public portable server or Render. Its receipt proves a
+  file effect, not runtime correctness.
 - Evidence remains in memory. The tracked JSON is a deterministic sanitized demonstration receipt,
   not durable approval and not proof that a patch was applied.
 
 ## Frozen deployment boundary
 
-W1 and W2 do not modify repository-root `render.yaml`, `Dockerfile`, `scripts/render_start.sh`,
+W1, W2, and W3 do not modify repository-root `render.yaml`, `Dockerfile`, `scripts/render_start.sh`,
 dependency/lock files, portable startup, deployment secrets, provider resources, AWS state, DNS, or
-custom domains. Existing B5/B6 evidence therefore remains valid historical release evidence and is
-not regenerated. W3 patch authority is a separate future audit and is not implied by this document.
+custom domains. W3 changes only disposable test/materialized workspace copies. Existing B5/B6
+evidence therefore remains valid historical release evidence and is not regenerated.

@@ -69,11 +69,16 @@
 - LOCAL_FIRST_LIVE_MODE = FAIL_CLOSED_UNAVAILABLE
 - WORKSPACE_REMEDIATION_W1 = COMPLETE_HERITAGE_AWARE_SEALED_READ_ONLY_FOUNDATION
 - WORKSPACE_REMEDIATION_HERITAGE_MAP = COMPLETE_NO_LEGACY_RUNTIME_IMPORT
-- WORKSPACE_REMEDIATION_PROFILE = FIXED_V1_INSPECT_LIST_READ_HASH_ONLY
+- WORKSPACE_REMEDIATION_PROFILE = FIXED_V1_READ_PROPOSAL_PLUS_EXACT_HUMAN_BOUND_APPLY
 - WORKSPACE_REMEDIATION_FIXTURE = COMPLETE_SANITIZED_RENDER_START_INCIDENT
 - WORKSPACE_REMEDIATION_JAIL = COMPLETE_PATH_IDENTITY_DIGEST_AND_INODE_CONFINEMENT
-- WORKSPACE_REMEDIATION_AGENT = COMPLETE_ONE_AGENT_FOUR_READ_ONLY_TOOLS_MOCK_ONLY
-- WORKSPACE_REMEDIATION_W2 = NOT_STARTED_REQUIRES_SEPARATE_AUDIT
+- WORKSPACE_REMEDIATION_AGENT = COMPLETE_W3_EXACT_SIX_TOOL_PORTABLE_MOCK_PROFILE
+- WORKSPACE_REMEDIATION_W2 = COMPLETE_STRUCTURED_NON_APPLYING_PROPOSAL
+- WORKSPACE_REMEDIATION_W3 = COMPLETE_HUMAN_BOUND_AT_MOST_ONCE_ATOMIC_APPLY_UNVERIFIED
+- W3_DURABLE_APPROVAL = COMPLETE_PROPOSAL_REQUEST_ACTOR_NONCE_AND_DECISION_BINDING
+- W3_ATOMIC_EFFECT = COMPLETE_RENDER_YAML_ONLY_PRIVATE_WORKSPACE_COPY
+- W3_EFFECT_STATE = PATCH_APPLIED_UNVERIFIED
+- W3_INDEPENDENT_VERIFICATION = DEFERRED_TO_W4
 - AGENTCORE = NOT_STARTED_DAY16_OPTIONAL
 - DEMO = COMPLETE_LOCAL_APPROVE_DENY_ZERO_NETWORK
 - SUBMISSION = DRAFT_AND_RUNBOOK_PREPARED_NOT_EXTERNALLY_SUBMITTED
@@ -117,7 +122,11 @@
 - W2_EXACT_TOOL_SURFACE = 5_OF_5
 - W2_WORKSPACE_MUTATION_DELTA = 0
 - W2_FULL_REGRESSION = 1549_OF_1549
-- NEXT_MACRO_STEP = W3_HUMAN_BOUND_PATCH_AUTHORITY_REQUIRES_SEPARATE_AUDITED_PROMPT
+- W3_EXACT_TOOL_SURFACE = 6_OF_6
+- W3_APPROVE_MUTATION_COUNT = 1
+- W3_DENY_MUTATION_COUNT = 0
+- W3_PROCESS_NETWORK_AWS_MUTATIONS = 0
+- NEXT_MACRO_STEP = W4_INDEPENDENT_VERIFICATION_AND_RECOVERY_REQUIRES_SEPARATE_AUDIT
 
 ## W1 sealed workspace foundation
 
@@ -149,9 +158,30 @@ Repository-root deployment/runtime inputs remain hash-identical to W1, so B5/B6 
 not required. See `docs/audits/W2_STRUCTURED_PATCH_PROPOSAL_2026-09-03.md` and
 `docs/evidence/workspace/w2-patch-proposal.json`.
 
-W3 is not authorized by this status. `READY_FOR_W3_HUMAN_BOUND_PATCH_AUTHORITY=YES` records only a
-certified prerequisite. A separate reviewed W3 prompt is required before any patch application,
-approval consumption, workspace process, Git operation, provider action, or deployment.
+## W3 human-bound exact patch authority
+
+W3 is complete on `codex/w3-human-bound-patch-authority`. A workspace-specific durable adapter
+persists the full W2 proposal, native Strands interrupt/request hash, human actor/nonce-bound
+decision, write-before-effect ownership, and final apply receipt or reconciliation marker. The W3
+runtime has exactly six tools; only `apply_approved_workspace_patch` can mutate, and it accepts
+`proposal_id` only.
+
+The private executor revalidates the complete proposal and sealed workspace, writes the exact
+approved after bytes to an owner-only same-directory temporary file, rechecks the target, uses
+atomic `os.replace`, and proves that exactly `render.yaml` changed. Approval produces exactly one
+mutation and ends at `PATCH_APPLIED_UNVERIFIED`; denial produces zero mutation. Duplicate apply,
+target-before recovery, target-after lost-receipt recovery, and ambiguous target recovery are
+fail-closed and at-most-once.
+
+Repository source, the tracked demo fixture, root deployment files, Render, AWS, DNS, provider
+resources, and paid resources were not mutated. No workspace process/test, network, package, Git,
+browser, MCP, provider, or deployment capability was introduced. See
+`docs/audits/W3_HUMAN_BOUND_PATCH_AUTHORITY_2026-09-03.md` and the three W3 evidence receipts.
+
+W4 is not authorized by this status. `READY_FOR_W4_INDEPENDENT_VERIFICATION_RECOVERY=YES` records
+only a certified prerequisite after the final W3 gate. A separate reviewed W4 prompt is required
+before runtime verification, recovery advancement, deployment, provider action, or any broader
+execution capability.
 
 ## Known Nonblocking Items
 
