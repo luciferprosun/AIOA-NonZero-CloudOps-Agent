@@ -5,9 +5,10 @@
 Phase W1 provides a sealed, deterministic, read-only workspace for investigating one sanitized
 deployment incident. Phase W2 extends only that additive profile with one deterministic,
 proof-carrying patch proposal. Phase W3 adds a separate exact-six-tool runtime that can apply only
-that proposal after a durable native human decision. It mutates only a disposable materialized
-workspace copy and stops at `PATCH_APPLIED_UNVERIFIED`. None of these phases migrates or alters the
-canonical CloudOps agent or exposes a general execution platform.
+that proposal after a durable native human decision. Phase W4 adds an exact-seven-tool runtime
+whose seventh tool accepts only `proposal_id`, independently reopens the disposable workspace,
+and closes success only after a fixed server-owned verification profile passes. None of these
+phases migrates or alters the canonical CloudOps agent or exposes a general execution platform.
 
 The governing invariant is unchanged:
 
@@ -17,6 +18,8 @@ PATCH_PROPOSAL != PATCH_AUTHORITY
 PATCH_PREVIEW != FILE_MUTATION
 HUMAN_APPROVAL != VERIFIED_SUCCESS
 PATCH_APPLIED != VERIFIED_SUCCESS
+EXECUTOR_RECEIPT != VERIFIED_SUCCESS
+ACTION_ACKNOWLEDGEMENT != SUCCESS
 ```
 
 The sealed workspace authority envelope still contains only inspect, list, bounded read, and
@@ -47,6 +50,10 @@ WorkspaceJail -> WorkspaceEvidenceService -> four evidence tools ---+
                          proposal-id-only sixth tool -> private atomic executor
                                                              |
                                            PATCH_APPLIED_UNVERIFIED
+                                                             |
+                          fresh server-owned reopen + fixed trusted profile
+                                                             |
+                          durable report -> receipt -> SUCCESS_WITH_EVIDENCE
 ```
 
 The model sees opaque run/workspace identity and relative artifact names. It never receives or
@@ -199,6 +206,15 @@ content, diff, command, argv, cwd, environment, verifier, provider, or deploymen
 write, delete, move, arbitrary chmod, process, package, Git, browser, MCP, URL, network, or
 arbitrary host-path tool.
 
+W4's separate verification runtime adds exactly one tool:
+
+7. `verify_workspace_remediation`
+
+Its input schema also contains only `proposal_id`. The tool cannot accept a path, command, argv,
+cwd, environment, URL, expected value, profile, port, timeout, or executable. Eligibility is
+derived from durable proposal, approval, effect ownership, apply receipt or recovery read-back,
+and current state. Verification is `AUTO` only after those exact server-owned prerequisites pass.
+
 ## Strands investigation and proposal profile
 
 `create_workspace_investigation_agent` creates exactly one Strands agent for this runtime profile,
@@ -240,6 +256,11 @@ PATCH_PROPOSED
         -> APPLYING
            -> PATCH_APPLIED_UNVERIFIED
            -> RECONCILIATION_REQUIRED
+              -> VERIFYING
+                 -> SUCCESS_WITH_EVIDENCE
+                 -> VERIFICATION_FAILED
+                 -> RECONCILIATION_REQUIRED
+                 -> DEPENDENCY_UNAVAILABLE
 ```
 
 The repository retains the complete validated W2 proposal and digest, the native interrupt plus
@@ -276,11 +297,50 @@ receipt or any other target state becomes `RECONCILIATION_REQUIRED`. A persisted
 returns existing effect truth without rewriting. W4 owns independent runtime verification and
 reconciliation.
 
+## W4 independent verification and recovery
+
+`WorkspaceVerificationBoundary` retains only a server-owned mapping from durable workspace ID to
+the private materialized root and trusted fixture source. Every verification performs a new
+descriptor-confined scan. It revalidates the root device/inode/owner/mode, rescans the trusted base
+fixture, recomputes all file identities from disk, rejects links/special files/extra entries, and
+compares the complete current manifest to the sealed base. It never consumes executor-returned
+content or a cached post-state as truth.
+
+The independent report proves that exactly `render.yaml` differs, its bytes equal the approved
+candidate hash, the old folded inline command is absent, the fixed executable occurs once, and
+`scripts/render_start.sh` plus `expected_runtime_contract.json` remain byte-identical to their W2
+bindings. An apply receipt is only a referenced evidence input; it cannot override any fresh
+mismatch.
+
+`render_start_contract_v1` is implemented as a fixed AIOA-owned repository helper with a
+no-argument API. Keeping its explicit process/network imports under `scripts/` preserves the
+canonical CloudOps package's no-shell/no-network-client source boundary. It launches only
+`python -m aioa_cloudops_agent.portable_server`, from trusted repository/package code, on loopback
+with an ephemeral port, synthetic token, mock provider, AWS disabled, fixed timeouts, bounded logs,
+and a child-process non-loopback socket guard. It proves missing-token
+fail-closed behavior, token mode `0600`, bootstrap-secret removal from the child environment,
+exact argv, `/health`, `/ready`, zero external egress attempts, and zero AWS calls. It never runs
+the workspace copy of the shell script, workspace Python, tests, `conftest.py`, or Git hooks.
+
+W4 recovery never applies a patch. `APPLYING` plus exact BEFORE is recorded as
+`SAFE_RESUMABLE_FOR_W3_APPLY`. Exact AFTER with no receipt is retained as a distinct
+`RECOVERY_READ_BACK` observation and may enter verification without fabricating the missing
+receipt. A durable receipt plus exact disk state skips apply and verifies. Any other target,
+unexpected artifact, provenance mismatch, or conflicting proof stays failed or reconciliation
+required. Duplicate verification reuses a valid durable report/receipt and performs neither a
+second probe nor a second patch effect.
+
+`WorkspaceVerificationReport` has nineteen checks in one canonical order and a content digest.
+The repository persists that report while state is `VERIFYING`. Only a report with disposition
+`VERIFIED` can create `WorkspaceVerificationReceipt`; only that receipt transition can set
+`SUCCESS_WITH_EVIDENCE`. A human decision, effect ownership, apply receipt, exit status, HTTP 200,
+or model statement cannot bypass this order.
+
 ## Authority classification
 
 | Class | W1/W2 operations |
 | --- | --- |
-| `AUTO` | inspect sealed metadata; list allowlisted artifacts; bounded read; SHA-256 hash; build inert proposal data |
+| `AUTO` | inspect sealed metadata; list allowlisted artifacts; bounded read; SHA-256 hash; build inert proposal data; verify an eligible exact effect through the fixed W4 profile |
 | `PLAN_AND_CONFIRM` | W3 application of the exact durable proposal after native human confirmation |
 | `NEVER_AUTONOMOUS` | arbitrary paths/URLs; network; filesystem mutation; process execution; package install; Git mutation; deployment |
 
@@ -298,14 +358,16 @@ reconciliation.
 - W2 can propose only the one frozen structured patch. W3 can apply it only to the private
   materialized copy after durable approval. Neither can run a process/test, operate Git, install
   packages, browse, call MCP, access a provider, or deploy.
-- W3 is intentionally not connected to the public portable server or Render. Its receipt proves a
-  file effect, not runtime correctness.
+- W4 is intentionally not connected to the public portable server or Render. Its fixed loopback
+  probe proves the sealed remediation contract, not a live Render deployment.
+- The verifier has one internal fixed process probe. This is not a registered model capability;
+  model process capabilities, workspace-code executions, and arbitrary commands remain zero.
 - Evidence remains in memory. The tracked JSON is a deterministic sanitized demonstration receipt,
   not durable approval and not proof that a patch was applied.
 
 ## Frozen deployment boundary
 
-W1, W2, and W3 do not modify repository-root `render.yaml`, `Dockerfile`, `scripts/render_start.sh`,
+W1, W2, W3, and W4 do not modify repository-root `render.yaml`, `Dockerfile`, `scripts/render_start.sh`,
 dependency/lock files, portable startup, deployment secrets, provider resources, AWS state, DNS, or
 custom domains. W3 changes only disposable test/materialized workspace copies. Existing B5/B6
 evidence therefore remains valid historical release evidence and is not regenerated.

@@ -1,0 +1,231 @@
+{
+  "approved_effect": {
+    "approval_request_hash": "9f8a1a8d1d850059646e589cd7afea6f6d97a13fa5e8cb3e197b3a91ac4a99e1",
+    "effect_id": "01890f6c-3311-7abc-8f4a-6e4f7f0b9b3e",
+    "expected_after_sha256": "91eb20346909ca23779cdaf773586a9a925ebf59e90113615ecedcd24dc05314",
+    "patch_digest": "73be5422645433ca51371ab992854e028149c9a06753b61e1d66bfe5ed0ee5f0",
+    "proposal_id": "01890f6c-3311-7abc-8f4a-6e4f7f0b9b3c",
+    "target_before_sha256": "b957bbf10af3d711fbfeda271f8ba3b362894f4b02bb8d88239985769a3968db"
+  },
+  "audit_event_order": [
+    "PROPOSAL_PERSISTED",
+    "APPROVAL_REQUESTED",
+    "DECISION_RECORDED",
+    "EFFECT_OWNED",
+    "APPLY_RECORDED",
+    "VERIFICATION_STARTED",
+    "VERIFICATION_RECORDED",
+    "VERIFICATION_SUCCEEDED"
+  ],
+  "capability_accounting": {
+    "arbitrary_command_executions": 0,
+    "aws_mutations": 0,
+    "model_process_capabilities_registered": 0,
+    "render_actions": 0,
+    "verifier_aws_calls": 0,
+    "verifier_external_egress": 0,
+    "verifier_fixed_process_probes": 1,
+    "workspace_code_executions": 0
+  },
+  "executor_receipt": {
+    "after_sha256": "91eb20346909ca23779cdaf773586a9a925ebf59e90113615ecedcd24dc05314",
+    "approval_request_hash": "9f8a1a8d1d850059646e589cd7afea6f6d97a13fa5e8cb3e197b3a91ac4a99e1",
+    "before_sha256": "b957bbf10af3d711fbfeda271f8ba3b362894f4b02bb8d88239985769a3968db",
+    "changed_paths": [
+      "render.yaml"
+    ],
+    "completed_at": "2026-09-03T12:00:00Z",
+    "effect_id": "01890f6c-3311-7abc-8f4a-6e4f7f0b9b3e",
+    "fixture_version": "workspace_render_incident_v1",
+    "idempotency_key": "workspace-patch:c9d9537e49e8388ba2ca5b92538383ca8c69d0d7fd2f704d2240002414736499",
+    "patch_digest": "73be5422645433ca51371ab992854e028149c9a06753b61e1d66bfe5ed0ee5f0",
+    "post_apply_root_digest": "37db9e24ae3c34de91d3efc91453131871dfecbe74b513e235ab05ba368408e3",
+    "proposal_id": "01890f6c-3311-7abc-8f4a-6e4f7f0b9b3c",
+    "run_id": "01890f6c-3311-7abc-8f4a-6e4f7f0b9b3a",
+    "started_at": "2026-09-03T12:00:00Z",
+    "status": "APPLIED_UNVERIFIED",
+    "success_with_evidence": false,
+    "target_path": "render.yaml",
+    "trace_id": "01890f6c-3311-7abc-8f4a-6e4f7f0b9b3b",
+    "verification_required": true,
+    "verified_success": false,
+    "workspace_id": "01890f6c-3311-7abc-8f4a-6e4f7f0b9b3e"
+  },
+  "final_terminal_state": "SUCCESS_WITH_EVIDENCE",
+  "independent_verification": {
+    "actual_after_sha256": "91eb20346909ca23779cdaf773586a9a925ebf59e90113615ecedcd24dc05314",
+    "actual_changed_paths": [
+      "render.yaml"
+    ],
+    "actual_runtime_contract_sha256": "8bf5a36539ea313a578e194e1c84568586770cc792d60709ebde106df9325178",
+    "actual_start_script_sha256": "d350917c132a338605f630fde97a2ac017e1664fe9cf413a7153827326e6d250",
+    "apply_receipt_digest": "a90cf040dcec09b19f8d46c22c56096ce350608ca11b4ccf50c391885adffb01",
+    "base_root_digest": "84172797b4203b01e7404649449ac7b6468e94b88e7aba9b2104d18c01668db8",
+    "checks": [
+      {
+        "code": "PROPOSAL_BINDING",
+        "expected": "exact-durable-proposal",
+        "observed": "exact-durable-proposal",
+        "status": "PASS"
+      },
+      {
+        "code": "APPROVAL_BINDING",
+        "expected": "exact-human-approval",
+        "observed": "exact-human-approval",
+        "status": "PASS"
+      },
+      {
+        "code": "WORKSPACE_PROVENANCE",
+        "expected": "84172797b4203b01e7404649449ac7b6468e94b88e7aba9b2104d18c01668db8",
+        "observed": "84172797b4203b01e7404649449ac7b6468e94b88e7aba9b2104d18c01668db8",
+        "status": "PASS"
+      },
+      {
+        "code": "EXACT_CHANGED_PATH_SET",
+        "expected": "render.yaml",
+        "observed": "render.yaml",
+        "status": "PASS"
+      },
+      {
+        "code": "TARGET_AFTER_HASH",
+        "expected": "91eb20346909ca23779cdaf773586a9a925ebf59e90113615ecedcd24dc05314",
+        "observed": "91eb20346909ca23779cdaf773586a9a925ebf59e90113615ecedcd24dc05314",
+        "status": "PASS"
+      },
+      {
+        "code": "INLINE_DOCKER_COMMAND_ABSENT",
+        "expected": "absent",
+        "observed": "absent",
+        "status": "PASS"
+      },
+      {
+        "code": "FIXED_EXECUTABLE_PRESENT_ONCE",
+        "expected": "exactly-once",
+        "observed": "count=1",
+        "status": "PASS"
+      },
+      {
+        "code": "START_SCRIPT_HASH",
+        "expected": "d350917c132a338605f630fde97a2ac017e1664fe9cf413a7153827326e6d250",
+        "observed": "d350917c132a338605f630fde97a2ac017e1664fe9cf413a7153827326e6d250",
+        "status": "PASS"
+      },
+      {
+        "code": "RUNTIME_CONTRACT_HASH",
+        "expected": "8bf5a36539ea313a578e194e1c84568586770cc792d60709ebde106df9325178",
+        "observed": "8bf5a36539ea313a578e194e1c84568586770cc792d60709ebde106df9325178",
+        "status": "PASS"
+      },
+      {
+        "code": "RENDER_CONFIG_EXACT_AFTER",
+        "expected": "91eb20346909ca23779cdaf773586a9a925ebf59e90113615ecedcd24dc05314",
+        "observed": "91eb20346909ca23779cdaf773586a9a925ebf59e90113615ecedcd24dc05314",
+        "status": "PASS"
+      },
+      {
+        "code": "MISSING_TOKEN_FAILS_CLOSED",
+        "expected": "fail-closed",
+        "observed": "fail-closed",
+        "status": "PASS"
+      },
+      {
+        "code": "TOKEN_FILE_MODE_0600",
+        "expected": "mode=0600",
+        "observed": "mode=0600",
+        "status": "PASS"
+      },
+      {
+        "code": "BOOTSTRAP_SECRET_ABSENT",
+        "expected": "absent",
+        "observed": "absent",
+        "status": "PASS"
+      },
+      {
+        "code": "CHILD_ARGV_EXACT",
+        "expected": "python -m aioa_cloudops_agent.portable_server",
+        "observed": "python -m aioa_cloudops_agent.portable_server",
+        "status": "PASS"
+      },
+      {
+        "code": "HEALTH_CHECK",
+        "expected": "healthy",
+        "observed": "healthy",
+        "status": "PASS"
+      },
+      {
+        "code": "READINESS_CHECK",
+        "expected": "ready",
+        "observed": "ready",
+        "status": "PASS"
+      },
+      {
+        "code": "ZERO_EXTERNAL_EGRESS",
+        "expected": "count=0",
+        "observed": "count=0",
+        "status": "PASS"
+      },
+      {
+        "code": "ZERO_AWS_CALLS",
+        "expected": "count=0",
+        "observed": "count=0",
+        "status": "PASS"
+      },
+      {
+        "code": "NO_WORKSPACE_CODE_EXECUTION",
+        "expected": "count=0",
+        "observed": "count=0",
+        "status": "PASS"
+      }
+    ],
+    "disposition": "VERIFIED",
+    "effect_id": "01890f6c-3311-7abc-8f4a-6e4f7f0b9b3e",
+    "expected_after_sha256": "91eb20346909ca23779cdaf773586a9a925ebf59e90113615ecedcd24dc05314",
+    "expected_changed_paths": [
+      "render.yaml"
+    ],
+    "expected_runtime_contract_sha256": "8bf5a36539ea313a578e194e1c84568586770cc792d60709ebde106df9325178",
+    "fixture_version": "workspace_render_incident_v1",
+    "observed_root_digest": "37db9e24ae3c34de91d3efc91453131871dfecbe74b513e235ab05ba368408e3",
+    "patch_digest": "73be5422645433ca51371ab992854e028149c9a06753b61e1d66bfe5ed0ee5f0",
+    "proposal_id": "01890f6c-3311-7abc-8f4a-6e4f7f0b9b3c",
+    "recovery_observation_digest": null,
+    "report_digest": "a997dc6137fa7799aca45cf493fad00e24e906360a2367eb6e7adc64eb87b5ee",
+    "run_id": "01890f6c-3311-7abc-8f4a-6e4f7f0b9b3a",
+    "supporting_start_script_sha256": "d350917c132a338605f630fde97a2ac017e1664fe9cf413a7153827326e6d250",
+    "trace_id": "01890f6c-3311-7abc-8f4a-6e4f7f0b9b3b",
+    "verification_profile_id": "render_start_contract_v1",
+    "verified_at": "2026-09-03T12:00:00Z",
+    "workspace_id": "01890f6c-3311-7abc-8f4a-6e4f7f0b9b3e"
+  },
+  "recovery_observation": null,
+  "recovery_scenarios": {
+    "ambiguous_state": "RECONCILIATION_REQUIRED",
+    "crash_after_effect_before_receipt": "RECOVERY_READ_BACK_THEN_SUCCESS_WITH_EVIDENCE",
+    "crash_after_receipt_before_verify": "VERIFY_ONLY_THEN_SUCCESS_WITH_EVIDENCE",
+    "crash_before_effect": "SAFE_RESUMABLE_FOR_W3_APPLY",
+    "duplicate_verify": "RECONCILE_EXISTING_PROOF",
+    "second_patch_apply_count": 0
+  },
+  "schema": "AIOA_W4_VERIFICATION_EVIDENCE_V1",
+  "source_w2_proposal_digest": "c9d9537e49e8388ba2ca5b92538383ca8c69d0d7fd2f704d2240002414736499",
+  "source_w3_head": "8827cf9943361c30b3c116e25895f0b99855149e",
+  "verification_receipt": {
+    "apply_receipt_digest": "a90cf040dcec09b19f8d46c22c56096ce350608ca11b4ccf50c391885adffb01",
+    "effect_id": "01890f6c-3311-7abc-8f4a-6e4f7f0b9b3e",
+    "observed_after_sha256": "91eb20346909ca23779cdaf773586a9a925ebf59e90113615ecedcd24dc05314",
+    "proof_origin": "APPLY_RECEIPT",
+    "proposal_id": "01890f6c-3311-7abc-8f4a-6e4f7f0b9b3c",
+    "receipt_digest": "3df3a244d0ee74bc58133f1feaeb4766d91d392dcf3927f0e6673a814727facc",
+    "recovery_observation_digest": null,
+    "report_digest": "a997dc6137fa7799aca45cf493fad00e24e906360a2367eb6e7adc64eb87b5ee",
+    "run_id": "01890f6c-3311-7abc-8f4a-6e4f7f0b9b3a",
+    "success_with_evidence": true,
+    "terminal_state": "SUCCESS_WITH_EVIDENCE",
+    "trace_id": "01890f6c-3311-7abc-8f4a-6e4f7f0b9b3b",
+    "verification_id": "01890f6c-3311-7abc-8f4a-000000000fa0",
+    "verification_profile_id": "render_start_contract_v1",
+    "verified_at": "2026-09-03T12:00:00Z",
+    "verified_success": true,
+    "workspace_id": "01890f6c-3311-7abc-8f4a-6e4f7f0b9b3e"
+  }
+}

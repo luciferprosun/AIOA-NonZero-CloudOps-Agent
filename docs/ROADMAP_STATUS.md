@@ -78,7 +78,15 @@
 - W3_DURABLE_APPROVAL = COMPLETE_PROPOSAL_REQUEST_ACTOR_NONCE_AND_DECISION_BINDING
 - W3_ATOMIC_EFFECT = COMPLETE_RENDER_YAML_ONLY_PRIVATE_WORKSPACE_COPY
 - W3_EFFECT_STATE = PATCH_APPLIED_UNVERIFIED
-- W3_INDEPENDENT_VERIFICATION = DEFERRED_TO_W4
+- W3_INDEPENDENT_VERIFICATION = COMPLETE_BY_W4
+- WORKSPACE_REMEDIATION_W4 = COMPLETE_INDEPENDENT_VERIFICATION_RECOVERY_RECONCILIATION
+- W4_EXACT_TOOL_SURFACE = 7_OF_7
+- W4_INDEPENDENT_REOPEN = COMPLETE_SERVER_OWNED_FRESH_DISK_READ_BACK
+- W4_TRUSTED_PROFILE = COMPLETE_RENDER_START_CONTRACT_V1_LOOPBACK_ONLY
+- W4_RECOVERY = COMPLETE_NO_SECOND_PATCH_APPLY
+- W4_EFFECT_STATE = SUCCESS_WITH_EVIDENCE
+- W4_MODEL_PROCESS_CAPABILITIES = 0
+- W4_WORKSPACE_CODE_EXECUTIONS = 0
 - AGENTCORE = NOT_STARTED_DAY16_OPTIONAL
 - DEMO = COMPLETE_LOCAL_APPROVE_DENY_ZERO_NETWORK
 - SUBMISSION = DRAFT_AND_RUNBOOK_PREPARED_NOT_EXTERNALLY_SUBMITTED
@@ -126,7 +134,10 @@
 - W3_APPROVE_MUTATION_COUNT = 1
 - W3_DENY_MUTATION_COUNT = 0
 - W3_PROCESS_NETWORK_AWS_MUTATIONS = 0
-- NEXT_MACRO_STEP = W4_INDEPENDENT_VERIFICATION_AND_RECOVERY_REQUIRES_SEPARATE_AUDIT
+- W4_FIXED_PROCESS_PROBES = 1
+- W4_VERIFIER_EXTERNAL_EGRESS = 0
+- W4_VERIFIER_AWS_CALLS = 0
+- NEXT_MACRO_STEP = W5_JUDGE_HERO_INTEGRATION_REQUIRES_SEPARATE_AUDIT
 
 ## W1 sealed workspace foundation
 
@@ -178,10 +189,28 @@ resources, and paid resources were not mutated. No workspace process/test, netwo
 browser, MCP, provider, or deployment capability was introduced. See
 `docs/audits/W3_HUMAN_BOUND_PATCH_AUTHORITY_2026-09-03.md` and the three W3 evidence receipts.
 
-W4 is not authorized by this status. `READY_FOR_W4_INDEPENDENT_VERIFICATION_RECOVERY=YES` records
-only a certified prerequisite after the final W3 gate. A separate reviewed W4 prompt is required
-before runtime verification, recovery advancement, deployment, provider action, or any broader
-execution capability.
+At the W3 checkpoint, `READY_FOR_W4_INDEPENDENT_VERIFICATION_RECOVERY=YES` recorded only a
+certified prerequisite. W4 began later under its separate reviewed prompt; W3 never authorized it
+on its own.
+
+## W4 independent verification and recovery/reconciliation
+
+W4 is complete on `codex/w4-independent-verification-recovery`. It adds strict recovery,
+verification-check, report, and terminal-receipt contracts; a fresh server-owned workspace
+read-back boundary; the fixed `render_start_contract_v1` loopback probe; recovery for all W3 crash
+windows; and the proposal-ID-only seventh tool.
+
+The tracked deterministic proof closes the certified W3 `PATCH_APPLIED_UNVERIFIED` effect as
+`SUCCESS_WITH_EVIDENCE` only after the independent report is durable. Exact BEFORE remains safe
+for W3, lost-receipt exact AFTER uses a distinct recovery observation, ambiguous state remains
+reconciliation required, and duplicate verification performs no second patch or process probe.
+Model process capabilities, workspace code execution, arbitrary commands, verifier external
+egress, verifier AWS calls, Render actions, and root deployment-file mutations remain zero. See
+`docs/audits/W4_INDEPENDENT_VERIFICATION_RECOVERY_2026-09-03.md` and
+`docs/evidence/workspace/w4-verification-report.json`.
+
+W5 is not authorized by this status. `READY_FOR_W5_JUDGE_HERO_INTEGRATION=YES` is only a certified
+handoff field; a separate audited W5 prompt is required.
 
 ## Known Nonblocking Items
 
