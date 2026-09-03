@@ -6,7 +6,7 @@ This judge-facing view is generated from the canonical JSON. It is reviewer proo
 - Day 15 local candidate snapshot: `197db56f828b8ab0b9139a1d3708fb8a58ca336a` (`LOCAL_IMPLEMENTATION_CANDIDATE`)
 - Day 15 additive recovery lineage: `aa941a989a8b8cd0e40367bb130472e9f3c082a7` -> `17d5f4637dbd69a33eff1cbb46282c36b19ce6ad` -> `8e4583ac9341cb7b66de47cf0e7b2a442ac67b32` -> `30c2a30cda0ac6d6e2003166daf6c29bf2c764f0` -> `f2ee79c09ba174ba72cb527b70c095f412151758` -> `36fd17df981dfa593d4e63f6a143410317410763` -> `ce35a67f6491ea92aeef534d0dc4f5dc4a8da7ff` -> `5a6127f43a9251a72203c0eb6c7a903d817599f7` -> `3464bc869e7a11acb5aab61ae279cf196a1ebd0f` -> `41ba5586180e9aa3a25fc5469d42815073a0bbf8` -> `858770d5e5c7b59fa883cc56e06f4a9e915d70c1` -> `5e1904408d402c1e6492d6b2e153a7f1a5c56b58` -> `99f70c43a26ce9715e9b57fde81ca265382dd5f2` -> `197db56f828b8ab0b9139a1d3708fb8a58ca336a`
 - Day 15 gates: `D15-G01, D15-G02, D15-G03, D15-G04, D15-G05, D15-G06, D15-G07, D15-G08, D15-G09, D15-G10`
-- Manifest SHA-256: `f7721c393b06192a0c7453946ebfb3849e424a7f30221e5b3d4238e5547d14d1`
+- Manifest SHA-256: `bdadf7acbb288cee19bb082fb6db946a33597020dc774bf26dd27af69b67ab5a`
 - Primary agents: `1`
 - Canonical tools: `inspect_instance, read_utilization_metrics, build_remediation_evidence, stop_sandbox_instance, verify_instance_state`
 - Bedrock model: `eu.amazon.nova-2-lite-v1:0` in `eu-central-1`
@@ -365,7 +365,7 @@ Local mock execution requires an exact authenticated approval, durable idempoten
 The Local-2 judge surface defaults to loopback and rejects non-loopback binding unless the canonical container server launch supplies explicit container intent; its Render startup script fails closed without an operator token, writes the token with owner-only permissions, removes it from the child environment, and execs the canonical server. The surface remains bearer-bootstrapped into an HttpOnly same-site session, schema-bounded, non-cacheable, and exposes only a sanitized durable evidence timeline.
 
 - Status / kind / scope: `PROVEN` / `TEST` / `Local deterministic`
-- Commit anchor: `af44999efe4bda7aa8b35931377af5eee0b49bbc`
+- Commit anchor: `6b4c294a0d91ed7ba5ee2f84235f74621f11e5ad`
 - Authority source:
   - `scripts/render_start.sh`
   - `src/aioa_cloudops_agent/config/portable_server.py::PortableServerSettings`
@@ -388,8 +388,8 @@ The Local-2 judge surface defaults to loopback and rejects non-loopback binding 
   - `tests/unit/test_local_hitl_api.py::test_public_console_has_strict_csp_and_no_browser_secret_storage`
   - `tests/unit/test_local_hitl_api.py::test_run_view_is_sanitized_and_exposes_bounded_audit_evidence`
   - `tests/unit/test_portable_container_runtime.py::test_container_binding_requires_explicit_intent`
-- Limitations: Proves a local single-operator demo boundary, deterministic sandbox behavior, and the startup script in a local process. The container binds internally to all interfaces, so safe host publication still depends on the documented loopback or isolated-network launch command. It does not attest to a live Render deployment, deployed identity provider, production authorization service, or provider-backed operation.
-- Claim SHA-256: `0c4ee745a15b9ae887309a4cc7538908f57626b7d593fbf933377bc1f813b0a1`
+- Limitations: Proves a local single-operator demo boundary, deterministic sandbox behavior, and the startup script in a local process. The container binds internally to all interfaces, so safe host publication still depends on the documented loopback or isolated-network launch command. The W5 source/UI checkpoint requires later B5/B6 release recertification. It does not attest to a live Render deployment, deployed identity provider, production authorization service, or provider-backed operation.
+- Claim SHA-256: `d8ea7f3b252e7b85ea6289e74c5325b6a598237e531c1a6ef3a31da9da74d8c3`
 
 ### MODEL-AUTHORITY-01
 

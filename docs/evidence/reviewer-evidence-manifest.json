@@ -371,10 +371,10 @@
       ],
       "claim": "The Local-2 judge surface defaults to loopback and rejects non-loopback binding unless the canonical container server launch supplies explicit container intent; its Render startup script fails closed without an operator token, writes the token with owner-only permissions, removes it from the child environment, and execs the canonical server. The surface remains bearer-bootstrapped into an HttpOnly same-site session, schema-bounded, non-cacheable, and exposes only a sanitized durable evidence timeline.",
       "claim_id": "LOCAL2-LOOPBACK-API-01",
-      "commit_anchor": "af44999efe4bda7aa8b35931377af5eee0b49bbc",
+      "commit_anchor": "6b4c294a0d91ed7ba5ee2f84235f74621f11e5ad",
       "evidence_kind": "TEST",
-      "hash": "0c4ee745a15b9ae887309a4cc7538908f57626b7d593fbf933377bc1f813b0a1",
-      "limitations": "Proves a local single-operator demo boundary, deterministic sandbox behavior, and the startup script in a local process. The container binds internally to all interfaces, so safe host publication still depends on the documented loopback or isolated-network launch command. It does not attest to a live Render deployment, deployed identity provider, production authorization service, or provider-backed operation.",
+      "hash": "d8ea7f3b252e7b85ea6289e74c5325b6a598237e531c1a6ef3a31da9da74d8c3",
+      "limitations": "Proves a local single-operator demo boundary, deterministic sandbox behavior, and the startup script in a local process. The container binds internally to all interfaces, so safe host publication still depends on the documented loopback or isolated-network launch command. The W5 source/UI checkpoint requires later B5/B6 release recertification. It does not attest to a live Render deployment, deployed identity provider, production authorization service, or provider-backed operation.",
       "proof_nodes": [
         "tests/integration/test_local_hitl_http_server.py::test_real_loopback_server_exposes_health_and_authenticated_start",
         "tests/integration/test_local_hitl_http_server.py::test_server_refuses_non_loopback_bind",
@@ -675,6 +675,6 @@
     "strands_version": "1.53.0"
   },
   "live_receipts": [],
-  "manifest_hash": "f7721c393b06192a0c7453946ebfb3849e424a7f30221e5b3d4238e5547d14d1",
+  "manifest_hash": "bdadf7acbb288cee19bb082fb6db946a33597020dc774bf26dd27af69b67ab5a",
   "schema_version": "2.0"
 }
