@@ -1278,7 +1278,7 @@ JUDGE_UI_BODY: Final = f"""<!doctype html>
             <p id="hero-decision-copy" class="decision-state">Review the durable request before deciding.</p>
             <div class="controls">
               <button id="hero-review" class="button secondary" type="button" disabled>Review exact request</button>
-              <div class="button-row"><button id="hero-approve" class="button" type="button" disabled>Approve exact patch</button><button id="hero-deny" class="button deny" type="button" disabled>Deny</button></div>
+              <div class="button-row"><button id="hero-approve" class="button" type="button" disabled>Approve exact change</button><button id="hero-deny" class="button deny" type="button" disabled>Deny</button></div>
               <button id="hero-execute" class="button secondary" type="button" disabled>Execute approved patch once</button>
               <button id="hero-verify" class="button secondary" type="button" disabled>Independently verify</button>
               <button id="hero-replay" class="button secondary" type="button" disabled>Prove replay rejection</button>

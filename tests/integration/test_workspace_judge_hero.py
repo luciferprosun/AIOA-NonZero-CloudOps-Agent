@@ -619,3 +619,47 @@ def test_fixed_render_start_profile_proves_local_boot_contract() -> None:
     assert result.readiness_passed is True
     assert result.external_egress_count == result.aws_call_count == 0
     assert result.workspace_code_executions == result.arbitrary_command_executions == 0
+
+
+def test_default_hero_composition_uses_w4_profile_to_authorize_success(
+    tmp_path: Path,
+) -> None:
+    runtime = create_local_hitl_runtime(
+        LocalHitlSettings(
+            state_path=tmp_path / "default-cloudops-truth.json",
+            inventory_path=tmp_path / "default-cloudops-inventory.json",
+        )
+    )
+    authorizer = LocalApiTokenAuthorizer(TOKEN)
+    application = LocalApiApplication(
+        runtime,
+        authorizer,
+        workspace_hero=WorkspaceHeroOrchestrator(
+            tmp_path / "default-workspace-hero",
+            runtime.runtime_settings,
+            nonce_deriver=authorizer.derive_workspace_decision_nonce,
+        ),
+    )
+    approved = _approved(application)
+    applied = _apply(application, approved["run_id"])
+    verified = _verify(application, approved["run_id"])
+
+    assert applied["state"] == "PATCH_APPLIED_UNVERIFIED"
+    assert applied["success_with_evidence"] is False
+    assert verified["state"] == "SUCCESS_WITH_EVIDENCE"
+    assert verified["success_with_evidence"] is True
+    assert verified["verification_receipt_present"] is True
+    assert verified["verification"]["profile_id"] == "render_start_contract_v1"  # type: ignore[index]
+    assert verified["verification"]["checks_passed"] == 19  # type: ignore[index]
+    assert verified["after"] == {
+        "patch_scope": "EXACT",
+        "target_hash": "MATCH",
+        "startup_executable": "FIXED",
+        "token_mode": "0600",
+        "bootstrap_secret_in_child_env": "ABSENT",
+        "health": "PASS",
+        "ready": "PASS",
+        "external_egress": 0,
+        "aws_calls": 0,
+        "final": "SUCCESS_WITH_EVIDENCE",
+    }

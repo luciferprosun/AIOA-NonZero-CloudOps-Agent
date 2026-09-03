@@ -555,7 +555,7 @@ class WorkspaceHeroOrchestrator:
             expected_verification=(
                 "render_start_contract_v1",
                 "token file mode 0600",
-                "bootstrap value absent from child environment",
+                "secret absent from child env",
                 "/health 200",
                 "/ready 200",
             ),
