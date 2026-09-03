@@ -12,7 +12,8 @@ from uuid import UUID
 
 from pydantic import Field, model_validator
 
-from aioa_cloudops_agent.nz import ApprovalDecision, NonZeroContract, generate_event_id
+from aioa_cloudops_agent.nz import ApprovalDecision, generate_event_id
+from aioa_cloudops_agent.nz.contracts import NonZeroContract
 from aioa_cloudops_agent.persistence.local_integrity import (
     LocalIntegrityError,
     atomic_write_private_json,

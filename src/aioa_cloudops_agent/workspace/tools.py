@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Final
@@ -14,7 +14,7 @@ from strands.tools.decorator import DecoratedFunctionTool
 
 from aioa_cloudops_agent.domain import ContractValidationError
 
-from .contracts import WorkspaceRef, WorkspaceRemediationKind
+from .contracts import WorkspacePatchProposal, WorkspaceRef, WorkspaceRemediationKind
 from .evidence import WorkspaceEvidenceService
 from .proposal import WorkspacePatchProposalBuilder
 
@@ -58,6 +58,7 @@ def create_workspace_tools(
     workspace_ref: WorkspaceRef,
     *,
     proposal_builder: WorkspacePatchProposalBuilder | None = None,
+    proposal_sink: Callable[[WorkspacePatchProposal], object] | None = None,
     tracer: Tracer | None = None,
 ) -> WorkspaceToolSet:
     """Bind identity so the model can supply only artifact names or one closed enum."""
@@ -72,6 +73,8 @@ def create_workspace_tools(
         or active_builder.service is not service
     ):
         raise ContractValidationError("proposal_builder must bind the same evidence service")
+    if proposal_sink is not None and not callable(proposal_sink):
+        raise ContractValidationError("proposal_sink must be callable")
     active_tracer = tracer or trace.get_tracer("aioa_cloudops_agent.workspace")
 
     @tool(name=INSPECT_DEPLOYMENT_INCIDENT_TOOL_NAME)
@@ -110,11 +113,14 @@ def create_workspace_tools(
 
         with _span(active_tracer, service, BUILD_WORKSPACE_PATCH_PROPOSAL_TOOL_NAME):
             evidence_snapshot = service.evidence_timeline
-            return active_builder.build(
+            result = active_builder.build(
                 workspace_ref,
                 remediation_kind,
                 evidence_receipts=evidence_snapshot,
-            ).model_dump(mode="json")
+            )
+            if result.value is not None and proposal_sink is not None:
+                proposal_sink(result.value)
+            return result.model_dump(mode="json")
 
     return WorkspaceToolSet(
         inspect_deployment_incident=inspect_deployment_incident,

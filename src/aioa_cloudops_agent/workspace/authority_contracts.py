@@ -10,7 +10,8 @@ from typing import Literal, Self
 from pydantic import Field, field_validator, model_validator
 
 from aioa_cloudops_agent.domain import AuthorityGate
-from aioa_cloudops_agent.nz import ApprovalDecision, NonZeroContract
+from aioa_cloudops_agent.nz import ApprovalDecision
+from aioa_cloudops_agent.nz.contracts import NonZeroContract
 from aioa_cloudops_agent.nz.identifiers import (
     IdempotencyKey,
     NonEmptyText,
