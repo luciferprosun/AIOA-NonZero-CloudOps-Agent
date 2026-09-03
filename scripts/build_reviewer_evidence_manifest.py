@@ -66,7 +66,7 @@ PORTABLE_B4_COMMIT = "a455379eb3de73bf6c1780b3c4726b0778873dd4"
 PORTABLE_B5_CONTAINER_COMMIT = "af44999efe4bda7aa8b35931377af5eee0b49bbc"
 W5_JUDGE_HERO_COMMIT = "6b4c294a0d91ed7ba5ee2f84235f74621f11e5ad"
 W6_SECURITY_FREEZE_COMMIT = "4d133aa9d680c0887bc1f30101c775c13a07f9f8"
-W7_RELEASE_PACKAGING_COMMIT = "7c8a8fdeca9cf0a5d28818141d3e866e0625876c"
+W7_RELEASE_PACKAGING_COMMIT = "758cff24d7107b7b2f617d7c0749e2297ac2205e"
 DAY15_RECOVERY_LINEAGE = (
     DAY15_START_COMMIT,
     DAY15_ORIGINAL_M1_COMMIT,
@@ -351,6 +351,7 @@ def build_claims() -> list[dict[str, Any]]:
                 "scripts/run_w7_container_hero_gate.py::validate_hero_result",
                 "scripts/w4_render_start_profile.py::RenderStartContractV1Profile",
                 "scripts/w7_container_hero_client.py::run_proof",
+                "scripts/w7_container_hero_supervisor.py::main",
             ),
             (
                 "tests/integration/test_local_hitl_http_server.py::"

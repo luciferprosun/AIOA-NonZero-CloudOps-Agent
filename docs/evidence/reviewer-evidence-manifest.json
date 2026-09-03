@@ -364,6 +364,7 @@
         "scripts/run_w7_container_hero_gate.py::validate_hero_result",
         "scripts/w4_render_start_profile.py::RenderStartContractV1Profile",
         "scripts/w7_container_hero_client.py::run_proof",
+        "scripts/w7_container_hero_supervisor.py::main",
         "src/aioa_cloudops_agent/config/portable_server.py::PortableServerSettings",
         "src/aioa_cloudops_agent/local_api/application.py::LocalApiApplication",
         "src/aioa_cloudops_agent/local_api/auth.py::LocalApiTokenAuthorizer.authorize",
@@ -376,9 +377,9 @@
       ],
       "claim": "The Local-2 judge surface defaults to loopback and rejects non-loopback binding unless the canonical container server launch supplies explicit container intent; its Render startup script fails closed without an operator token, writes the token with owner-only permissions, removes it from the child environment, and execs the canonical server. The surface remains bearer-bootstrapped into an HttpOnly same-site session, schema-bounded, non-cacheable, and exposes only a sanitized durable evidence timeline.",
       "claim_id": "LOCAL2-LOOPBACK-API-01",
-      "commit_anchor": "7c8a8fdeca9cf0a5d28818141d3e866e0625876c",
+      "commit_anchor": "758cff24d7107b7b2f617d7c0749e2297ac2205e",
       "evidence_kind": "TEST",
-      "hash": "2f45f5ed0280eb651bb0062101f3439b8a179b35f7d356dca0f458f7abc7309c",
+      "hash": "91e6e56ebf4ad37740ba8373d5b0d18b4dc3fa35ed065070677e6467df57c4cc",
       "limitations": "Proves a local single-operator demo boundary, deterministic sandbox behavior, originating-session binding, the startup script in a local process, and the exact W7 image/helper packaging plus fail-closed container proof contract. Runtime B5/B6 observations remain in separately hash-bound release evidence. The container binds internally to all interfaces, so safe host publication still depends on the documented loopback or isolated-network launch command. It does not attest to a live Render deployment, deployed identity provider, production authorization service, or provider-backed operation.",
       "proof_nodes": [
         "tests/integration/test_local_hitl_http_server.py::test_real_loopback_server_exposes_health_and_authenticated_start",
@@ -683,6 +684,6 @@
     "strands_version": "1.53.0"
   },
   "live_receipts": [],
-  "manifest_hash": "0295cdefc8986284c5a22648bddc184b1761319da453829ff8a981b6ea5405ab",
+  "manifest_hash": "4607cbbd232a78065f1ea39bd6805c83167300de576ac48cd0a6d9e57c2cf252",
   "schema_version": "2.0"
 }

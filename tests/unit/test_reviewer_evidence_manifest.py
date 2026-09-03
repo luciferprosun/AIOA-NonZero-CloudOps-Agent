@@ -790,6 +790,7 @@ def test_local2_claims_are_exactly_anchored_to_their_reviewed_implementations() 
             "scripts/run_w7_container_hero_gate.py::validate_hero_result",
             "scripts/w4_render_start_profile.py::RenderStartContractV1Profile",
             "scripts/w7_container_hero_client.py::run_proof",
+            "scripts/w7_container_hero_supervisor.py::main",
             "src/aioa_cloudops_agent/config/portable_server.py::PortableServerSettings",
             "src/aioa_cloudops_agent/local_api/application.py::LocalApiApplication",
             "src/aioa_cloudops_agent/local_api/auth.py::LocalApiTokenAuthorizer.authorize",
