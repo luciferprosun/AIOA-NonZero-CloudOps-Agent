@@ -1,0 +1,76 @@
+{
+  "attacks": {
+    "api_browser": "PASS",
+    "authority_approval": "PASS",
+    "claims_truth": "PASS",
+    "filesystem_workspace": "PASS",
+    "recovery_dependencies": "PASS",
+    "source_supply_chain": "PENDING_FINAL_GATE"
+  },
+  "capability_accounting": {
+    "arbitrary_process_capabilities_added": 0,
+    "aws_calls": 0,
+    "aws_mutations": 0,
+    "browser_or_mcp_capabilities_added": 0,
+    "external_deployments": 0,
+    "external_egress": 0,
+    "git_mutation_capabilities_added": 0,
+    "package_install_capabilities_added": 0,
+    "paid_resources_created": 0,
+    "render_actions": 0
+  },
+  "certification": {
+    "b4": "PENDING_FINAL_GATE",
+    "canonical_secret_scan": "PENDING_FINAL_GATE",
+    "clean_clone_focused_hero": "PENDING_FINAL_GATE",
+    "full_pytest": "PENDING_FINAL_GATE",
+    "p0": "PASS_15_OF_15_136_PROOFS_ZERO_SKIPS",
+    "p1": "PENDING_FINAL_GATE",
+    "ruff": "PENDING_FINAL_GATE",
+    "w1": "PASS_50_OF_50",
+    "w2": "PASS_34_OF_34",
+    "w3": "PASS_62_OF_62",
+    "w4": "PASS_37_OF_37",
+    "w5": "PASS_28_OF_28",
+    "w6_adversarial": "PASS_50_OF_50"
+  },
+  "confirmed_defects": [
+    {
+      "disposition": "FIXED_AND_REGRESSION_TESTED",
+      "effect_before_fix": "A restarted composition with a different valid operator credential could consume an existing hero approval request.",
+      "fix": "Integrity-sealed hero manifests bind every run operation to the originating actor session.",
+      "id": "W6-CROSS-SESSION-HERO-RUN-TAKEOVER",
+      "severity": "P0"
+    }
+  ],
+  "deployment_input_snapshot": {
+    "Dockerfile_sha256": "4640463904ced78776f5f482510e9f117d7ee2e0b6a8e04c5ba83e349378bc8f",
+    "build_lock_sha256": "d46492123b794c100b45c485f2981c1a12f71388f61439a5a662d850b19039a5",
+    "cloudops_factory_sha256": "4f1b02661a1effab421b3ec6ed506bf50a97c17ca5eb66cf959d201e0a881822",
+    "portable_lock_sha256": "a7be92862cb66b67f2bf5b664f62abee1dbd48d65e2ee12fbcbaa5be2dff5dcd",
+    "pyproject_sha256": "c11d0b6bc5a804599ecebed13753b16918d13d990735ab764cd9e000c08cfc5a",
+    "render_start_sha256": "d350917c132a338605f630fde97a2ac017e1664fe9cf413a7153827326e6d250",
+    "render_yaml_sha256": "c9e351188844ec4236068ffe62fa9747376ec520eabea39c9e92dd30909a645c"
+  },
+  "feature_freeze": "PENDING_FINAL_GATE",
+  "implementation_commits": {
+    "evidence_reanchor": "5d36d28",
+    "operator_session_binding": "7fe3266f2a18836e2d602c3dd42bbc7978637c59",
+    "rotated_token_regression": "4d133aa9d680c0887bc1f30101c775c13a07f9f8"
+  },
+  "schema": "AIOA_W6_SECURITY_RED_TEAM_V1",
+  "starting_point": {
+    "branch": "codex/w5-judge-hero-integration",
+    "head": "484ccf1af3a3001c2146fea7d4459a6feb6bf9d1",
+    "w5_gate": "PASS"
+  },
+  "truth_hierarchy": {
+    "executor_receipt_is_verifier_truth": false,
+    "human_approval_is_success": false,
+    "model_output_is_execution_authority": false,
+    "patch_applied_is_success": false,
+    "success_requires_persisted_independent_verification": true
+  },
+  "unresolved_p0_or_p1_security_blockers": 0,
+  "w6_gate": "PENDING_FINAL_GATE"
+}

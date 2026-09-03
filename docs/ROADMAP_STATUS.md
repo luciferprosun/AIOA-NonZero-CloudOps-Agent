@@ -121,7 +121,7 @@
 - JUDGE_PRIMARY_FLOW = COMPLETE_OBSERVE_EVIDENCE_PROPOSAL_POLICY_HUMAN_EXECUTE_VERIFY_RECEIPT
 - JUDGE_EVIDENCE_TIMELINE = COMPLETE_DURABLE_SANITIZED
 - JUDGE_MODE_TRUTH = COMPLETE_DEMO_SANDBOX_PORTABLE_MOCK_ZERO_REAL_CLOUD_WRITES
-- JUDGE_RESPONSIVE_UX = COMPLETE_DESKTOP_AND_PHONE_REFERENCE_CAPTURES
+- JUDGE_RESPONSIVE_UX = COMPLETE_RESPONSIVE_CONTRACT_TESTS_WORKSPACE_HERO_SCREENSHOTS_NOT_CAPTURED
 - JUDGE_REFRESH_REPLAY_STALE_TAB = COMPLETE_FAIL_CLOSED_AND_TESTED
 - REQUIRED_CORE_AWS_INTEGRATIONS = 0
 - PORTABLE_ONE_COMMAND_DEMO = python -m aioa_cloudops_agent.portable
@@ -149,7 +149,12 @@
 - W5_AWS_CALLS_AND_MUTATIONS = 0
 - W5_DEPLOYMENT_FILES_CHANGED = FALSE
 - W5_FINAL_RC_B5_B6_RECERTIFICATION_REQUIRED = TRUE
-- NEXT_MACRO_STEP = W6_SECURITY_FEATURE_FREEZE_REQUIRES_SEPARATE_AUDIT
+- WORKSPACE_REMEDIATION_W6 = SECURITY_RED_TEAM_FEATURE_FREEZE_CANDIDATE
+- W6_OPERATOR_SESSION_BINDING = COMPLETE_ORIGINATING_SESSION_FAIL_CLOSED
+- W6_NEW_ADVERSARIAL_TESTS = PASS_50_OF_50
+- W6_UNRESOLVED_P0_P1_SECURITY_BLOCKERS = 0
+- W6_FEATURE_FREEZE = PENDING_FINAL_CERTIFICATION
+- NEXT_MACRO_STEP = COMPLETE_W6_FINAL_CERTIFICATION_BEFORE_W7
 
 ## W1 sealed workspace foundation
 
@@ -246,7 +251,22 @@ generic patch, package, Git, browser/MCP, remote URL, deployment, or new AWS cap
 
 Repository-root deployment files remain unchanged, and no Render/AWS/provider action occurred.
 Historical B5/B6 evidence is preserved but predates W5 runtime/UI source; final RC B5/B6
-recertification is therefore required later. W6 is not started or authorized by this status.
+recertification is therefore required later.
+
+## W6 security red-team and feature freeze
+
+W6 has completed its hostile-path implementation and focused proof on
+`codex/w6-security-feature-freeze`. The red team retained all W1-W5 invariants and confirmed one
+cross-session takeover defect at the W5 composition boundary: a restarted application using a
+different valid operator token could reach an existing awaiting hero request. Hero manifests now
+bind the originating actor session, and every run operation rejects a different authenticated
+session before authority or effect work. The rotated-token regression, complete 50-case W6 suite
+and retained 211-case W1-W5 suite pass.
+
+The product feature set is frozen in `docs/security/FEATURE_FREEZE.md`; generic coding, shell,
+arbitrary file mutation, Git, package-install, browser/MCP, live-AWS-core and hosted multi-user
+capabilities remain not implemented. Full P1/B4/regression/secret/clean-clone certification is
+still required before this status may say `W6_GATE=PASS` or authorize W7.
 
 ## Known Nonblocking Items
 
