@@ -365,17 +365,24 @@ def test_different_authenticated_operator_cannot_consume_an_existing_request(
     )
     first_authorizer = LocalApiTokenAuthorizer(TOKEN)
     profile = CountingPassingProfile()
-    hero = WorkspaceHeroOrchestrator(
+    first_hero = WorkspaceHeroOrchestrator(
         tmp_path / "shared-hero",
         runtime.runtime_settings,
         nonce_deriver=first_authorizer.derive_workspace_decision_nonce,
         profile_factory=lambda: profile,
     )
-    first = LocalApiApplication(runtime, first_authorizer, workspace_hero=hero)
+    first = LocalApiApplication(runtime, first_authorizer, workspace_hero=first_hero)
+    second_authorizer = LocalApiTokenAuthorizer(SECOND_TOKEN)
+    restarted_hero = WorkspaceHeroOrchestrator(
+        tmp_path / "shared-hero",
+        runtime.runtime_settings,
+        nonce_deriver=second_authorizer.derive_workspace_decision_nonce,
+        profile_factory=lambda: profile,
+    )
     second = LocalApiApplication(
         runtime,
-        LocalApiTokenAuthorizer(SECOND_TOKEN),
-        workspace_hero=hero,
+        second_authorizer,
+        workspace_hero=restarted_hero,
     )
     started = _start(first)
     requested = _request_approval(first, started["run_id"])
