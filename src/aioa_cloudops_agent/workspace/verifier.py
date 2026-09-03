@@ -174,12 +174,13 @@ class WorkspaceIndependentVerifier:
             profile_failure: TrustedRenderStartProfileFailure | None = None
             if static_passed:
                 try:
+                    profile_value = self._profile.run()
                     profile_result = TrustedRenderStartProfileResult.model_validate(
-                        self._profile.run().model_dump(mode="python")
+                        profile_value.model_dump(mode="python")
                     )
                 except TrustedRenderStartProfileFailure as error:
                     profile_failure = error
-                except (OSError, RuntimeError, TypeError, ValueError) as error:
+                except (AttributeError, OSError, RuntimeError, TypeError, ValueError) as error:
                     profile_failure = TrustedRenderStartProfileFailure(
                         "RUNTIME_PROBE_UNAVAILABLE"
                     )

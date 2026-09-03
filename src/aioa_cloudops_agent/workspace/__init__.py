@@ -119,7 +119,6 @@ from .proposal import (
     build_workspace_patch_proposal,
 )
 from .render_verification import (
-    RenderStartContractV1Profile,
     TrustedRenderStartProfile,
     TrustedRenderStartProfileFailure,
     TrustedRenderStartProfileResult,
@@ -216,7 +215,6 @@ __all__ = [
     "LocalFileWorkspaceAuthorityRepository",
     "MaterializedWorkspace",
     "PatchApplyReceipt",
-    "RenderStartContractV1Profile",
     "TrustedRenderStartProfile",
     "TrustedRenderStartProfileFailure",
     "TrustedRenderStartProfileResult",
