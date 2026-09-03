@@ -10,7 +10,6 @@ import os
 import re
 import subprocess
 import sys
-import uuid
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Final
@@ -32,7 +31,7 @@ from scripts.run_b5_container_gate import (  # noqa: E402
 )
 
 DEFAULT_OUTPUT: Final = ROOT / ".local" / "w7" / "container-hero-gate.json"
-_CLIENT: Final = ROOT / "scripts" / "w7_container_hero_client.py"
+_SUPERVISOR: Final = ROOT / "scripts" / "w7_container_hero_supervisor.py"
 _COMMIT: Final = re.compile(r"^[0-9a-f]{40}$")
 _IMAGE: Final = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/@:+-]{0,255}$")
 _SAFE_ENGINE_RUN_ARGS: Final = frozenset(
@@ -50,7 +49,6 @@ def _run(
     *,
     timeout: int,
     reason: str,
-    input_text: str | None = None,
     stdout_limit: int = 2 * 1024 * 1024,
 ) -> subprocess.CompletedProcess[str]:
     try:
@@ -58,7 +56,7 @@ def _run(
             tuple(command),
             cwd=ROOT,
             env=_safe_environment(),
-            input=input_text,
+            stdin=subprocess.DEVNULL,
             capture_output=True,
             check=False,
             text=True,
@@ -110,7 +108,6 @@ def _engine_args(values: Sequence[str]) -> tuple[str, ...]:
 def _container_run_command(
     engine: str,
     image: str,
-    name: str,
     extra_args: Sequence[str],
     user_override: str | None,
 ) -> tuple[str, ...]:
@@ -119,9 +116,7 @@ def _container_run_command(
     command = [
         engine,
         "run",
-        "--detach",
-        "--name",
-        name,
+        "--rm",
         "--network",
         "none",
         "--read-only",
@@ -149,15 +144,15 @@ def _container_run_command(
     ]
     if user_override is not None:
         command.extend(("--user", user_override))
-    command.extend((image, _START_COMMAND))
-    return tuple(command)
-
-
-def _client_command(engine: str, name: str, user_override: str | None) -> tuple[str, ...]:
-    command = [engine, "exec", "--interactive"]
-    if user_override is not None:
-        command.extend(("--user", user_override))
-    command.extend((name, "python", "-"))
+    command.extend(
+        (
+            "--entrypoint",
+            "python",
+            image,
+            "-m",
+            "scripts.w7_container_hero_supervisor",
+        )
+    )
     return tuple(command)
 
 
@@ -221,6 +216,7 @@ def build_gate_receipt(
     material: dict[str, object] = {
         "aws_calls": 0,
         "aws_mutations": 0,
+        "certification_supervisor": "scripts.w7_container_hero_supervisor",
         "container_start_command": _START_COMMAND,
         "credential_environment_inherited": False,
         "engine_user_override": engine_user_override,
@@ -270,23 +266,6 @@ def _write_receipt(path: Path, receipt: Mapping[str, object]) -> None:
         raise ContainerGateError("W7_CONTAINER_HERO_OUTPUT_UNAVAILABLE") from error
 
 
-def _cleanup(engine: str, name: str) -> bool:
-    try:
-        result = subprocess.run(
-            (engine, "rm", "--force", name),
-            cwd=ROOT,
-            env=_safe_environment(),
-            stdin=subprocess.DEVNULL,
-            capture_output=True,
-            check=False,
-            text=True,
-            timeout=30,
-        )
-    except (OSError, subprocess.TimeoutExpired):
-        return False
-    return result.returncode == 0
-
-
 def _arguments(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--engine")
@@ -301,17 +280,13 @@ def _arguments(argv: Sequence[str] | None = None) -> argparse.Namespace:
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = _arguments(argv)
-    name = f"aioa-w7-hero-{os.getpid()}-{uuid.uuid4().hex[:8]}"
-    engine: str | None = None
-    started = False
-    cleanup_passed = True
     try:
         if _COMMIT.fullmatch(args.expected_source_commit) is None:
             raise ContainerGateError("CONTAINER_SOURCE_COMMIT_INVALID")
         if _IMAGE.fullmatch(args.image) is None:
             raise ContainerGateError("CONTAINER_IMAGE_REFERENCE_INVALID")
-        if not _CLIENT.is_file() or _CLIENT.is_symlink():
-            raise ContainerGateError("W7_CONTAINER_HERO_CLIENT_INVALID")
+        if not _SUPERVISOR.is_file() or _SUPERVISOR.is_symlink():
+            raise ContainerGateError("W7_CONTAINER_HERO_SUPERVISOR_INVALID")
         engine = _resolve_engine(args.engine)
         image_contract = inspect_image(engine, args.image, args.expected_source_commit)
         nonroot_proof = _external_nonroot_proof(
@@ -319,34 +294,20 @@ def main(argv: Sequence[str] | None = None) -> int:
             image_contract,
             args.expected_source_commit,
         )
-        _run(
+        client = _run(
             _container_run_command(
                 engine,
                 args.image,
-                name,
                 args.engine_run_arg,
                 args.user_override,
             ),
-            timeout=60,
-            reason="W7_CONTAINER_HERO_START_FAILED",
-            stdout_limit=16 * 1024,
-        )
-        started = True
-        client_source = _CLIENT.read_text(encoding="utf-8")
-        client = _run(
-            _client_command(engine, name, args.user_override),
-            timeout=180,
-            reason="W7_CONTAINER_HERO_CLIENT_FAILED",
-            input_text=client_source,
+            timeout=240,
+            reason="W7_CONTAINER_HERO_SUPERVISED_RUN_FAILED",
         )
         hero = validate_hero_result(
             _strict_json(client.stdout, reason="W7_CONTAINER_HERO_RESULT_INVALID"),
             args.expected_source_commit,
         )
-        cleanup_passed = _cleanup(engine, name)
-        started = False
-        if not cleanup_passed:
-            raise ContainerGateError("W7_CONTAINER_HERO_CLEANUP_FAILED")
         receipt = build_gate_receipt(
             image_reference=args.image,
             image_contract=image_contract,
@@ -376,11 +337,6 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
         )
         return 1
-    finally:
-        if started and engine is not None:
-            cleanup_passed = _cleanup(engine, name)
-        if not cleanup_passed:
-            print("W7 container hero cleanup failed", file=sys.stderr)
 
 
 if __name__ == "__main__":

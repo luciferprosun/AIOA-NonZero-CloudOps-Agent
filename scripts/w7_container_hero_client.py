@@ -119,6 +119,13 @@ def _unexpected_tmp_changes(
     )
 
 
+def _server_process_path() -> Path:
+    raw_pid = os.environ.get("AIOA_W7_SERVER_PID", "1")
+    if not raw_pid.isascii() or not raw_pid.isdigit() or int(raw_pid) < 1:
+        raise HeroClientFailure("SERVER_PID_INVALID")
+    return Path("/proc") / raw_pid
+
+
 def _request(
     base: str,
     token: str,
@@ -336,7 +343,8 @@ def run_proof() -> dict[str, object]:
         raise HeroClientFailure("UNEXPECTED_FILE_MUTATION")
 
     try:
-        server_environment = Path("/proc/1/environ").read_bytes().split(b"\0")
+        process_path = _server_process_path()
+        server_environment = (process_path / "environ").read_bytes().split(b"\0")
     except OSError as error:
         raise HeroClientFailure("SERVER_ENVIRONMENT_UNAVAILABLE") from error
     bootstrap_secret_absent = not any(
@@ -347,7 +355,7 @@ def run_proof() -> dict[str, object]:
     try:
         argv = tuple(
             os.fsdecode(item)
-            for item in Path("/proc/1/cmdline").read_bytes().split(b"\0")
+            for item in (process_path / "cmdline").read_bytes().split(b"\0")
             if item
         )
     except OSError as error:

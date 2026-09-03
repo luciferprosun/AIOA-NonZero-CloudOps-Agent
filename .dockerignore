@@ -13,5 +13,7 @@
 !scripts/w4_render_start_profile.py
 !scripts/w4_probe_site/
 !scripts/w4_probe_site/*.py
+!scripts/w7_container_hero_client.py
+!scripts/w7_container_hero_supervisor.py
 !src/
 !src/**

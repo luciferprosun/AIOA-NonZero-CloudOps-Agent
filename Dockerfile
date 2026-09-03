@@ -53,6 +53,8 @@ COPY --from=builder /runtime/ /usr/local/
 COPY scripts/render_start.sh /usr/local/bin/aioa-render-start
 COPY scripts/w4_render_start_profile.py /app/scripts/w4_render_start_profile.py
 COPY scripts/w4_probe_site /app/scripts/w4_probe_site
+COPY scripts/w7_container_hero_client.py /app/scripts/w7_container_hero_client.py
+COPY scripts/w7_container_hero_supervisor.py /app/scripts/w7_container_hero_supervisor.py
 RUN groupadd --gid 65532 aioa \
     && useradd --uid 65532 --gid 65532 --home-dir /nonexistent --no-create-home --shell /usr/sbin/nologin aioa \
     && usermod --append --groups root aioa \

@@ -34,6 +34,14 @@ def test_image_packages_only_the_exact_w4_runtime_helper_closure() -> None:
         "/app/scripts/w4_render_start_profile.py"
     ) in dockerfile
     assert "COPY scripts/w4_probe_site /app/scripts/w4_probe_site" in dockerfile
+    assert (
+        "COPY scripts/w7_container_hero_client.py "
+        "/app/scripts/w7_container_hero_client.py"
+    ) in dockerfile
+    assert (
+        "COPY scripts/w7_container_hero_supervisor.py "
+        "/app/scripts/w7_container_hero_supervisor.py"
+    ) in dockerfile
     assert "COPY scripts ./scripts" not in dockerfile
     assert "COPY scripts /app/scripts" not in dockerfile
 
@@ -47,6 +55,8 @@ def test_default_deny_build_context_reincludes_only_the_helper_closure() -> None
     assert "!scripts/w4_render_start_profile.py" in lines
     assert "!scripts/w4_probe_site/" in lines
     assert "!scripts/w4_probe_site/*.py" in lines
+    assert "!scripts/w7_container_hero_client.py" in lines
+    assert "!scripts/w7_container_hero_supervisor.py" in lines
     assert "!scripts/**" not in lines
 
 
@@ -118,6 +128,7 @@ def test_public_bundle_marks_the_w4_helper_closure_as_required() -> None:
         "scripts/w4_probe_site/__init__.py",
         "scripts/w4_probe_site/sitecustomize.py",
         "scripts/w7_container_hero_client.py",
+        "scripts/w7_container_hero_supervisor.py",
     ):
         classification = classify_path(path)
         assert classification.included is True
@@ -172,20 +183,21 @@ def test_w7_hero_gate_has_exact_networkless_render_start_contract() -> None:
     command = _container_run_command(
         "/safe/podman",
         "localhost/aioa:w7",
-        "aioa-w7-hero-test",
         ("--cgroups=disabled",),
         "0:0",
     )
 
     assert command[:2] == ("/safe/podman", "run")
-    assert command[-2:] == (
+    assert command[-3:] == (
         "localhost/aioa:w7",
-        "/usr/local/bin/aioa-render-start",
+        "-m",
+        "scripts.w7_container_hero_supervisor",
     )
     assert command.count("none") == 1
     assert command[command.index("--network") + 1] == "none"
     assert "--read-only" in command
-    assert command[-4:-2] == ("--user", "0:0")
+    assert command[command.index("--user") + 1] == "0:0"
+    assert command[command.index("--entrypoint") + 1] == "python"
     assert not any("AWS_ACCESS_KEY" in value for value in command)
 
 
@@ -215,6 +227,9 @@ def test_w7_hero_gate_receipt_is_integrity_bound_and_sanitized() -> None:
     assert receipt["external_network_connections"] == 0
     assert receipt["aws_mutations"] == 0
     assert receipt["container_start_command"] == "/usr/local/bin/aioa-render-start"
+    assert receipt["certification_supervisor"] == (
+        "scripts.w7_container_hero_supervisor"
+    )
     assert len(str(receipt["receipt_sha256"])) == 64
     rendered = json.dumps(receipt)
     assert "w7-container-hero-synthetic" not in rendered
@@ -232,3 +247,16 @@ def test_w7_client_rejects_tmp_mutations_outside_fixed_workspace_roots() -> None
     }
 
     assert _unexpected_tmp_changes(before, after) == ("unrelated",)
+
+
+def test_w7_supervisor_has_only_the_fixed_render_start_child() -> None:
+    source = (ROOT / "scripts/w7_container_hero_supervisor.py").read_text(
+        encoding="utf-8"
+    )
+
+    assert "from scripts.w7_container_hero_client import run_proof" in source
+    assert '[_START_COMMAND]' in source
+    assert '_START_COMMAND = "/usr/local/bin/aioa-render-start"' in source
+    assert source.count("subprocess.Popen(") == 1
+    assert "shell=True" not in source
+    assert "exec(" not in source

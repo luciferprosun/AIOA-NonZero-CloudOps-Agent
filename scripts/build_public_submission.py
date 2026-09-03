@@ -66,6 +66,7 @@ _REQUIRED_EXACT: Final = frozenset(
         "scripts/scan_public_submission.py",
         "scripts/w4_render_start_profile.py",
         "scripts/w7_container_hero_client.py",
+        "scripts/w7_container_hero_supervisor.py",
     }
 )
 _REQUIRED_PREFIXES: Final = (
