@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hmac
 from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
@@ -20,7 +21,11 @@ from aioa_cloudops_agent.nz import (
     generate_trace_id,
 )
 from aioa_cloudops_agent.nz.contracts import NonZeroContract
-from aioa_cloudops_agent.nz.identifiers import Sha256Digest, Uuid7Identifier
+from aioa_cloudops_agent.nz.identifiers import (
+    Sha256Digest,
+    ShortIdentifier,
+    Uuid7Identifier,
+)
 from aioa_cloudops_agent.persistence.local_integrity import (
     LocalIntegrityError,
     atomic_write_private_json,
@@ -117,6 +122,7 @@ class _WorkspaceHeroManifest(NonZeroContract):
     trace_id: Uuid7Identifier
     workspace_id: Uuid7Identifier
     proposal_id: Uuid7Identifier
+    actor_session_id: ShortIdentifier
     root_digest: Sha256Digest
     workspace_root_name: str = Field(
         min_length=12,
@@ -194,11 +200,16 @@ class WorkspaceHeroOrchestrator:
         self._effect_id_factory = effect_id_factory
         self._lock = RLock()
 
-    def start(self, request: WorkspaceHeroStartRequest) -> WorkspaceHeroProjection:
+    def start(
+        self,
+        request: WorkspaceHeroStartRequest,
+        principal: LocalOperatorPrincipal,
+    ) -> WorkspaceHeroProjection:
         """Run W1 reasoning and materialize one exact inert W2 proposal."""
 
         if not isinstance(request, WorkspaceHeroStartRequest):
             raise WorkspaceHeroFailure("WORKSPACE_HERO_SCENARIO_INVALID", status=400)
+        self._require_principal(principal)
         with self._lock:
             run_id = self._run_id_factory()
             trace_id = self._trace_id_factory()
@@ -290,6 +301,7 @@ class WorkspaceHeroOrchestrator:
                     trace_id=trace_id,
                     workspace_id=materialized.ref.workspace_id,
                     proposal_id=proposal.proposal_id,
+                    actor_session_id=principal.actor_session_id,
                     root_digest=materialized.ref.root_digest,
                     workspace_root_name=materialized.root.name,
                 )
@@ -306,9 +318,16 @@ class WorkspaceHeroOrchestrator:
                     retryable=True,
                 ) from error
 
-    def get(self, run_id: UUID) -> WorkspaceHeroProjection:
+    def get(
+        self,
+        run_id: UUID,
+        principal: LocalOperatorPrincipal,
+    ) -> WorkspaceHeroProjection:
+        self._require_principal(principal)
         with self._lock:
-            return self._projection(self._load_context(run_id))
+            context = self._load_context(run_id)
+            self._require_bound_principal(context.manifest, principal)
+            return self._projection(context)
 
     def request_approval(
         self,
@@ -320,6 +339,7 @@ class WorkspaceHeroOrchestrator:
         self._require_principal(principal)
         with self._lock:
             context = self._load_context(run_id)
+            self._require_bound_principal(context.manifest, principal)
             authority = WorkspaceAuthorityService(context.repository, clock=self._clock)
             try:
                 existing = context.repository.get_request(context.manifest.proposal_id)
@@ -346,6 +366,7 @@ class WorkspaceHeroOrchestrator:
             raise WorkspaceHeroFailure("WORKSPACE_HERO_DECISION_INVALID", status=400)
         with self._lock:
             context = self._load_context(run_id)
+            self._require_bound_principal(context.manifest, principal)
             durable_request = context.repository.get_request(context.manifest.proposal_id)
             if durable_request is None:
                 raise WorkspaceHeroFailure("WORKSPACE_HERO_APPROVAL_REQUEST_MISSING")
@@ -382,6 +403,7 @@ class WorkspaceHeroOrchestrator:
             raise WorkspaceHeroFailure("WORKSPACE_HERO_RESUME_INVALID", status=400)
         with self._lock:
             context = self._load_context(run_id)
+            self._require_bound_principal(context.manifest, principal)
             record = self._record(context)
             if record.state is WorkspaceAuthorityState.SUCCESS_WITH_EVIDENCE:
                 self._prove_replay(context, principal)
@@ -421,6 +443,7 @@ class WorkspaceHeroOrchestrator:
         self._require_principal(principal)
         with self._lock:
             context = self._load_context(run_id)
+            self._require_bound_principal(context.manifest, principal)
             record = self._record(context)
             if record.state is WorkspaceAuthorityState.DENIED_BY_HUMAN:
                 raise WorkspaceHeroFailure("WORKSPACE_HERO_DENIED_NOT_VERIFIABLE", status=403)
@@ -856,3 +879,17 @@ class WorkspaceHeroOrchestrator:
     def _require_principal(principal: LocalOperatorPrincipal) -> None:
         if not isinstance(principal, LocalOperatorPrincipal):
             raise WorkspaceHeroFailure("WORKSPACE_HERO_OPERATOR_REQUIRED", status=401)
+
+    @staticmethod
+    def _require_bound_principal(
+        manifest: _WorkspaceHeroManifest,
+        principal: LocalOperatorPrincipal,
+    ) -> None:
+        if not hmac.compare_digest(
+            manifest.actor_session_id,
+            principal.actor_session_id,
+        ):
+            raise WorkspaceHeroFailure(
+                "WORKSPACE_HERO_OPERATOR_SESSION_MISMATCH",
+                status=403,
+            )

@@ -314,7 +314,7 @@ class LocalApiApplication:
             return protected
         try:
             start = _json_model(request, WorkspaceHeroStartRequest)
-            view = self._hero().start(start)
+            view = self._hero().start(start, protected)
         except _Rejected as rejection:
             return self._error(rejection.code, rejection.status)
         except WorkspaceHeroFailure as error:
@@ -337,7 +337,7 @@ class LocalApiApplication:
         if run_id is None:
             return self._error(LocalApiErrorCode.BAD_REQUEST, 400)
         try:
-            view = self._hero().get(run_id)
+            view = self._hero().get(run_id, protected)
         except WorkspaceHeroFailure as error:
             return self._workspace_hero_failure(error)
         except Exception:
