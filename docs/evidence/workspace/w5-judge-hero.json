@@ -1,0 +1,128 @@
+{
+  "approval_card": {
+    "evidence": [
+      "deployment.log",
+      "render.yaml",
+      "scripts/render_start.sh",
+      "expected_runtime_contract.json"
+    ],
+    "expected_verification": [
+      "render_start_contract_v1",
+      "token file mode 0600",
+      "secret absent from child env",
+      "/health 200",
+      "/ready 200"
+    ],
+    "field_path": "services[0].dockerCommand",
+    "patch_fingerprint": "73be5422645433ca51371ab992854e028149c9a06753b61e1d66bfe5ed0ee5f0",
+    "proposal_fingerprint": "c9d9537e49e8388ba2ca5b92538383ca8c69d0d7fd2f704d2240002414736499",
+    "proposed_change": "long inline bootstrap -> /usr/local/bin/aioa-render-start",
+    "risk": "PLAN_AND_CONFIRM",
+    "scenario": "Failed deployment -> verified fix",
+    "target": "render.yaml",
+    "warning": "This approval is valid only for this exact proposal, workspace, base state and patch.",
+    "workspace_fingerprint": "84172797b4203b01e7404649449ac7b6468e94b88e7aba9b2104d18c01668db8"
+  },
+  "capability_accounting": {
+    "arbitrary_command_endpoints_added": 0,
+    "aws_calls": 0,
+    "aws_mutations": 0,
+    "browser_product_capabilities_added": 0,
+    "direct_mutation_endpoints_added": 0,
+    "external_egress": 0,
+    "git_mutation_capabilities_added": 0,
+    "mcp_capabilities_added": 0,
+    "package_install_capabilities_added": 0,
+    "paid_resources_created": 0,
+    "raw_path_write_endpoints_added": 0,
+    "render_actions": 0
+  },
+  "certified_base": {
+    "branch": "codex/w4-independent-verification-recovery",
+    "head": "4f021ddb69d6f5e83a94f8e17b951dd3a2c8f5dc",
+    "w4_gate": "PASS"
+  },
+  "composition": [
+    "W1_SEALED_EVIDENCE",
+    "W2_EXACT_NON_APPLYING_PROPOSAL",
+    "W3_DURABLE_HUMAN_AUTHORITY",
+    "W3_AT_MOST_ONCE_ATOMIC_APPLY",
+    "W4_INDEPENDENT_VERIFICATION",
+    "W3_W4_REPLAY_RECONCILIATION"
+  ],
+  "deployment_boundary": {
+    "Dockerfile_sha256": "4640463904ced78776f5f482510e9f117d7ee2e0b6a8e04c5ba83e349378bc8f",
+    "deployment_files_changed": false,
+    "final_rc_b5_b6_recertification_required": true,
+    "historical_b5_b6_evidence_preserved": true,
+    "render_start_sha256": "d350917c132a338605f630fde97a2ac017e1664fe9cf413a7153827326e6d250",
+    "render_yaml_sha256": "c9e351188844ec4236068ffe62fa9747376ec520eabea39c9e92dd30909a645c"
+  },
+  "e2e_results": {
+    "approve": {
+      "final_state": "SUCCESS_WITH_EVIDENCE",
+      "patch_apply_count": 1,
+      "profile": "render_start_contract_v1",
+      "verification_checks": "19/19",
+      "workspace_mutation_count": 1
+    },
+    "deny": {
+      "executor_receipt_present": false,
+      "final_state": "DENIED_BY_HUMAN",
+      "verification_receipt_present": false,
+      "workspace_mutation_count": 0
+    },
+    "refresh": {
+      "authoritative_projection_restored": true,
+      "duplicate_effects": 0,
+      "fingerprints_preserved": true
+    },
+    "replay": {
+      "additional_mutation_delta": 0,
+      "additional_profile_executions": 0,
+      "approval_already_consumed": true,
+      "patch_apply_count": 1,
+      "status": "REPLAY_REJECTED_RECONCILED"
+    }
+  },
+  "feature_branch": "codex/w5-judge-hero-integration",
+  "focused_w5_tests": "28/28",
+  "headline": "The model proposes. The human authorizes. Evidence decides.",
+  "implementation_checkpoint_before_evidence": "ac89c2f",
+  "projection_guarantees": {
+    "actor_session_ids_exposed": 0,
+    "decision_nonces_exposed": 0,
+    "private_paths_exposed": 0,
+    "response_max_bytes": 65536,
+    "secret_values_exposed": 0,
+    "timeline_items": 10
+  },
+  "route_family": [
+    "POST /api/workspace-demo/runs",
+    "GET /api/workspace-demo/runs/{run_id}",
+    "POST /api/workspace-demo/runs/{run_id}/approval-request",
+    "POST /api/workspace-demo/runs/{run_id}/decision",
+    "POST /api/workspace-demo/runs/{run_id}/resume",
+    "POST /api/workspace-demo/runs/{run_id}/verify-or-reconcile"
+  ],
+  "scenario_id": "FAILED_RENDER_DEPLOYMENT_VERIFIED_FIX_V1",
+  "schema": "AIOA_W5_JUDGE_HERO_EVIDENCE_V1",
+  "timeline": [
+    "OBSERVE",
+    "EVIDENCE",
+    "ROOT_CAUSE",
+    "PATCH_PROPOSAL",
+    "POLICY",
+    "HUMAN_DECISION",
+    "PATCH_EFFECT",
+    "VERIFICATION",
+    "RECEIPT",
+    "RECOVERY_REPLAY"
+  ],
+  "truth_hierarchy": {
+    "human_approval_is_success": false,
+    "model_output_is_execution_authority": false,
+    "patch_applied_is_success": false,
+    "success_requires_persisted_independent_verification": true
+  }
+}

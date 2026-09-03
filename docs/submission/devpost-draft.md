@@ -1,6 +1,7 @@
 # Devpost Draft — AIOA Non-Zero CloudOps Agent
 
-Status: audited `DEPLOYMENT_READY_LOCAL_RC` and sanitized B6 candidate for owner review; not externally submitted.
+Status: audited `DEPLOYMENT_READY_LOCAL_RC` plus W5 local judge-hero checkpoint; historical B6
+candidate predates W5 and must be recertified before publication; not externally submitted.
 
 ## One-line pitch
 
@@ -29,6 +30,12 @@ fail-closed safety probes. Its default model and cloud adapters are deterministi
 the full judge path requires neither credentials nor network access. The bounded AWS deployment
 design remains a validated future path, not a deployed service.
 
+The featured W5 experience applies the same rules to one failed-deployment story. A Strands agent
+reads a sealed, sanitized evidence set and diagnoses an exit `127` / `File name too long` failure.
+Trusted code—not model prose—builds one exact `render.yaml` diff. The judge can approve or deny the
+hash-bound request, see an approved patch stop as unverified, invoke independent startup proof, and
+then test that the consumed approval cannot produce a second effect.
+
 ## How humans stay in control
 
 - The model can propose; it cannot grant authority.
@@ -41,12 +48,19 @@ design remains a validated future path, not a deployed service.
 
 ## Demo
 
-One offline container command produces a deterministic receipt for the complete portable jury flow.
-The approve scenario performs exactly one post-decision mock mutation and then records independent
-evidence. The deny scenario is terminal and performs zero mutation. Recovery restores the bound
-authority and reconciles interrupted execution without a duplicate mutation. Replay and changed
-resource bindings are rejected with zero mutation delta. Five deliberate failure probes demonstrate
-the fail-closed boundary.
+The primary local judge story is **Fix a Failed Deployment Safely**:
+
+```text
+Observe -> Evidence -> Root Cause -> Exact Patch -> Policy -> Human Decision
+        -> Execute Once -> Independent Verify -> Receipt -> Replay Rejected
+```
+
+The approve scenario performs exactly one private-workspace `render.yaml` replacement, remains at
+`PATCH_APPLIED_UNVERIFIED` until the independent W4 proof passes, and then records
+`SUCCESS_WITH_EVIDENCE`. The deny scenario is terminal and performs zero mutation. Refresh restores
+durable authority state; replay reconciles the consumed approval with zero additional mutation and
+zero additional process/profile execution. The older AWS-shaped CloudOps mock stories remain
+available as regression demonstrations.
 
 The receipt also records zero external network connections, zero AWS calls, and zero AWS mutations.
 The optional browser console makes the same authority and evidence stages visible while remaining
@@ -62,6 +76,11 @@ authenticated and loopback-only. It stores no authentication token in browser st
 - independent verification and hash-bound JSON evidence;
 - an authenticated loopback-only operator console; and
 - a non-root, digest-pinned, hash-locked OCI container.
+
+The workspace hero uses staged four-, five-, six-, and seven-tool profiles for W1 evidence, W2
+proposal, W3 human-bound apply, and W4 proposal-ID-only verification. No generic shell, file-write,
+package, Git, browser/MCP, URL-fetch, provider, or deployment capability is exposed to the model or
+browser.
 
 Amazon Bedrock and bounded AWS adapters remain optional. They are not required by the portable
 critical path and were not invoked for this candidate. No sentence above claims that DynamoDB, S3,
@@ -114,16 +133,18 @@ clean-room report.
 
 ## Current limitations and next steps
 
-No AWS infrastructure or live mutation has been performed by this project. This is a locally
-certified offline/mock publication candidate, not a production deployment. No public endpoint,
-registry push, live AWS identity, live Bedrock inference, effective deployed IAM, real cloud
-mutation, video publication, or Devpost submission is claimed. The optional AWS path requires a
-separate authorized live-demo phase and new receipts.
+No AWS infrastructure or live mutation has been performed by this project. W5 is a locally
+certified source-checkout hero, not a production deployment or current publication candidate. No
+public endpoint, registry push, live AWS identity, live Bedrock inference, effective deployed IAM,
+real cloud mutation, video publication, or Devpost submission is claimed. Historical B5/B6 receipts
+do not cover W5 runtime/UI changes; a final RC recertification is required before release. The
+optional AWS path requires a separate authorized live-demo phase and new receipts.
 
-The next safe step is owner review of the sanitized archive and its claim matrix. Any future live
-phase must begin with read-only preflight, explicit scope and account approval, reviewed change set,
-bounded deployment, independent post-deploy verification, and owner-controlled submission. Missing
-external evidence remains blocked or not run; it never becomes a local PASS.
+The next engineering step is a separately audited W6 security/feature freeze, followed later by
+final RC B5/B6 recertification. Any future live phase must begin with read-only preflight, explicit
+scope and account approval, reviewed change set, bounded deployment, independent post-deploy
+verification, and owner-controlled submission. Missing external evidence remains blocked or not
+run; it never becomes a local PASS.
 
 ## Placeholders that require future live evidence
 

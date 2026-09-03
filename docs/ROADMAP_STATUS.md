@@ -137,7 +137,19 @@
 - W4_FIXED_PROCESS_PROBES = 1
 - W4_VERIFIER_EXTERNAL_EGRESS = 0
 - W4_VERIFIER_AWS_CALLS = 0
-- NEXT_MACRO_STEP = W5_JUDGE_HERO_INTEGRATION_REQUIRES_SEPARATE_AUDIT
+- WORKSPACE_REMEDIATION_W5 = COMPLETE_FIXED_JUDGE_HERO_INTEGRATION
+- W5_HERO_SCENARIO = FAILED_RENDER_DEPLOYMENT_VERIFIED_FIX_V1
+- W5_HERO_FLOW = COMPLETE_OBSERVE_TO_REPLAY_REJECTION
+- W5_APPROVE_MUTATION_COUNT = 1
+- W5_DENY_MUTATION_COUNT = 0
+- W5_REPLAY_ADDITIONAL_MUTATIONS = 0
+- W5_BROWSER_AUTHORITY_FIELDS = DECISION_AND_CURRENT_REQUEST_FINGERPRINT_ONLY
+- W5_DIRECT_MUTATION_ENDPOINTS = 0
+- W5_EXTERNAL_EGRESS = 0
+- W5_AWS_CALLS_AND_MUTATIONS = 0
+- W5_DEPLOYMENT_FILES_CHANGED = FALSE
+- W5_FINAL_RC_B5_B6_RECERTIFICATION_REQUIRED = TRUE
+- NEXT_MACRO_STEP = W6_SECURITY_FEATURE_FREEZE_REQUIRES_SEPARATE_AUDIT
 
 ## W1 sealed workspace foundation
 
@@ -211,6 +223,30 @@ egress, verifier AWS calls, Render actions, and root deployment-file mutations r
 
 W5 is not authorized by this status. `READY_FOR_W5_JUDGE_HERO_INTEGRATION=YES` is only a certified
 handoff field; a separate audited W5 prompt is required.
+
+## W5 judge hero workflow and UI integration
+
+W5 is complete on `codex/w5-judge-hero-integration` under its separate audited prompt. The existing
+authenticated Local API now exposes one additive fixed scenario,
+`FAILED_RENDER_DEPLOYMENT_VERIFIED_FIX_V1`, which composes the exact W1 evidence service, W2
+content-addressed proposal builder, W3 durable authority/atomic executor, and W4 independent
+verifier. The older CloudOps API and two judge scenarios remain backward compatible.
+
+The featured UI makes ten stages visible from observed failure through replay rejection. Its exact
+approval card is reconstructed from durable proposal/request truth. The browser supplies neither
+path, patch, workspace, nonce, command, URL, nor verification profile. Approval and execution are
+separate gestures; `PATCH_APPLIED_UNVERIFIED` is not rendered as success; only a persisted W4 report
+and terminal receipt permit `SUCCESS_WITH_EVIDENCE`.
+
+The approve path applies one exact private-workspace patch, the denial path applies zero, and replay
+adds zero mutations and zero profile executions. The fixed W4 process proof reports token mode
+`0600`, bootstrap secret absent from child environment, exact portable-server argv, healthy
+`/health`, ready `/ready`, zero external egress, and zero AWS calls. No raw-command, raw-path write,
+generic patch, package, Git, browser/MCP, remote URL, deployment, or new AWS capability was added.
+
+Repository-root deployment files remain unchanged, and no Render/AWS/provider action occurred.
+Historical B5/B6 evidence is preserved but predates W5 runtime/UI source; final RC B5/B6
+recertification is therefore required later. W6 is not started or authorized by this status.
 
 ## Known Nonblocking Items
 

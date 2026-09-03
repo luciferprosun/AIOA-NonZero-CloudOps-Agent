@@ -7,7 +7,8 @@ deployment incident. Phase W2 extends only that additive profile with one determ
 proof-carrying patch proposal. Phase W3 adds a separate exact-six-tool runtime that can apply only
 that proposal after a durable native human decision. Phase W4 adds an exact-seven-tool runtime
 whose seventh tool accepts only `proposal_id`, independently reopens the disposable workspace,
-and closes success only after a fixed server-owned verification profile passes. None of these
+and closes success only after a fixed server-owned verification profile passes. Phase W5 adds a
+fixed authenticated judge projection and UI composition over those exact services. None of these
 phases migrates or alters the canonical CloudOps agent or exposes a general execution platform.
 
 The governing invariant is unchanged:
@@ -336,6 +337,67 @@ The repository persists that report while state is `VERIFYING`. Only a report wi
 `SUCCESS_WITH_EVIDENCE`. A human decision, effect ownership, apply receipt, exit status, HTTP 200,
 or model statement cannot bypass this order.
 
+## W5 fixed judge hero composition
+
+W5 exposes one server-owned scenario, `FAILED_RENDER_DEPLOYMENT_VERIFIED_FIX_V1`, through an
+additive route family in the existing authenticated Local API. `WorkspaceHeroOrchestrator` is a
+composition boundary, not a new authority implementation. It materializes the packaged byte-exact
+W1 fixture, invokes the existing Strands investigation factory, calls the W2 builder, and delegates
+all request, decision, effect, verification, recovery, and replay semantics to the W3/W4 repository,
+executor, and verifier.
+
+```mermaid
+flowchart TD
+    H[Judge / Human] --> UI[Same-origin Judge UI]
+    UI -->|closed JSON contracts| API[Bounded Local API]
+    API --> O[Workspace Hero Orchestrator]
+    O --> S[Strands Agent — reasoning only]
+    S --> W1[W1 Evidence]
+    W1 --> W2[W2 Exact Proposal]
+    W2 --> P[Deterministic Policy]
+    P --> W3A[W3 Durable Human Authority]
+    W3A -->|approved exact request| W3E[W3 At-most-once Atomic Apply]
+    W3E --> U[PATCH_APPLIED_UNVERIFIED]
+    U --> W4[W4 Independent Verifier]
+    W4 --> R[Persisted evidence-bound receipt]
+    R --> X[SUCCESS_WITH_EVIDENCE]
+    W3A -->|denied| D[DENIED_BY_HUMAN / zero effect]
+    X --> RR[Replay rejected / reconciled / zero delta]
+```
+
+The browser can start only the fixed scenario and then submit only empty transition requests,
+`decision + request_fingerprint`, or literal `confirm_execution=true`. It cannot provide a target,
+path, content, diff, command, URL, workspace ID, patch digest, decision nonce, verification profile,
+or expected result. The server derives the complete W3 decision from durable proposal/request truth
+and a server-only HMAC nonce. Approval and effect remain separate HTTP actions.
+
+The public projection is a strict bounded Pydantic contract. It contains public-safe labels, ten
+typed timeline items, fixed incident facts, an approval card reconstructed from W2/W3 truth, the
+display-only W2 diff, proof status, and content fingerprints. It excludes raw repository payloads,
+absolute paths, session/operator values, actor identity, nonce material, environment values, and
+exceptions. The UI inserts projection text with `textContent` only and uses the existing strict
+same-origin CSP.
+
+W5 reuses the exact repository-owned `scripts/w4_render_start_profile.py` implementation through a
+lazy server-side factory. This preserves the canonical `src/aioa_cloudops_agent` source guard and
+avoids a second trusted verifier. If that checkout-owned dependency is absent, verification returns
+a normalized retryable dependency failure; it cannot claim success. The W5 local checkpoint does
+not change the Dockerfile or package the helper into a release image. Final RC B5/B6 recertification
+must resolve and certify that release boundary before W5 is published or deployed.
+
+The timeline truth hierarchy is explicit:
+
+```text
+MODEL_OUTPUT != EXECUTION_AUTHORITY
+HUMAN_APPROVAL != SUCCESS
+PATCH_APPLIED_UNVERIFIED != SUCCESS
+SUCCESS_WITH_EVIDENCE == persisted independent W4 report + terminal receipt
+```
+
+The replay button re-enters the same certified resume/reconciliation path. It does not call a new
+executor endpoint. After terminal success, the server proves the exact decision is already consumed,
+reuses the valid W4 receipt, records no second apply, and runs no second fixed process profile.
+
 ## Authority classification
 
 | Class | W1/W2 operations |
@@ -353,13 +415,13 @@ or model statement cannot bypass this order.
 - Receipts are typed and content-bound, but the W1 timeline is process-local and in memory. Durable
   workspace evidence is a future design decision.
 - The workspace agent is deliberately portable/mock-only and has no external provider or network path.
-- The profile is a library foundation, not a new public HTTP route and not part of the current
-  Render startup path.
+- The W5 route family is authenticated and fixed-scenario only. It is not a generic workspace,
+  process, patch, URL, or deployment API and is not part of the current Render startup path.
 - W2 can propose only the one frozen structured patch. W3 can apply it only to the private
   materialized copy after durable approval. Neither can run a process/test, operate Git, install
   packages, browse, call MCP, access a provider, or deploy.
-- W4 is intentionally not connected to the public portable server or Render. Its fixed loopback
-  probe proves the sealed remediation contract, not a live Render deployment.
+- W5 invokes W4 only for the local fixed hero scenario. The profile is not connected to live Render;
+  its loopback probe proves the sealed remediation contract, not a hosted deployment.
 - The verifier has one internal fixed process probe. This is not a registered model capability;
   model process capabilities, workspace-code executions, and arbitrary commands remain zero.
 - Evidence remains in memory. The tracked JSON is a deterministic sanitized demonstration receipt,
@@ -367,7 +429,9 @@ or model statement cannot bypass this order.
 
 ## Frozen deployment boundary
 
-W1, W2, W3, and W4 do not modify repository-root `render.yaml`, `Dockerfile`, `scripts/render_start.sh`,
-dependency/lock files, portable startup, deployment secrets, provider resources, AWS state, DNS, or
-custom domains. W3 changes only disposable test/materialized workspace copies. Existing B5/B6
-evidence therefore remains valid historical release evidence and is not regenerated.
+W1 through W5 do not modify repository-root `render.yaml`, `Dockerfile`,
+`scripts/render_start.sh`, dependency/lock files, portable startup, deployment secrets, provider
+resources, AWS state, DNS, or custom domains. W3/W5 effects target only disposable private
+materialized workspace copies. W5 does change runtime/UI source, so existing B5/B6 evidence remains
+preserved as historical proof but does not certify W5. Final RC B5/B6 recertification is required
+later and is intentionally not performed in this phase.
