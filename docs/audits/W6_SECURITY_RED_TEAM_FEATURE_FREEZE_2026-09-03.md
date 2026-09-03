@@ -1,10 +1,10 @@
 # W6 security red-team and feature-freeze audit — 2026-09-03
 
-## Candidate result
+## Result
 
-The W6 source fix and adversarial suite are complete. `W6_GATE` remains
-`PENDING_FINAL_CERTIFICATION` until the clean committed candidate completes full pytest, P1, B4,
-Ruff, pip check, canonical secret scan and clean-clone hero proof.
+`W6_GATE=PASS`. The complete W1-W5 authority chain, W6 source fix, adversarial suite, full
+regression, P0/P1/B4, source/supply-chain controls and clean-clone hero proof are green. There are
+zero unresolved P0/P1 security blockers, so the formal feature freeze is active.
 
 ## Proven starting point
 
@@ -64,7 +64,7 @@ explicitly not implemented.
 
 W7/W8 may package, harden, certify and document. They may not add product capability.
 
-## Candidate certification ledger
+## Certification ledger
 
 | Gate | Result |
 | --- | --- |
@@ -72,12 +72,21 @@ W7/W8 may package, harden, certify and document. They may not add product capabi
 | explicit W5 / W4 / W3 / W2 / W1 | PASS — 28/28, 37/37, 62/62, 34/34, 50/50 |
 | reviewer evidence manifest | PASS — 120/120 tests, 28 claims, 0 live receipts |
 | P0 | PASS — 15/15, 136 proof cases, 0 skipped |
-| P1 | PENDING FINAL CLEAN-CHECKPOINT RUN |
-| B4 | PENDING FINAL RUN |
-| full pytest | PENDING FINAL RUN |
-| Ruff / pip check / diff check | PENDING FINAL RUN |
-| canonical secret scan | PENDING FINAL RUN |
-| clean-clone focused hero | PENDING FINAL RUN |
+| P1 | PASS — 6/6, 93 proof cases, 0 skipped |
+| B4 | PASS — 11/11, 43 proof tests, 0 external network/AWS/deployments |
+| full pytest | PASS — 1726/1726 in 682.30 s |
+| Ruff / pip check / diff check | PASS / PASS / PASS |
+| canonical secret scan | PASS — 479 files, 0 findings, 0 secret values emitted |
+| source security guard | PASS — no forbidden workspace/hero capability |
+| clean-clone | PASS — fresh install and six safe smokes |
+| clean-clone focused hero | PASS — W5 + W6 78/78 under external-network guard |
+
+The initial P1 clean-clone correctly failed while current Local-2 authority differed from its
+frozen W5 reviewer-evidence anchor. The single affected claim was re-anchored to immutable W6
+implementation/test commit `4d133aa9d680c0887bc1f30101c775c13a07f9f8`, its generator and independent
+validator passed 120/120 tests, and the final canonical P1 passed. One intervening subprocess run
+was transiently unsuccessful; the same exact commit subsequently passed both direct clean-clone
+and canonical P1 without source or allowlist changes.
 
 ## Truth and external-action boundary
 
@@ -94,21 +103,23 @@ W7/W8 may package, harden, certify and document. They may not add product capabi
 1. `7fe3266` — `fix(judge): bind hero runs to operator sessions`
 2. `4d133aa` — `test(security): prove token rotation fails closed`
 3. `5d36d28` — `docs(evidence): reanchor Local-2 authority to W6`
+4. `5536f79` — `docs(security): stage W6 feature freeze candidate`
 
 The exact final pushed W6 HEAD is recorded after the closing audit commit to avoid a self-referential
 commit claim.
 
-## Pending exact gate fields
+## Exact gate fields
 
 ```text
 W6_NEW_TESTS=50/50
 W6_EXPLICIT_W5_W4_W3_W2_W1=28/28,37/37,62/62,34/34,50/50
 W6_P0=PASS_15_OF_15
-W6_P1=PENDING_FINAL_GATE
-W6_B4=PENDING_FINAL_GATE
-W6_FULL_TESTS=PENDING_FINAL_GATE
-W6_SECRET_SCAN=PENDING_FINAL_GATE
+W6_P1=PASS_6_OF_6
+W6_B4=PASS_11_OF_11
+W6_FULL_TESTS=PASS_1726_OF_1726
+W6_SECRET_SCAN=PASS_479_FILES_0_FINDINGS
 W6_UNRESOLVED_P0_BLOCKERS=0
-FEATURE_FREEZE=PENDING_FINAL_GATE
-W6_GATE=PENDING_FINAL_CERTIFICATION
+FEATURE_FREEZE=PASS
+W6_GATE=PASS
+READY_FOR_W7_FINAL_RELEASE_CANDIDATE=YES
 ```

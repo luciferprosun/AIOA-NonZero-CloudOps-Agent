@@ -149,12 +149,16 @@
 - W5_AWS_CALLS_AND_MUTATIONS = 0
 - W5_DEPLOYMENT_FILES_CHANGED = FALSE
 - W5_FINAL_RC_B5_B6_RECERTIFICATION_REQUIRED = TRUE
-- WORKSPACE_REMEDIATION_W6 = SECURITY_RED_TEAM_FEATURE_FREEZE_CANDIDATE
+- WORKSPACE_REMEDIATION_W6 = COMPLETE_SECURITY_RED_TEAM_FEATURE_FREEZE_PASS
 - W6_OPERATOR_SESSION_BINDING = COMPLETE_ORIGINATING_SESSION_FAIL_CLOSED
 - W6_NEW_ADVERSARIAL_TESTS = PASS_50_OF_50
 - W6_UNRESOLVED_P0_P1_SECURITY_BLOCKERS = 0
-- W6_FEATURE_FREEZE = PENDING_FINAL_CERTIFICATION
-- NEXT_MACRO_STEP = COMPLETE_W6_FINAL_CERTIFICATION_BEFORE_W7
+- W6_FEATURE_FREEZE = PASS_NO_NEW_PRODUCT_CAPABILITIES_AFTER_W6
+- W6_FULL_REGRESSION = PASS_1726_OF_1726
+- W6_P0_P1_B4 = PASS_15_OF_15_6_OF_6_11_OF_11
+- W6_SECRET_SCAN = PASS_479_FILES_ZERO_FINDINGS
+- W6_CLEAN_CLONE_HERO = PASS_78_OF_78
+- NEXT_MACRO_STEP = W7_FINAL_RELEASE_CANDIDATE_FULL_B5_B6_RECERTIFICATION
 
 ## W1 sealed workspace foundation
 
@@ -265,8 +269,9 @@ and retained 211-case W1-W5 suite pass.
 
 The product feature set is frozen in `docs/security/FEATURE_FREEZE.md`; generic coding, shell,
 arbitrary file mutation, Git, package-install, browser/MCP, live-AWS-core and hosted multi-user
-capabilities remain not implemented. Full P1/B4/regression/secret/clean-clone certification is
-still required before this status may say `W6_GATE=PASS` or authorize W7.
+capabilities remain not implemented. Full regression is 1726/1726, P0/P1/B4 are 15/15, 6/6 and
+11/11, the canonical scan covers 479 files with zero findings, and a clean-clone W5/W6 hero run is
+78/78. `W6_GATE=PASS`; the exact pushed W6 checkpoint may seed W7.
 
 ## Known Nonblocking Items
 

@@ -63,7 +63,7 @@ unauthorized semantic effect. It does not mean the product is a public multi-use
 | Forbidden executable capability in workspace/hero source | No shell, arbitrary process, socket/client, eval/exec, dynamic import or URL-fetch capability | `test_workspace_and_hero_source_keep_forbidden_capabilities_out` | PASS |
 | Direct dependency or lock drift | Direct runtime dependencies are exact pins and lock inputs match | `test_runtime_dependencies_and_lock_inputs_are_exactly_pinned` | PASS |
 | Private build context/public staging input | Default-deny Docker context and tracked inventory exclude private runtime state | `test_container_context_and_tracked_inventory_exclude_private_runtime_state` | PASS |
-| Secret/privacy material | Canonical scanner reports zero findings and emits no secret values | Final W6 canonical scan | PENDING FINAL GATE |
+| Secret/privacy material | Canonical scanner reports zero findings and emits no secret values | Final W6 canonical scan | PASS |
 | Product wording | Live, locally proven, deterministic mock, optional and not implemented remain distinct | W6 audit and feature-freeze ledger | PASS |
 
 ## Confirmed defect and disposition
