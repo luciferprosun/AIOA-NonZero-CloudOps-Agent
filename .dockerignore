@@ -10,5 +10,8 @@
 !requirements/*.lock
 !scripts/
 !scripts/render_start.sh
+!scripts/w4_render_start_profile.py
+!scripts/w4_probe_site/
+!scripts/w4_probe_site/*.py
 !src/
 !src/**

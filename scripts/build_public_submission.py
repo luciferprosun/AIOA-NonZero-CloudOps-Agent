@@ -61,13 +61,17 @@ _REQUIRED_EXACT: Final = frozenset(
         "scripts/build_public_submission.py",
         "scripts/render_start.sh",
         "scripts/run_b5_container_gate.py",
+        "scripts/run_w7_container_hero_gate.py",
         "scripts/run_portable_demo.py",
         "scripts/scan_public_submission.py",
+        "scripts/w4_render_start_profile.py",
+        "scripts/w7_container_hero_client.py",
     }
 )
 _REQUIRED_PREFIXES: Final = (
     "docs/assets/",
     "docs/evidence/release/portable-b5-",
+    "scripts/w4_probe_site/",
     "src/",
 )
 _PRIVATE_PREFIXES: Final = (
