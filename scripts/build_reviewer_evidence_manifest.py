@@ -66,6 +66,7 @@ PORTABLE_B4_COMMIT = "a455379eb3de73bf6c1780b3c4726b0778873dd4"
 PORTABLE_B5_CONTAINER_COMMIT = "af44999efe4bda7aa8b35931377af5eee0b49bbc"
 W5_JUDGE_HERO_COMMIT = "6b4c294a0d91ed7ba5ee2f84235f74621f11e5ad"
 W6_SECURITY_FREEZE_COMMIT = "4d133aa9d680c0887bc1f30101c775c13a07f9f8"
+W7_RELEASE_PACKAGING_COMMIT = "7c8a8fdeca9cf0a5d28818141d3e866e0625876c"
 DAY15_RECOVERY_LINEAGE = (
     DAY15_START_COMMIT,
     DAY15_ORIGINAL_M1_COMMIT,
@@ -345,7 +346,11 @@ def build_claims() -> list[dict[str, Any]]:
                 "src/aioa_cloudops_agent/local_api/views.py::run_view",
                 "src/aioa_cloudops_agent/local_api/workspace_hero.py::WorkspaceHeroOrchestrator",
                 "src/aioa_cloudops_agent/portable_server.py::main",
+                "Dockerfile",
                 "scripts/render_start.sh",
+                "scripts/run_w7_container_hero_gate.py::validate_hero_result",
+                "scripts/w4_render_start_profile.py::RenderStartContractV1Profile",
+                "scripts/w7_container_hero_client.py::run_proof",
             ),
             (
                 "tests/integration/test_local_hitl_http_server.py::"
@@ -372,9 +377,13 @@ def build_claims() -> list[dict[str, Any]]:
                 "test_container_binding_requires_explicit_intent",
                 "tests/integration/test_w6_security_feature_freeze.py::"
                 "test_different_authenticated_operator_cannot_consume_an_existing_request",
+                "tests/integration/test_w7_release_packaging.py::"
+                "test_image_packages_only_the_exact_w4_runtime_helper_closure",
+                "tests/integration/test_w7_release_packaging.py::"
+                "test_w7_hero_result_is_exact_and_fail_closed",
             ),
-            commit_anchor=W6_SECURITY_FREEZE_COMMIT,
-            limitations="Proves a local single-operator demo boundary, deterministic sandbox behavior, originating-session binding, and the startup script in a local process. The container binds internally to all interfaces, so safe host publication still depends on the documented loopback or isolated-network launch command. The W6 security checkpoint requires W7 B5/B6 release recertification. It does not attest to a live Render deployment, deployed identity provider, production authorization service, or provider-backed operation.",
+            commit_anchor=W7_RELEASE_PACKAGING_COMMIT,
+            limitations="Proves a local single-operator demo boundary, deterministic sandbox behavior, originating-session binding, the startup script in a local process, and the exact W7 image/helper packaging plus fail-closed container proof contract. Runtime B5/B6 observations remain in separately hash-bound release evidence. The container binds internally to all interfaces, so safe host publication still depends on the documented loopback or isolated-network launch command. It does not attest to a live Render deployment, deployed identity provider, production authorization service, or provider-backed operation.",
         ),
         _claim(
             "MODEL-AUTHORITY-01",
@@ -940,7 +949,7 @@ From the repository root in the documented development environment:
 .venv/bin/python scripts/validate_reviewer_evidence_manifest.py
 ```
 
-The immutable Phase 1 / Day 14 baseline remains anchored to `{EVIDENCE_SNAPSHOT_COMMIT}`. Unchanged Day 15 M1 claims remain at their original reviewed commit `{DAY15_ORIGINAL_M1_COMMIT}`; recovered telemetry and runtime-guard claims use `{DAY15_M1_COMMIT}`. Credential-free Local-First authority begins with the reviewed Phase 1 foundation `{LOCAL_FIRST_PHASE1_COMMIT}` and Phase 2 implementation `{LOCAL_FIRST_PHASE2_COMMIT}`. The provider-neutral primary-agent topology, tool surface, and cold-resume factory authority are anchored to portable B1 commit `{PORTABLE_B1_COMMIT}`. The historical B3 judge surface is `{PORTABLE_B3_COMMIT}`; four approval, execution, proposal, and model-authority claims changed by reliability/security hardening remain anchored to portable B4 commit `{PORTABLE_B4_COMMIT}`. The historical container boundary remains `{PORTABLE_B5_CONTAINER_COMMIT}`; the Local-2 judge-surface authority is re-anchored through W5 `{W5_JUDGE_HERO_COMMIT}` to the immutable W6 security checkpoint `{W6_SECURITY_FREEZE_COMMIT}` and explicitly requires W7 release recertification. The three authority sources changed during Phase 3 are explicitly re-anchored: current Day 15 gate plus SAM release safety at `{PHASE3_IAC_COMMIT}`, and the RC package/SDK pin at `{PHASE3_RC_COMMIT}`. The preserved Day 15 recovery lineage, in order, is `{DAY15_START_COMMIT}`, then `{DAY15_ORIGINAL_M1_COMMIT}`, `{DAY15_ORIGINAL_M2_COMMIT}`, `{DAY15_ORIGINAL_M3_COMMIT}`, `{DAY15_M1_COMMIT}`, `{DAY15_M2_COMMIT}`, `{DAY15_FINAL_BLOCKER_COMMIT}`, `{DAY15_SECRET_FIX_COMMIT}`, `{DAY15_G10_IMPLEMENTATION_COMMIT}`, `{DAY15_G10_EVIDENCE_COMMIT}`, `{DAY15_G10_BLOCKER_COMMIT}`, `{DAY15_NOVA_PROBE_FIX_COMMIT}`, `{DAY15_G10_REANCHOR_COMMIT}`, and `{DAY15_G10_COMMIT}`. The candidate snapshot is deliberately `LOCAL_IMPLEMENTATION_CANDIDATE`; it records no live AWS observation, change set, or deployment. The builder never derives an anchor from changing `HEAD`; every claim anchor names a prior immutable implementation commit, avoiding a self-referential commit hash.
+The immutable Phase 1 / Day 14 baseline remains anchored to `{EVIDENCE_SNAPSHOT_COMMIT}`. Unchanged Day 15 M1 claims remain at their original reviewed commit `{DAY15_ORIGINAL_M1_COMMIT}`; recovered telemetry and runtime-guard claims use `{DAY15_M1_COMMIT}`. Credential-free Local-First authority begins with the reviewed Phase 1 foundation `{LOCAL_FIRST_PHASE1_COMMIT}` and Phase 2 implementation `{LOCAL_FIRST_PHASE2_COMMIT}`. The provider-neutral primary-agent topology, tool surface, and cold-resume factory authority are anchored to portable B1 commit `{PORTABLE_B1_COMMIT}`. The historical B3 judge surface is `{PORTABLE_B3_COMMIT}`; four approval, execution, proposal, and model-authority claims changed by reliability/security hardening remain anchored to portable B4 commit `{PORTABLE_B4_COMMIT}`. The historical container boundary remains `{PORTABLE_B5_CONTAINER_COMMIT}`; the Local-2 judge-surface authority is re-anchored through W5 `{W5_JUDGE_HERO_COMMIT}` and the immutable W6 security checkpoint `{W6_SECURITY_FREEZE_COMMIT}` to the W7 packaging/proof contract `{W7_RELEASE_PACKAGING_COMMIT}`. The three authority sources changed during Phase 3 are explicitly re-anchored: current Day 15 gate plus SAM release safety at `{PHASE3_IAC_COMMIT}`, and the RC package/SDK pin at `{PHASE3_RC_COMMIT}`. The preserved Day 15 recovery lineage, in order, is `{DAY15_START_COMMIT}`, then `{DAY15_ORIGINAL_M1_COMMIT}`, `{DAY15_ORIGINAL_M2_COMMIT}`, `{DAY15_ORIGINAL_M3_COMMIT}`, `{DAY15_M1_COMMIT}`, `{DAY15_M2_COMMIT}`, `{DAY15_FINAL_BLOCKER_COMMIT}`, `{DAY15_SECRET_FIX_COMMIT}`, `{DAY15_G10_IMPLEMENTATION_COMMIT}`, `{DAY15_G10_EVIDENCE_COMMIT}`, `{DAY15_G10_BLOCKER_COMMIT}`, `{DAY15_NOVA_PROBE_FIX_COMMIT}`, `{DAY15_G10_REANCHOR_COMMIT}`, and `{DAY15_G10_COMMIT}`. The candidate snapshot is deliberately `LOCAL_IMPLEMENTATION_CANDIDATE`; it records no live AWS observation, change set, or deployment. The builder never derives an anchor from changing `HEAD`; every claim anchor names a prior immutable implementation commit, avoiding a self-referential commit hash.
 
 ## Canonical model
 

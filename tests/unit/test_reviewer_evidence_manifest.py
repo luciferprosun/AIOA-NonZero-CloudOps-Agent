@@ -37,7 +37,7 @@ from scripts.build_reviewer_evidence_manifest import (
     PORTABLE_B1_COMMIT,
     PORTABLE_B4_COMMIT,
     README_PATH,
-    W6_SECURITY_FREEZE_COMMIT,
+    W7_RELEASE_PACKAGING_COMMIT,
     build_manifest,
     canonical_manifest_bytes,
     claim_hash,
@@ -657,7 +657,7 @@ def test_day15_candidate_and_claim_anchors_are_exact_recovery_objects() -> None:
         PHASE3_RC_COMMIT,
         PORTABLE_B1_COMMIT,
         PORTABLE_B4_COMMIT,
-        W6_SECURITY_FREEZE_COMMIT,
+        W7_RELEASE_PACKAGING_COMMIT,
     }
     original_m1_claims = {
         "BOUNDED-FAILURES-01",
@@ -719,7 +719,7 @@ def test_day15_candidate_and_claim_anchors_are_exact_recovery_objects() -> None:
     )
     assert (
         _claim(manifest, "LOCAL2-LOOPBACK-API-01")["commit_anchor"]
-        == W6_SECURITY_FREEZE_COMMIT
+        == W7_RELEASE_PACKAGING_COMMIT
     )
     assert _claim(manifest, "LIVE-EC2-01")["commit_anchor"] == EVIDENCE_SNAPSHOT_COMMIT
     assert _claim(manifest, "SDK-PIN-01")["commit_anchor"] == PHASE3_RC_COMMIT
@@ -775,7 +775,7 @@ def test_local2_claims_are_exactly_anchored_to_their_reviewed_implementations() 
     api = _claim(manifest, "LOCAL2-LOOPBACK-API-01")
 
     assert execution["commit_anchor"] == PORTABLE_B4_COMMIT
-    assert api["commit_anchor"] == W6_SECURITY_FREEZE_COMMIT
+    assert api["commit_anchor"] == W7_RELEASE_PACKAGING_COMMIT
     assert execution["authority_source"] == sorted(
         [
             "src/aioa_cloudops_agent/agent/local_hitl.py::LocalHitlExecutionFlow.resume",
@@ -785,7 +785,11 @@ def test_local2_claims_are_exactly_anchored_to_their_reviewed_implementations() 
     )
     assert api["authority_source"] == sorted(
         [
+            "Dockerfile",
             "scripts/render_start.sh",
+            "scripts/run_w7_container_hero_gate.py::validate_hero_result",
+            "scripts/w4_render_start_profile.py::RenderStartContractV1Profile",
+            "scripts/w7_container_hero_client.py::run_proof",
             "src/aioa_cloudops_agent/config/portable_server.py::PortableServerSettings",
             "src/aioa_cloudops_agent/local_api/application.py::LocalApiApplication",
             "src/aioa_cloudops_agent/local_api/auth.py::LocalApiTokenAuthorizer.authorize",
@@ -798,7 +802,7 @@ def test_local2_claims_are_exactly_anchored_to_their_reviewed_implementations() 
         ]
     )
     assert len(execution["proof_nodes"]) == 4
-    assert len(api["proof_nodes"]) == 12
+    assert len(api["proof_nodes"]) == 14
 
 
 def test_phase3_iac_anchor_preserves_current_g10_authority_proof() -> None:

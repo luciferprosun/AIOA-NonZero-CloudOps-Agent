@@ -73,6 +73,7 @@ from scripts.build_reviewer_evidence_manifest import (  # noqa: E402
     SCHEMA_VERSION,
     W5_JUDGE_HERO_COMMIT,
     W6_SECURITY_FREEZE_COMMIT,
+    W7_RELEASE_PACKAGING_COMMIT,
     build_manifest,
     canonical_manifest_bytes,
     claim_hash,
@@ -300,6 +301,7 @@ _FROZEN_PORTABLE_B4_COMMIT = "a455379eb3de73bf6c1780b3c4726b0778873dd4"
 _FROZEN_PORTABLE_B5_CONTAINER_COMMIT = "af44999efe4bda7aa8b35931377af5eee0b49bbc"
 _FROZEN_W5_JUDGE_HERO_COMMIT = "6b4c294a0d91ed7ba5ee2f84235f74621f11e5ad"
 _FROZEN_W6_SECURITY_FREEZE_COMMIT = "4d133aa9d680c0887bc1f30101c775c13a07f9f8"
+_FROZEN_W7_RELEASE_PACKAGING_COMMIT = "7c8a8fdeca9cf0a5d28818141d3e866e0625876c"
 _FROZEN_DAY15_RECOVERY_LINEAGE = (
     _FROZEN_DAY15_START_COMMIT,
     _FROZEN_DAY15_ORIGINAL_M1_COMMIT,
@@ -352,7 +354,8 @@ _PORTABLE_B4_CLAIM_IDS = {
     "PROPOSAL-DURABILITY-01",
 }
 _PORTABLE_B5_CONTAINER_CLAIM_IDS: set[str] = set()
-_W6_SECURITY_FREEZE_CLAIM_IDS = {"LOCAL2-LOOPBACK-API-01"}
+_W6_SECURITY_FREEZE_CLAIM_IDS: set[str] = set()
+_W7_RELEASE_PACKAGING_CLAIM_IDS = {"LOCAL2-LOOPBACK-API-01"}
 _LOCAL_FIRST_PHASE1_CLAIM_IDS = {
     "DEFAULT-DENY-01",
     "VERIFIED-SUCCESS-01",
@@ -1251,6 +1254,7 @@ def _validate_day15_candidate_snapshot(
         or PORTABLE_B5_CONTAINER_COMMIT != _FROZEN_PORTABLE_B5_CONTAINER_COMMIT
         or W5_JUDGE_HERO_COMMIT != _FROZEN_W5_JUDGE_HERO_COMMIT
         or W6_SECURITY_FREEZE_COMMIT != _FROZEN_W6_SECURITY_FREEZE_COMMIT
+        or W7_RELEASE_PACKAGING_COMMIT != _FROZEN_W7_RELEASE_PACKAGING_COMMIT
         or DAY15_RECOVERY_LINEAGE != _FROZEN_DAY15_RECOVERY_LINEAGE
         or DAY15_CANDIDATE_STATUS != _FROZEN_DAY15_CANDIDATE_STATUS
     ):
@@ -1296,6 +1300,8 @@ def _expected_claim_anchor(claim_id: str) -> str | None:
         return _FROZEN_PORTABLE_B5_CONTAINER_COMMIT
     if claim_id in _W6_SECURITY_FREEZE_CLAIM_IDS:
         return _FROZEN_W6_SECURITY_FREEZE_COMMIT
+    if claim_id in _W7_RELEASE_PACKAGING_CLAIM_IDS:
+        return _FROZEN_W7_RELEASE_PACKAGING_COMMIT
     return None
 
 
@@ -1328,6 +1334,7 @@ def _validate_claims(
         _PORTABLE_B4_CLAIM_IDS,
         _PORTABLE_B5_CONTAINER_CLAIM_IDS,
         _W6_SECURITY_FREEZE_CLAIM_IDS,
+        _W7_RELEASE_PACKAGING_CLAIM_IDS,
         _LOCAL_FIRST_PHASE1_CLAIM_IDS,
         _LOCAL_FIRST_PHASE2_CLAIM_IDS,
     )
@@ -1747,11 +1754,18 @@ def _validate_git_anchors(
         _FROZEN_W5_JUDGE_HERO_COMMIT,
         _FROZEN_W6_SECURITY_FREEZE_COMMIT,
     )
-    w6_to_head = _git(
+    w6_to_w7 = _git(
         root,
         "merge-base",
         "--is-ancestor",
         _FROZEN_W6_SECURITY_FREEZE_COMMIT,
+        _FROZEN_W7_RELEASE_PACKAGING_COMMIT,
+    )
+    w7_to_head = _git(
+        root,
+        "merge-base",
+        "--is-ancestor",
+        _FROZEN_W7_RELEASE_PACKAGING_COMMIT,
         "HEAD",
     )
     parent_results = tuple(
@@ -1774,7 +1788,8 @@ def _validate_git_anchors(
         or portable_b4_to_portable_b5_container.returncode != 0
         or portable_b5_container_to_w5.returncode != 0
         or w5_to_w6.returncode != 0
-        or w6_to_head.returncode != 0
+        or w6_to_w7.returncode != 0
+        or w7_to_head.returncode != 0
         or any(
             result.returncode != 0 or result.stdout.split() != expected
             for result, expected in parent_results
@@ -1848,6 +1863,7 @@ def _validate_git_anchors(
                     _FROZEN_PORTABLE_B5_CONTAINER_COMMIT,
                     _FROZEN_W5_JUDGE_HERO_COMMIT,
                     _FROZEN_W6_SECURITY_FREEZE_COMMIT,
+                    _FROZEN_W7_RELEASE_PACKAGING_COMMIT,
                 }
                 or exists.returncode != 0
                 or history.returncode != 0
