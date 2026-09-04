@@ -100,6 +100,7 @@ _PRIVATE_NAME_PREFIXES: Final = (
 _OVERLAY_README: Final = "docs/submission/public/README.md"
 _EXCLUSIONS_DOC: Final = "docs/submission/PUBLICATION_EXCLUSIONS.md"
 _B5_ATTESTATION: Final = "docs/evidence/release/portable-b5-build-complete-attestation.json"
+_B5_ARTIFACT_MANIFEST: Final = "docs/evidence/release/portable-b5-artifact-manifest.json"
 
 
 class PublicBundleError(RuntimeError):
@@ -311,7 +312,10 @@ def _write_new(path: Path, content: bytes, mode: int = 0o644) -> None:
         raise PublicBundleError("PUBLIC_OUTPUT_WRITE_FAILED") from error
 
 
-def _b5_reference(attestation: Mapping[str, object]) -> dict[str, object]:
+def _b5_reference(
+    attestation: Mapping[str, object],
+    artifact_manifest: Mapping[str, object],
+) -> dict[str, object]:
     required = {
         "attestation_sha256",
         "container_digest",
@@ -320,7 +324,17 @@ def _b5_reference(attestation: Mapping[str, object]) -> dict[str, object]:
         "source_commit",
         "status",
     }
-    if not required.issubset(attestation) or attestation.get("status") != "BUILD_COMPLETE":
+    image = artifact_manifest.get("image")
+    if (
+        not required.issubset(attestation)
+        or attestation.get("status") != "BUILD_COMPLETE"
+        or artifact_manifest.get("status") != "FROZEN_LOCAL_ARTIFACT"
+        or artifact_manifest.get("source_commit") != attestation.get("source_commit")
+        or not isinstance(image, dict)
+        or image.get("id") != attestation.get("container_id")
+        or image.get("local_manifest_digest") != attestation.get("container_digest")
+        or not isinstance(image.get("local_reference"), str)
+    ):
         raise PublicBundleError("B5_BUILD_COMPLETE_REFERENCE_INVALID")
     return {
         "attestation_path": _B5_ATTESTATION,
@@ -331,7 +345,7 @@ def _b5_reference(attestation: Mapping[str, object]) -> dict[str, object]:
         "container_id": attestation["container_id"],
         "document_type": "AIOA_B5_PUBLIC_BUILD_COMPLETE_REFERENCE",
         "limitations": attestation["limitations"],
-        "local_image_reference": "localhost/aioa-portable:b5-render-797c94e72151",
+        "local_image_reference": image["local_reference"],
         "publications": attestation.get("publications"),
         "schema_version": 1,
         "source_commit": attestation["source_commit"],
@@ -443,13 +457,17 @@ def build_bundle(
 
     try:
         b5_attestation = json.loads(source_blobs[_B5_ATTESTATION])
+        b5_artifact_manifest = json.loads(source_blobs[_B5_ARTIFACT_MANIFEST])
     except (KeyError, TypeError, ValueError, json.JSONDecodeError) as error:
         raise PublicBundleError("B5_BUILD_COMPLETE_REFERENCE_INVALID") from error
-    if not isinstance(b5_attestation, dict):
+    if not isinstance(b5_attestation, dict) or not isinstance(b5_artifact_manifest, dict):
         raise PublicBundleError("B5_BUILD_COMPLETE_REFERENCE_INVALID")
     _write_new(
         candidate / "B5_BUILD_COMPLETE_REFERENCE.json",
-        _canonical_bytes(_b5_reference(b5_attestation), pretty=True),
+        _canonical_bytes(
+            _b5_reference(b5_attestation, b5_artifact_manifest),
+            pretty=True,
+        ),
     )
 
     certification_sha256: str | None = None

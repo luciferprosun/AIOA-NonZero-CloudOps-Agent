@@ -90,9 +90,9 @@ Expected top-level result: `status=PASS`, `runtime_mode=portable`, `provider=moc
 
 The frozen B5 local artifact is referenced—not republished—by
 [`B5_BUILD_COMPLETE_REFERENCE.json`](B5_BUILD_COMPLETE_REFERENCE.json). Its local-only identity is
-`localhost/aioa-portable:b5-render-797c94e72151`, image ID
-`2f4b9a0d2708ae82aeda558e45271b59b192894a3b09a1831723ad42e8fe78b4`, and local manifest digest
-`sha256:bdf35995e5588ccb93348f0784411d32d0aeb480483b1f34d530c4e3f34edbc3`. That tag was never pushed;
+`localhost/aioa-portable:w7-rc-bd2103da727f`, image ID
+`268cfce43a682ea364eb7bc01bdb2f1ae9dc8f8c0bf2da71c2fdd2a8c4be54c1`, and local manifest digest
+`sha256:f5f5647cfc0deb5361a8d538e55cf7c3a3ede9b07c96f50e8b9ebfb19c581c4d`. That tag was never pushed;
 the public-candidate rebuild receives its own local identity and is not claimed byte-identical to
 the frozen B5 image because this judge-facing README is an export overlay.
 

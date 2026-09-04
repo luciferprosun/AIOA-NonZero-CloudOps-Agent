@@ -65,6 +65,21 @@ def _fixture_repository(root: Path) -> None:
         )
         + "\n",
     )
+    _write(
+        root / "docs/evidence/release/portable-b5-artifact-manifest.json",
+        json.dumps(
+            {
+                "image": {
+                    "id": "c" * 64,
+                    "local_manifest_digest": "sha256:" + "b" * 64,
+                    "local_reference": "localhost/aioa-portable:b5-fixture",
+                },
+                "source_commit": "d" * 40,
+                "status": "FROZEN_LOCAL_ARTIFACT",
+            }
+        )
+        + "\n",
+    )
     _git(root, "add", ".")
 
 
@@ -121,7 +136,7 @@ def test_bundle_is_deterministic_and_inventories_every_index_blob(tmp_path: Path
     )
     assert (
         b5_reference["local_image_reference"]
-        == "localhost/aioa-portable:b5-render-797c94e72151"
+        == "localhost/aioa-portable:b5-fixture"
     )
 
     listed_sums = (candidate / "SHA256SUMS").read_text().splitlines()
@@ -167,9 +182,9 @@ def test_public_docs_cover_required_judge_contract() -> None:
         "## License and hackathon disclosure",
     )
     assert all(fragment in readme for fragment in required_fragments)
-    assert "localhost/aioa-portable:b5-render-797c94e72151" in readme
-    assert "2f4b9a0d2708ae82aeda558e45271b59b192894a3b09a1831723ad42e8fe78b4" in readme
-    assert "sha256:bdf35995e5588ccb93348f0784411d32d0aeb480483b1f34d530c4e3f34edbc3" in readme
+    assert "localhost/aioa-portable:w7-rc-bd2103da727f" in readme
+    assert "268cfce43a682ea364eb7bc01bdb2f1ae9dc8f8c0bf2da71c2fdd2a8c4be54c1" in readme
+    assert "sha256:f5f5647cfc0deb5361a8d538e55cf7c3a3ede9b07c96f50e8b9ebfb19c581c4d" in readme
     assert "default `CMD`" in readme
     assert "no fixed `ENTRYPOINT`" in readme
     assert "dockerCommand` `/usr/local/bin/aioa-render-start" in readme
