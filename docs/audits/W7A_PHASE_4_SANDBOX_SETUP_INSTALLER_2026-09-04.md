@@ -268,3 +268,169 @@ W8_EXECUTED=NO
 PHASE_4_RESULT=PARTIAL_DOCKER_UNAVAILABLE
 PHASE_5_AUTHORIZED=NO
 ```
+
+## Resumed runtime certification — 2026-09-05 Europe/Berlin
+
+This section preserves, and supersedes only for current status, the truthful
+`PARTIAL_DOCKER_UNAVAILABLE` checkpoint above. The host blocker was removed by
+installing the official Docker CE packages for Ubuntu 24.04 (`29.8.0`) and using
+the operator-owned rootless daemon. User `l` was not added to the `docker` group;
+the certified control plane uses only `unix:///run/user/1000/docker.sock`. No
+public Docker TCP API, privileged daemon configuration, AWS operation, deployment,
+or product GitHub mutation was introduced.
+
+```text
+HOST_OS=Linux Mint 22.2
+HOST_KERNEL=6.14.0-29-generic
+HOST_ARCH=x86_64
+DOCKER_INSTALL_ACTION=OFFICIAL_APT
+DOCKER_CLIENT_VERSION=29.8.0
+DOCKER_SERVER_VERSION=29.8.0
+DOCKER_CONTEXT=rootless
+DOCKER_SECURITY_OPTIONS=seccomp_builtin,rootless,cgroupns
+CGROUP_DRIVER=systemd
+CGROUP_VERSION=2
+OPERATOR_DOCKER_GROUP_MEMBER=NO
+```
+
+### Exact implementation and toolbox identities
+
+The runtime implementation is committed at
+`1454eec76bd9eaf848a1e784b78ac365d990dc1b`. A detached clean clone of that
+exact commit was used as the Docker build context with build cache disabled.
+The repository-controlled toolbox pins both the Dockerfile frontend and Alpine
+base image by SHA-256. Direct package versions, the Python wheel hash, and the npm
+artifact integrity are fixed and checked during the build.
+
+```text
+TOOLBOX_IMAGE_REFERENCE=sha256:7f4e8f00a1ea130d7b30b8371911239f6bf3df4131533faf04df667668739df7
+TOOLBOX_IMAGE_SHA256=7f4e8f00a1ea130d7b30b8371911239f6bf3df4131533faf04df667668739df7
+TOOLBOX_IMAGE_SIZE_BYTES=229815274
+TOOLBOX_SOURCE_COMMIT=1454eec76bd9eaf848a1e784b78ac365d990dc1b
+TOOLBOX_USER=65532:65532
+TOOLBOX_WORKDIR=/workspace
+TOOLBOX_POLICY=DOCKER_SANDBOX_V1
+BASE_IMAGE_DIGEST=sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc
+DOCKERFILE_FRONTEND_DIGEST=sha256:ecfaec9ed6d810b56388c508f4121597bfbba70d41a6dfeee4d8cad5f295fc32
+```
+
+Tags were used only as local build handles. Runtime trust requires the exact
+`sha256:<image-id>` reference, matching `Config.User`, `/workspace` workdir,
+policy label, and source-revision label. A tag-only reference is rejected.
+
+### Runtime isolation and setup proof
+
+`DockerSandboxProvider` now performs real operations through structured argv and
+the existing session-owned `OwnedProcess`; it exposes no shell, raw model command,
+host installer, GitHub write, AWS, or deployment method. It creates only UUIDv7
+AIOA-labeled volumes/containers, copies a bounded deterministic archive rather
+than bind-mounting source, verifies the staged tree inside the container, and
+checks ownership before cleanup.
+
+Every runtime command used:
+
+- UID/GID `65532:65532`, `privileged=false`, `cap-drop=ALL`, and
+  `no-new-privileges=true`;
+- read-only root, a `noexec,nosuid,nodev` tmpfs, and one AIOA-owned workspace
+  volume;
+- no host home, `.ssh`, `.aws`, browser/Codex profile, or Docker socket mount;
+- `--network=none` for setup and coding/test execution;
+- CPU `1.0`, memory `512 MiB`, PIDs `128`, open files `1024`, command timeout
+  at most `300s`, and captured output at most `128 KiB` by default.
+
+Python installed the exact `six==1.17.0` wheel from the read-only local
+wheelhouse with `--require-hashes`, `PIP_NO_INDEX=1`, and no network. Node ran
+`npm ci --offline --ignore-scripts` from the image cache with lockfile integrity.
+Project `.npmrc` is denied. Python uses safe-path mode and `/dev/null` pip config;
+an adversarial repository `sitecustomize.py` was proven not to execute during
+SETUP. SETUP reaches READY only after install exit 0, an internal manifest probe,
+and a fixed package-manager version probe.
+
+```text
+RUNTIME_RECEIPT_SHA256=05a8e1d4c17df0693bebbb5c402ff46c0b491fb1515f86ab83e4c6e5187f0b1b
+PYTHON_INSTALL_RUNTIME_PROOF=PASS
+NODE_INSTALL_RUNTIME_PROOF=PASS
+SETUP_EGRESS_ENFORCEMENT=PASS_NETWORK_NONE
+CODING_OFFLINE_NETWORK_NONE=PASS
+SETUP_REPOSITORY_CODE_EXECUTION=DENIED
+SANDBOX_GITHUB_CREDENTIALS=0
+SANDBOX_AWS_CREDENTIALS=0
+SANDBOX_SSH_CREDENTIALS=0
+```
+
+### Adversarial resource, failure, and cleanup proof
+
+Inside the exact container, `/proc` and cgroup v2 independently reported zero
+effective capabilities, `NoNewPrivs=1`, memory `536870912`, PIDs `128`, CPU
+`100000 100000`, no default route, inaccessible egress, read-only root, and
+`RLIMIT_NOFILE=1024`. An attempted transition to UID 0 was denied.
+
+The PID exhaustion fixture received `EAGAIN`; the memory fixture exited `137` and
+was typed `RESOURCE_LIMIT`; the CPU timeout exited `124` and was typed
+`RESOURCE_LIMIT`; the crash fixture exited `139` and was typed
+`SANDBOX_CRASHED`. None mapped to READY or success. Successful Python/Node cycles,
+resource failures, crash, timeout, manifest-only stale-restore denial, and the
+SETUP code-execution attack all ended with zero owned orphan resources. A separate
+post-run label query found zero W7A containers, volumes, and networks.
+
+### Secret/privacy and regression gates
+
+The exact exported root filesystem scan covered `5297` regular files and
+`148304520` bytes. It found zero credential files, Git metadata, private-key
+blocks, AWS keys, GitHub tokens, or OpenAI tokens. It also rechecked the Python
+wheel digest, npm cache integrity, and mode `0555` on toolbox helpers.
+
+```text
+IMAGE_PRIVACY_SCAN=PASS
+IMAGE_PRIVACY_SCAN_FINDINGS=0
+IMAGE_PRIVACY_SCAN_RECEIPT_SHA256=50e6f9104c6a9ceeb986d247a6a336c16e28694c9c48a94429b9e984d0b61225
+FOCUSED_PHASE_2_TO_4=124/124 PASS
+FULL_REGRESSION=1863/1863 PASS, 0 FAIL, 0 SKIP, 724.99s
+P0_GATE=15/15 PASS, 136 proof tests
+P1_GATE=6/6 PASS, 93 proof tests, clean clone included
+B4_GATE=11/11 PASS, 43 proof tests
+B4_RECEIPT_SHA256=dcd5e4ee151e316aa38f5f36f6d9bcbf4f73b5ce0e80f45587cd152fe397848b
+RUFF=PASS
+PIP_CHECK=PASS
+TRACKED_SECRET_SCAN=PASS
+GIT_DIFF_CHECK=PASS
+```
+
+The compact, self-hashed machine receipt is
+`docs/evidence/w7a/phase4-runtime-certification.json`, with receipt SHA-256
+`66f4d1edbccdf88796409f3e6fb8a5058100a6b6817d136f0de4f2a8e256d7e6`.
+
+### Current Phase 4 gate
+
+```text
+DOCKER_SANDBOX_REAL=PASS
+TOOLBOX_IMAGE_DIGEST_PINNED=YES
+SANDBOX_NON_ROOT_RUNTIME=PASS
+PRIVILEGED_FALSE=PASS
+CAP_DROP_ALL=PASS
+NO_NEW_PRIVILEGES=PASS
+DOCKER_SOCKET_MOUNT=0
+HOST_HOME_MOUNT=0
+SANDBOX_GITHUB_CREDENTIALS=0
+SANDBOX_AWS_CREDENTIALS=0
+SANDBOX_SSH_CREDENTIALS=0
+PYTHON_INSTALL_RUNTIME_PROOF=PASS
+NODE_INSTALL_RUNTIME_PROOF=PASS
+SETUP_EGRESS_ENFORCEMENT=PASS
+CODING_OFFLINE_NETWORK_NONE=PASS
+RESOURCE_LIMITS_RUNTIME=PASS
+CRASH_TIMEOUT_CLEANUP=PASS
+REPEATED_CLEANUP_ORPHANS=0
+FULL_REGRESSION=PASS
+P0_P1_B4=PASS
+SECRET_SCAN=PASS
+GIT_DIFF_CHECK=PASS
+PHASE_4_RESULT=PASS
+PHASE_5_AUTHORIZED=YES
+```
+
+Frozen W7/B5/B6 remains unchanged at
+`945c87052815b237004d259fe993cc92cbd579b7`; this certification does not
+recertify or rewrite it. W8 was not executed. AWS calls/mutations, deployments,
+main pushes, force pushes, tag publications, and product GitHub mutations remain
+zero.

@@ -1,0 +1,89 @@
+{
+  "authority": "W7A_PHASE_4_RUNTIME_CERTIFICATION",
+  "aws_calls": 0,
+  "aws_mutations": 0,
+  "clean_clone": {
+    "image_built_from_clean_detached_source": true,
+    "image_build_cache_disabled": true,
+    "p1_clean_clone_gate": "PASS",
+    "source_identity_verified": true
+  },
+  "external_deployments": 0,
+  "focused_tests": {
+    "failed": 0,
+    "passed": 124,
+    "skipped": 0
+  },
+  "gates": {
+    "b4": {
+      "proof_tests": 43,
+      "receipt_sha256": "dcd5e4ee151e316aa38f5f36f6d9bcbf4f73b5ce0e80f45587cd152fe397848b",
+      "scenarios_passed": 11,
+      "status": "PASS"
+    },
+    "full_pytest": {
+      "duration_seconds": 724.99,
+      "failed": 0,
+      "passed": 1863,
+      "skipped": 0,
+      "status": "PASS"
+    },
+    "git_diff_check": "PASS",
+    "p0": {
+      "gates_passed": 15,
+      "proof_tests": 136,
+      "status": "PASS"
+    },
+    "p1": {
+      "gates_passed": 6,
+      "proof_tests": 93,
+      "status": "PASS"
+    },
+    "pip_check": "PASS",
+    "ruff": "PASS",
+    "secret_scan": "PASS"
+  },
+  "generated_at": "2026-09-04T23:04:48Z",
+  "github_credentials_in_sandbox": 0,
+  "implementation_source_commit": "1454eec76bd9eaf848a1e784b78ac365d990dc1b",
+  "product_github_mutations": 0,
+  "receipt_sha256": "66f4d1edbccdf88796409f3e6fb8a5058100a6b6817d136f0de4f2a8e256d7e6",
+  "receipt_type": "AIOA_W7A_PHASE_4_CERTIFICATION",
+  "runtime": {
+    "cap_drop_all": "PASS",
+    "coding_network": "NONE",
+    "crash_cleanup": "PASS",
+    "docker_sandbox_real": "PASS",
+    "docker_socket_mounts": 0,
+    "host_home_mounts": 0,
+    "memory_limit": "512MiB_ENFORCED",
+    "no_new_privileges": "PASS",
+    "node_install": "PASS",
+    "open_files_limit": "1024_ENFORCED",
+    "orphaned_resources": 0,
+    "pids_limit": "128_ENFORCED",
+    "privileged": false,
+    "python_install": "PASS",
+    "read_only_root": "PASS",
+    "repository_code_during_setup": "DENIED",
+    "run_as": "65532:65532",
+    "runtime_receipt_sha256": "05a8e1d4c17df0693bebbb5c402ff46c0b491fb1515f86ab83e4c6e5187f0b1b",
+    "setup_network": "NONE",
+    "timeout_cleanup": "PASS"
+  },
+  "schema_version": 1,
+  "secret_findings": 0,
+  "ssh_credentials_in_sandbox": 0,
+  "status": "PASS",
+  "toolbox": {
+    "base_image_digest": "sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc",
+    "dockerfile_frontend_digest": "sha256:ecfaec9ed6d810b56388c508f4121597bfbba70d41a6dfeee4d8cad5f295fc32",
+    "image_reference": "sha256:7f4e8f00a1ea130d7b30b8371911239f6bf3df4131533faf04df667668739df7",
+    "image_scan_receipt_sha256": "50e6f9104c6a9ceeb986d247a6a336c16e28694c9c48a94429b9e984d0b61225",
+    "image_sha256": "7f4e8f00a1ea130d7b30b8371911239f6bf3df4131533faf04df667668739df7",
+    "image_size_bytes": 229815274,
+    "non_root_user": "65532:65532",
+    "rootfs_files_scanned": 5297,
+    "source_commit": "1454eec76bd9eaf848a1e784b78ac365d990dc1b"
+  }
+}

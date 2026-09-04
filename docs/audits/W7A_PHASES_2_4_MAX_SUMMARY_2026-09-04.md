@@ -215,3 +215,30 @@ STOP_AFTER_PHASE_4=YES
 Do not install Docker automatically, do not treat a host process as equivalent
 isolation, and do not begin Phase 5 until the Phase 4 runtime blocker is cleared and
 the full gate is rerun.
+
+## Resumed host addendum — 2026-09-05 Europe/Berlin
+
+The earlier aggregate above remains the historical Docker-unavailable checkpoint.
+It was subsequently resumed under the authorized host-unblock prompt. The current
+authoritative status is recorded in the appended `Resumed runtime certification`
+section of `W7A_PHASE_4_SANDBOX_SETUP_INSTALLER_2026-09-04.md` and the self-hashed
+machine receipt `docs/evidence/w7a/phase4-runtime-certification.json`.
+
+```text
+PHASE_2_RESULT=PASS
+PHASE_3_RESULT=PASS
+PHASE_4_RESULT=PASS
+PHASE_4_IMPLEMENTATION_SOURCE_COMMIT=1454eec76bd9eaf848a1e784b78ac365d990dc1b
+PHASE_4_TOOLBOX_IMAGE_SHA256=7f4e8f00a1ea130d7b30b8371911239f6bf3df4131533faf04df667668739df7
+PHASE_4_RECEIPT_SHA256=66f4d1edbccdf88796409f3e6fb8a5058100a6b6817d136f0de4f2a8e256d7e6
+FULL_REGRESSION=1863/1863 PASS
+P0=15/15 PASS
+P1=6/6 PASS
+B4=11/11 PASS
+SANDBOX_CLEANUP_ORPHANS=0
+AWS_CALLS=0
+AWS_MUTATIONS=0
+DEPLOYMENTS=0
+PRODUCT_GITHUB_MUTATIONS=0
+PHASE_5_AUTHORIZED=YES
+```
