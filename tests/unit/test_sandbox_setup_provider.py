@@ -192,6 +192,11 @@ def test_resource_limits_are_finite_and_bounded() -> None:
         SandboxResourceLimits(command_timeout_seconds=0)
 
 
+def test_offline_setup_policy_cannot_reauthorize_an_approved_registry() -> None:
+    with pytest.raises(ValidationError):
+        SandboxPolicy(allowed_setup_hosts=("pypi.org",))
+
+
 def test_lifecycle_happy_path_is_exact_and_unknown_cannot_be_ready() -> None:
     lifecycle = SandboxLifecycle(
         new_sandbox_ref(DOCKER_SANDBOX_V1, now=datetime(2026, 9, 4, 14, 0, tzinfo=UTC))
@@ -251,12 +256,14 @@ def test_python_requirements_plan_is_deterministic_hash_pinned_and_non_host(
     assert first.ecosystem is SetupEcosystem.PYTHON_REQUIREMENTS
     assert first.argv == (
         "python",
+        "-P",
         "-m",
         "pip",
         "install",
         "--disable-pip-version-check",
         "--no-input",
         "--require-hashes",
+        "--user",
         "-r",
         "requirements.txt",
     )
@@ -291,13 +298,24 @@ def test_node_plan_uses_lock_preserving_install_and_disables_scripts(tmp_path: P
 
     assert first == second
     assert first.ecosystem is SetupEcosystem.NODE_NPM
-    assert first.argv == ("npm", "ci", "--ignore-scripts", "--no-audit", "--no-fund")
+    assert first.argv == (
+        "npm",
+        "ci",
+        "--ignore-scripts",
+        "--no-audit",
+        "--no-fund",
+        "--offline",
+    )
     assert first.lifecycle_scripts is False
     assert {item.name for item in first.environment} == {
         "NPM_CONFIG_AUDIT",
+        "NPM_CONFIG_CACHE",
         "NPM_CONFIG_FUND",
         "NPM_CONFIG_IGNORE_SCRIPTS",
+        "NPM_CONFIG_LOGS_DIR",
+        "NPM_CONFIG_OFFLINE",
         "NPM_CONFIG_UPDATE_NOTIFIER",
+        "NPM_CONFIG_USERCONFIG",
     }
 
 
@@ -375,6 +393,15 @@ def test_custom_npm_registry_and_lock_drift_are_denied(tmp_path: Path) -> None:
         DeterministicSetupPlanner().plan_node(clean, clean_identity.tree_sha256)
 
 
+def test_project_npm_configuration_cannot_override_policy(tmp_path: Path) -> None:
+    root = _node_fixture(tmp_path / "node-config")
+    (root / ".npmrc").write_text("registry=https://attacker.invalid/\n", encoding="utf-8")
+    identity = _identity(root)
+
+    with pytest.raises(SetupPlannerError, match="PROJECT_CONFIG_DENIED"):
+        DeterministicSetupPlanner().plan_node(root, identity.tree_sha256)
+
+
 def test_link_hardlink_special_and_secret_paths_are_rejected(tmp_path: Path) -> None:
     source = _python_fixture(tmp_path / "source")
     outside = tmp_path / "outside"
@@ -437,6 +464,7 @@ def test_docker_setup_and_offline_argv_preserve_security_profile(tmp_path: Path)
         assert invocation.host_home_mounts == 0
         assert invocation.structured_argv is True
         assert "--read-only" in invocation.argv
+        assert "--interactive" in invocation.argv
         assert "--cap-drop=ALL" in invocation.argv
         assert "--security-opt=no-new-privileges:true" in invocation.argv
         assert "--user=65532:65532" in invocation.argv
@@ -450,8 +478,11 @@ def test_docker_setup_and_offline_argv_preserve_security_profile(tmp_path: Path)
         assert "/home/" not in rendered
         assert "/.ssh" not in rendered
         assert "/.aws" not in rendered
-    assert "--network=aioa-w7a-package-registry-only" in setup.argv
-    assert setup.network_mode == "PACKAGE_REGISTRY_ONLY"
+    assert "--network=none" in setup.argv
+    assert setup.network_mode == "NONE"
+    assert "PIP_NO_INDEX=1" in setup.argv
+    assert "PIP_FIND_LINKS=/opt/aioa-cache/python" in setup.argv
+    assert not setup.argv[-2].endswith(",rw")
     assert setup.argv[-len(setup_plan.argv) :] == setup_plan.argv
     assert "--network=none" in offline.argv
     assert offline.network_mode == "NONE"
@@ -500,7 +531,7 @@ def test_direct_docker_escape_plan_is_rejected() -> None:
         ("/usr/bin/docker", "run", "--mount=type=bind,src=/home/user,dst=/host", "image"),
     ):
         with pytest.raises(ValidationError):
-            DockerInvocationPlan(phase="SETUP", argv=argv, network_mode="PACKAGE_REGISTRY_ONLY")
+            DockerInvocationPlan(phase="SETUP", argv=argv, network_mode="NONE")
 
 
 def test_snapshot_is_manifest_only_and_cannot_claim_a_secret_bearing_image() -> None:

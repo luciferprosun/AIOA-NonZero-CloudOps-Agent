@@ -99,6 +99,8 @@ class DeterministicSetupPlanner:
 
     def plan_node(self, root: Path, expected_tree_sha256: str) -> SetupPlan:
         self._verify_tree(root, expected_tree_sha256)
+        if (root / ".npmrc").exists():
+            raise SetupPlannerError("NPM_PROJECT_CONFIG_DENIED")
         if not _regular_path(root, "package.json") or not _regular_path(root, "package-lock.json"):
             raise SetupPlannerError("NODE_PACKAGE_LOCK_PAIR_MISSING")
         manifests, contents = self._read_manifest_set(

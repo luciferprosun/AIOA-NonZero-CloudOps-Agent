@@ -22,7 +22,7 @@ SANDBOX_TAINT = "UNTRUSTED_REPOSITORY_CODE"
 
 _ENV_NAME = re.compile(r"^[A-Z][A-Z0-9_]{0,63}$")
 _RESOURCE_NAME = re.compile(r"^aioa-w7a-[0-9a-f-]{36}$")
-_IMAGE = re.compile(r"^aioa/sandbox-toolbox@sha256:(?P<digest>[0-9a-f]{64})$")
+_IMAGE = re.compile(r"^(?:aioa/sandbox-toolbox@)?sha256:(?P<digest>[0-9a-f]{64})$")
 _COMMIT = re.compile(r"^[0-9a-f]{40}$")
 _FORBIDDEN_ENV_PARTS = (
     "AWS",
@@ -42,11 +42,21 @@ _FORBIDDEN_ENV_PARTS = (
 _ALLOWED_SANDBOX_ENV_NAMES = frozenset(
     {
         "NPM_CONFIG_AUDIT",
+        "NPM_CONFIG_CACHE",
         "NPM_CONFIG_FUND",
         "NPM_CONFIG_IGNORE_SCRIPTS",
+        "NPM_CONFIG_LOGS_DIR",
+        "NPM_CONFIG_OFFLINE",
         "NPM_CONFIG_UPDATE_NOTIFIER",
+        "NPM_CONFIG_USERCONFIG",
+        "PIP_BREAK_SYSTEM_PACKAGES",
+        "PIP_CONFIG_FILE",
         "PIP_DISABLE_PIP_VERSION_CHECK",
+        "PIP_FIND_LINKS",
         "PIP_NO_INPUT",
+        "PIP_NO_INDEX",
+        "PYTHONSAFEPATH",
+        "PYTHONUSERBASE",
         "UV_NO_PROGRESS",
     }
 )
@@ -143,17 +153,27 @@ class SandboxPolicy(NonZeroContract):
     host_home_mounted: Literal[False] = False
     arbitrary_host_mounts: Literal[False] = False
     repository_copy_only: Literal[True] = True
-    setup_network: Literal["PACKAGE_REGISTRY_ONLY"] = "PACKAGE_REGISTRY_ONLY"
+    setup_network: Literal["NONE"] = "NONE"
     coding_network: Literal["NONE"] = "NONE"
     setup_credentials: Literal[False] = False
     snapshot_mode: Literal["CONTENT_MANIFEST_ONLY"] = "CONTENT_MANIFEST_ONLY"
     host_package_install: Literal[False] = False
     allowed_setup_hosts: tuple[
-        Literal["files.pythonhosted.org"],
-        Literal["pypi.org"],
-        Literal["registry.npmjs.org"],
-    ] = ("files.pythonhosted.org", "pypi.org", "registry.npmjs.org")
+        Literal[
+            "files.pythonhosted.org",
+            "pypi.org",
+            "registry.npmjs.org",
+        ],
+        ...,
+    ] = ()
     limits: SandboxResourceLimits = Field(default_factory=SandboxResourceLimits)
+
+    @field_validator("allowed_setup_hosts")
+    @classmethod
+    def validate_offline_setup_hosts(cls, value: tuple[str, ...]) -> tuple[str, ...]:
+        if value:
+            raise ValueError("offline setup cannot authorize remote hosts")
+        return value
 
     @property
     def policy_sha256(self) -> str:
@@ -285,7 +305,7 @@ class SetupPlan(NonZeroContract):
     manifests: tuple[SetupManifest, ...] = Field(min_length=1, max_length=2)
     argv: tuple[str, ...] = Field(min_length=3, max_length=16)
     environment: tuple[SetupEnvironmentVariable, ...] = Field(max_length=8)
-    network_mode: Literal["PACKAGE_REGISTRY_ONLY"] = "PACKAGE_REGISTRY_ONLY"
+    network_mode: Literal["NONE"] = "NONE"
     lifecycle_scripts: Literal[False] = False
     custom_registry: Literal[False] = False
     temporary_credentials: Literal[False] = False
@@ -327,7 +347,7 @@ class SetupPlan(NonZeroContract):
             "manifests": [item.model_dump(mode="json") for item in manifests],
             "argv": list(argv),
             "environment": [item.model_dump(mode="json") for item in environment],
-            "network_mode": "PACKAGE_REGISTRY_ONLY",
+            "network_mode": "NONE",
             "lifecycle_scripts": False,
             "custom_registry": False,
             "temporary_credentials": False,
@@ -346,7 +366,9 @@ class SetupReceipt(NonZeroContract):
     stdout_sha256: Sha256Digest
     stderr_sha256: Sha256Digest
     installed_manifest_sha256: Sha256Digest
-    setup_network_used: Literal[True] = True
+    toolbox_image_sha256: Sha256Digest
+    setup_network_mode: Literal["NONE"] = "NONE"
+    offline_cache_verified: Literal[True] = True
     coding_network_disabled: Literal[True] = True
     temporary_credentials_remaining: Literal[0] = 0
     github_credentials_present: Literal[0] = 0
@@ -462,18 +484,26 @@ def _expected_setup_contract(
         return (
             (
                 "python",
+                "-P",
                 "-m",
                 "pip",
                 "install",
                 "--disable-pip-version-check",
                 "--no-input",
                 "--require-hashes",
+                "--user",
                 "-r",
                 "requirements.txt",
             ),
             (
+                SetupEnvironmentVariable(name="PIP_BREAK_SYSTEM_PACKAGES", value="1"),
+                SetupEnvironmentVariable(name="PIP_CONFIG_FILE", value="/dev/null"),
                 SetupEnvironmentVariable(name="PIP_DISABLE_PIP_VERSION_CHECK", value="1"),
+                SetupEnvironmentVariable(name="PIP_FIND_LINKS", value="/opt/aioa-cache/python"),
                 SetupEnvironmentVariable(name="PIP_NO_INPUT", value="1"),
+                SetupEnvironmentVariable(name="PIP_NO_INDEX", value="1"),
+                SetupEnvironmentVariable(name="PYTHONSAFEPATH", value="1"),
+                SetupEnvironmentVariable(name="PYTHONUSERBASE", value="/workspace/.aioa-python"),
             ),
             ("requirements.txt",),
         )
@@ -484,12 +514,16 @@ def _expected_setup_contract(
             ("pyproject.toml", "uv.lock"),
         )
     return (
-        ("npm", "ci", "--ignore-scripts", "--no-audit", "--no-fund"),
+        ("npm", "ci", "--ignore-scripts", "--no-audit", "--no-fund", "--offline"),
         (
             SetupEnvironmentVariable(name="NPM_CONFIG_AUDIT", value="false"),
+            SetupEnvironmentVariable(name="NPM_CONFIG_CACHE", value="/opt/aioa-cache/npm"),
             SetupEnvironmentVariable(name="NPM_CONFIG_FUND", value="false"),
             SetupEnvironmentVariable(name="NPM_CONFIG_IGNORE_SCRIPTS", value="true"),
+            SetupEnvironmentVariable(name="NPM_CONFIG_LOGS_DIR", value="/tmp/npm-logs"),
+            SetupEnvironmentVariable(name="NPM_CONFIG_OFFLINE", value="true"),
             SetupEnvironmentVariable(name="NPM_CONFIG_UPDATE_NOTIFIER", value="false"),
+            SetupEnvironmentVariable(name="NPM_CONFIG_USERCONFIG", value="/dev/null"),
         ),
         ("package-lock.json", "package.json"),
     )

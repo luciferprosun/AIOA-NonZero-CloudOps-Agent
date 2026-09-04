@@ -119,7 +119,16 @@ def test_worker_and_sandbox_environments_do_not_share_provider_credentials(
     sandbox_names = {item.name for item in setup.environment}
 
     assert worker_environment == {"PATH": "/usr/bin:/bin"}
-    assert sandbox_names == {"PIP_DISABLE_PIP_VERSION_CHECK", "PIP_NO_INPUT"}
+    assert sandbox_names == {
+        "PIP_BREAK_SYSTEM_PACKAGES",
+        "PIP_CONFIG_FILE",
+        "PIP_DISABLE_PIP_VERSION_CHECK",
+        "PIP_FIND_LINKS",
+        "PIP_NO_INPUT",
+        "PIP_NO_INDEX",
+        "PYTHONSAFEPATH",
+        "PYTHONUSERBASE",
+    }
     assert not any(
         marker in name
         for name in sandbox_names
