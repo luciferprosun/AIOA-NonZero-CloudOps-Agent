@@ -1,0 +1,103 @@
+{
+  "aws_calls": 0,
+  "aws_mutations": 0,
+  "b5": {
+    "artifact_manifest_file_sha256": "c38dfe98d547a28ec9ed2d19ef1e1f93bfb2bd9d011a88e5d8c4d3674a8fee6d",
+    "attestation_file_sha256": "dd11773097ce0ff9e9a51b7e8ccb8aa65295734bddef3f5d6b438cbc131512e1",
+    "attestation_sha256": "f9b0e032948cbc99048ff8596061c1f7ffcc3475ff24ec027afee4b811005150",
+    "container_digest": "sha256:f5f5647cfc0deb5361a8d538e55cf7c3a3ede9b07c96f50e8b9ebfb19c581c4d",
+    "container_id": "268cfce43a682ea364eb7bc01bdb2f1ae9dc8f8c0bf2da71c2fdd2a8c4be54c1",
+    "final_evidence_commit": "794845e9f08d8057eda7506a924fb24af56885e9",
+    "source_artifact_sha256": "6e671cf9943b70802a7f1330256050c453193b5c91ffbfc99063e2e3974afe37",
+    "source_commit": "bd2103da727fdb3a7fd846d6f9084c36980c01b7",
+    "source_tree_git_oid": "b298f8c12c92c986a5c2cebc1c7216dd8be350c8",
+    "stage_a_commit": "5573875aa0f708aa7610605930fda04392bc0aeb",
+    "state": "BUILD_COMPLETE",
+    "validator": "PASS"
+  },
+  "b6": {
+    "archive_sha256": "0030de3e37dcd073b35b2112c86e1ba0f7508b42c4653916a10c90b86b9cd713",
+    "archive_uploaded": false,
+    "bundle_evidence": "docs/evidence/submission/w7-publication-bundle.json",
+    "clean_room": "PASS",
+    "deterministic_archives": "2_OF_2_IDENTICAL",
+    "privacy_findings": 0,
+    "privacy_scan_receipt_sha256": "365924543b60ffeeca360a1344a369a03d6656a3afd6fa002dd3100df59d7d75",
+    "publication_ready": "PASS_LOCAL_ONLY",
+    "reproducibility_evidence": "docs/evidence/submission/w7-b6-reproducibility.json",
+    "source_commit": "57b7feab37e71b40e0eae740d697a0b7e250c161"
+  },
+  "branch": "codex/w7-final-release-candidate",
+  "denied_hunks_applied": false,
+  "deployments": 0,
+  "document_type": "AIOA_W7_FINAL_RELEASE_CANDIDATE_GATE",
+  "full_regressions": [
+    {
+      "duration_seconds": 791.89,
+      "failed": 0,
+      "junit_sha256": "8d9ca4b6a0663ce1178bbe660fa776b1aad58cb1d810f4390ff36c163a3581c8",
+      "passed": 1739,
+      "phase": "RECERTIFICATION_IN_PROGRESS",
+      "total": 1739
+    },
+    {
+      "duration_seconds": 781.45,
+      "failed": 0,
+      "junit_sha256": "3d488b3de789efb09931a4660ddb442225bd135bf40c19bbab43c864a206c635",
+      "passed": 1739,
+      "phase": "AFTER_BUILD_COMPLETE",
+      "total": 1739
+    },
+    {
+      "duration_seconds": 774.25,
+      "failed": 0,
+      "junit_sha256": "14a583b1d89cbe7123121135a6df478b45270bde4656234d4e73e7712a7c63ca",
+      "passed": 1739,
+      "phase": "FINAL_W7_B6_SOURCE",
+      "total": 1739
+    }
+  ],
+  "gate_tested_head": "de62476b49617645f657eeff265da158d615e094",
+  "gates": {
+    "b4": {
+      "gate_count": 11,
+      "proof_tests": 43,
+      "receipt_file_sha256": "1fa551fba22af1938c20c9197dea26eeb81c5cdc74bdddbfcf82a0444da6f98e",
+      "receipt_sha256": "fb1fcfa5dc196480f4e55b5b0ec62179bf568c38a9519630480b0afd8f113fec",
+      "status": "PASS"
+    },
+    "pip_check": "PASS",
+    "p0": {
+      "gate_count": 15,
+      "proof_tests": 136,
+      "skipped": 0,
+      "status": "PASS"
+    },
+    "p1": {
+      "gate_count": 6,
+      "proof_tests": 93,
+      "skipped": 0,
+      "status": "PASS"
+    },
+    "reviewer_evidence_manifest": {
+      "claims": 28,
+      "live_receipts": 0,
+      "status": "PASS"
+    },
+    "ruff": "PASS",
+    "source_secret_scan": {
+      "files_scanned": 492,
+      "findings": 0,
+      "receipt_sha256": "a303aee131bbd240a24d819882058867cb8ee661cb4dc61ab299005661b3386f",
+      "status": "PASS"
+    }
+  },
+  "head_before": "bd2103da727fdb3a7fd846d6f9084c36980c01b7",
+  "limitations": "Local-only W7 certification. No AWS call, deployment, registry push, Git remote push, upload, publication, public endpoint, or W8 action was performed.",
+  "publication_actions": 0,
+  "remote_pushes": 0,
+  "schema_version": 1,
+  "status": "PASS",
+  "w7_gate": "PASS",
+  "w8_authorized": false
+}
