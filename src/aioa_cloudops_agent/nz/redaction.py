@@ -13,11 +13,13 @@ _SENSITIVE_PATTERNS: Final = (
     re.compile(r"(?i)\bBearer\s+[A-Za-z0-9._~+/=-]{8,}"),
     re.compile(r"(?i)\bAuthorization\s*:\s*[^\r\n,;]{4,}"),
     re.compile(r"\bsk-[A-Za-z0-9_-]{8,}\b"),
-    re.compile(r"\b(?:ghp|github_pat)_[A-Za-z0-9_]{8,}\b"),
+    re.compile(r"\b(?:gh[pousr]|github_pat)_[A-Za-z0-9_]{8,}\b"),
     re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----"),
     re.compile(r"(?i)\b(?:password|passwd|pwd|token|secret|api[_-]?key)\s*[=:]\s*[^\s,;]{4,}"),
     re.compile(r"(?i)https?://[^/\s:@]{1,128}:[^/\s@]{1,256}@"),
-    re.compile(r"(?i)(?:/|\\)(?:\.aws(?:/|\\)credentials|\.ssh(?:/|\\)id_[a-z0-9_]+|\.env)(?:\b|$)"),
+    re.compile(
+        r"(?i)(?:/|\\)(?:\.aws(?:/|\\)credentials|\.ssh(?:/|\\)id_[a-z0-9_]+|\.env)(?:\b|$)"
+    ),
 )
 
 
