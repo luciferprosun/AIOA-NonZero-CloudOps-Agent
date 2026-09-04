@@ -80,6 +80,7 @@ _PRIVATE_PREFIXES: Final = (
     "docs/audits/",
     "docs/evidence/deployment/",
     "docs/evidence/submission/",
+    "docs/evidence/workspace/",
     "docs/reports/",
     "scripts/day15/",
 )

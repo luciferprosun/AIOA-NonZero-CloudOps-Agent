@@ -88,6 +88,10 @@ def test_policy_classifies_public_private_generated_secret_and_legal_paths() -> 
     assert classify_path("scripts/render_start.sh").name == "PUBLIC_REQUIRED"
     assert classify_path("tests/unit/test_example.py").name == "PUBLIC_ALLOWED"
     assert classify_path("docs/audits/private.md").name == "PRIVATE_INTERNAL"
+    assert (
+        classify_path("docs/evidence/workspace/w2-patch-proposal.json").name
+        == "PRIVATE_INTERNAL"
+    )
     assert classify_path("README.md").name == "GENERATED"
     assert classify_path("LICENSE").name == "LEGAL_REVIEW"
     assert classify_path("operator.pem").name == "SECRET_RISK"
