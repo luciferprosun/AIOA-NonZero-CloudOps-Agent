@@ -2,12 +2,13 @@
 
 ## Gate status
 
-`PHASE_2_RESULT=PROVISIONAL_PASS_PENDING_CLEAN_COMMIT_GATE`
+`PHASE_2_RESULT=PASS`
 
-The implementation and live worker proof are green. The only remaining Phase 2 closure action at
-the time of this checkpoint is to commit the exact candidate and rerun P1-06 clean-clone plus B4
-against a clean worktree. P1-06 correctly reported `SOURCE_WORKTREE_NOT_CLEAN` while these Phase 2
-files were uncommitted; that result is not represented as a product failure or as a PASS.
+The implementation and live worker proof are green. The exact implementation was committed as
+`92182d9ec4cbd6c632c2300d6af16eb0c8a92bef`; P1-06 clean-clone and B4 were then rerun against that
+clean source identity and passed. The earlier P1-06 result correctly reported
+`SOURCE_WORKTREE_NOT_CLEAN` while Phase 2 files were uncommitted; it was never represented as a
+product failure or as a PASS.
 
 This audit is W7A development evidence. It is not canonical B5/B6 evidence and does not modify or
 recertify the frozen release candidate.
@@ -103,7 +104,12 @@ the probe after result validation.
     reran `1/1 PASS`, then the final full suite passed.
 - P0: `15/15 PASS`, `0 FAIL`, `0 SKIP`.
 - P1 before commit: `5/6 PASS`; P1-06 command proof correctly blocked on
-  `SOURCE_WORKTREE_NOT_CLEAN`. Post-commit rerun is mandatory.
+  `SOURCE_WORKTREE_NOT_CLEAN`.
+- P1 after clean commit: `6/6 PASS`, `0 FAIL`, `0 SKIP`; clean-clone command proof included.
+- B4 after clean commit: `11/11 scenarios PASS`, `43 proof tests`, loopback-only fail-closed network
+  guard, `AWS_CALLS=0`, `AWS_MUTATIONS=0`, `EXTERNAL_NETWORK_CALLS=0`,
+  `EXTERNAL_DEPLOYMENTS=0`; private receipt SHA-256
+  `47a21d005a92b6cebf55dd47ab797bf8e30a754329696f58041fcc4bbfab83a1`.
 - Secret scan: `PASS`, `0 findings`, `501 files scanned`, values not emitted.
 - Ruff: `PASS`.
 - pip check: `PASS`.
@@ -132,5 +138,5 @@ DEPLOYMENTS=0
 W7_FROZEN_HEAD=945c87052815b237004d259fe993cc92cbd579b7
 W7_B5_B6_RECERTIFIED=NO
 W8_EXECUTED=NO
+PHASE_2_RESULT=PASS
 ```
-
