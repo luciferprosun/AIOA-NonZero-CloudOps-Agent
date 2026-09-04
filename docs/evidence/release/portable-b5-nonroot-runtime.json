@@ -18,8 +18,8 @@
     "service": "aioa-local-hitl",
     "status": "ok"
   },
-  "image_digest": "sha256:bdf35995e5588ccb93348f0784411d32d0aeb480483b1f34d530c4e3f34edbc3",
-  "image_id": "2f4b9a0d2708ae82aeda558e45271b59b192894a3b09a1831723ad42e8fe78b4",
+  "image_digest": "sha256:f5f5647cfc0deb5361a8d538e55cf7c3a3ede9b07c96f50e8b9ebfb19c581c4d",
+  "image_id": "268cfce43a682ea364eb7bc01bdb2f1ae9dc8f8c0bf2da71c2fdd2a8c4be54c1",
   "no_new_privs": "1",
   "pid1": "python -m aioa_cloudops_agent.portable_server",
   "ready": {
@@ -44,7 +44,7 @@
   },
   "receipt_type": "AIOA_OCI_NONROOT_SERVER_PROOF",
   "schema_version": 1,
-  "source_commit": "797c94e72151c46504b9ae81412738aa6b253e8a",
+  "source_commit": "bd2103da727fdb3a7fd846d6f9084c36980c01b7",
   "token_file": {
     "gid": 65532,
     "mode": "0o600",

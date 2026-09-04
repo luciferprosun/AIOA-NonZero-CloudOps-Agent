@@ -95,9 +95,10 @@ _HISTORICAL_SOURCE_ONLY_ARTIFACTS: Final = frozenset(
 _CHECKS: Final[tuple[dict[str, object], ...]] = (
     {"check_id": "B4_HARDENING_GATE", "proof_tests": 43, "scenarios": 11, "status": "PASS"},
     {"check_id": "CLEAN_CLONE", "exact_source_commit": True, "status": "PASS"},
+    {"check_id": "CONTAINER_HERO_GATE", "invocations": 1, "status": "PASS"},
     {"check_id": "CONTAINER_JUDGE_GATE", "invocations": 2, "status": "PASS"},
     {"check_id": "DIFF_CHECK", "status": "PASS"},
-    {"check_id": "FULL_PYTEST", "proof_tests": 1465, "skipped": 0, "status": "PASS"},
+    {"check_id": "FULL_PYTEST", "proof_tests": 1739, "skipped": 0, "status": "PASS"},
     {"check_id": "IMAGE_EXPORT_PRIVACY_SCAN", "findings": 0, "status": "PASS"},
     {"check_id": "NATIVE_PORTABLE_FLOW", "status": "PASS"},
     {"check_id": "NONROOT_OCI_RUNTIME", "effective_uid": 65532, "status": "PASS"},
@@ -107,6 +108,7 @@ _CHECKS: Final[tuple[dict[str, object], ...]] = (
     {"check_id": "PIP_CHECK", "status": "PASS"},
     {"check_id": "RUFF", "status": "PASS"},
     {"check_id": "SECRET_SCAN", "findings": 0, "status": "PASS"},
+    {"check_id": "W6_ADVERSARIAL_GATE", "proof_tests": 50, "status": "PASS"},
 )
 
 
@@ -460,6 +462,9 @@ def validate_recertification_inputs() -> tuple[str, ...]:
 def _require_build_complete_authority() -> None:
     state = _recertification_state()
     first_full = state.get("first_full_pytest")
+    candidate = state.get("candidate")
+    evidence = state.get("evidence")
+    source_identity = build_source_artifact_identity()
     if (
         state.get("authority") != "AIOA_B5_RECERTIFICATION_CONTROL"
         or state.get("state") != "BUILD_COMPLETE"
@@ -467,12 +472,39 @@ def _require_build_complete_authority() -> None:
         or state.get("aws_calls") != 0
         or state.get("deployments") != 0
         or state.get("publication_ready") is not False
-        or not isinstance(first_full, dict)
-        or first_full.get("status") != "PASS"
-        or first_full.get("failed") != 0
-        or first_full.get("passed") != first_full.get("total")
-        or not isinstance(first_full.get("total"), int)
-        or first_full.get("total", 0) <= 0
+        or candidate
+        != {
+            "image_digest": IMAGE_DIGEST,
+            "image_id": IMAGE_ID,
+            "image_reference": IMAGE_REFERENCE,
+            "image_size_bytes": IMAGE_SIZE_BYTES,
+            "source_artifact_sha256": source_identity["source_artifact_sha256"],
+            "source_commit": SOURCE_COMMIT,
+            "source_tree_git_oid": source_identity["source_tree_git_oid"],
+            "wheel_sha256": WHEEL_SHA256,
+        }
+        or first_full
+        != {
+            "duration_seconds": 791.89,
+            "expected_total": 1739,
+            "failed": 0,
+            "junit_sha256": (
+                "8d9ca4b6a0663ce1178bbe660fa776b1aad58cb1d810f4390ff36c163a3581c8"
+            ),
+            "passed": 1739,
+            "skipped": 0,
+            "status": "PASS",
+            "total": 1739,
+        }
+        or not isinstance(evidence, dict)
+        or evidence.get("container_gate_file_sha256")
+        != _sha256_path(RECERT_CONTAINER_GATE_PATH)
+        or evidence.get("container_hero_file_sha256")
+        != _sha256_path(RECERT_CONTAINER_HERO_PATH)
+        or evidence.get("image_scan_file_sha256")
+        != _sha256_path(RECERT_IMAGE_SCAN_PATH)
+        or evidence.get("nonroot_receipt_file_sha256")
+        != _sha256_path(RECERT_NONROOT_RECEIPT_PATH)
     ):
         raise B5EvidenceError("B5_BUILD_COMPLETE_NOT_AUTHORIZED")
 
@@ -510,6 +542,10 @@ def build_artifact_manifest(package_bytes: bytes) -> dict[str, object]:
         "nonroot_runtime": {
             "file_sha256": _sha256_path(NONROOT_RECEIPT_PATH),
             "path": NONROOT_RECEIPT_PATH.relative_to(ROOT).as_posix(),
+        },
+        "recertification_control": {
+            "file_sha256": _sha256_path(RECERTIFICATION_STATE_PATH),
+            "path": RECERTIFICATION_STATE_PATH.relative_to(ROOT).as_posix(),
         },
         "python_packages": {
             "file_sha256": _sha256_bytes(package_bytes),
@@ -586,6 +622,9 @@ def _sums_bytes(
             IMAGE_SCAN_PATH.relative_to(ROOT).as_posix(): _sha256_path(IMAGE_SCAN_PATH),
             NONROOT_RECEIPT_PATH.relative_to(ROOT).as_posix(): _sha256_path(
                 NONROOT_RECEIPT_PATH
+            ),
+            RECERTIFICATION_STATE_PATH.relative_to(ROOT).as_posix(): _sha256_path(
+                RECERTIFICATION_STATE_PATH
             ),
             PACKAGE_MANIFEST_PATH.relative_to(ROOT).as_posix(): _sha256_bytes(
                 package_bytes

@@ -113,9 +113,15 @@ def test_b5_artifact_and_attestation_bind_source_image_docs_and_zero_cloud() -> 
     assert artifact["evidence"]["container_hero"]["receipt_sha256"] == (
         release.CONTAINER_HERO_RECEIPT_SHA256
     )
+    assert artifact["evidence"]["recertification_control"]["file_sha256"]
     assert set(artifact["external_actions"].values()) == {0}
     assert attestation["status"] == "BUILD_COMPLETE"
     assert all(check["status"] == "PASS" for check in attestation["checks"])
+    full_pytest = next(
+        check for check in attestation["checks"] if check["check_id"] == "FULL_PYTEST"
+    )
+    assert full_pytest["proof_tests"] == 1739
+    assert state["first_full_pytest"]["status"] == "PASS"
     assert attestation["aws_calls"] == attestation["aws_mutations"] == 0
     assert attestation["deployments"] == attestation["image_pushes"] == 0
     assert attestation["publications"] == attestation["remote_git_pushes"] == 0

@@ -1,12 +1,12 @@
 {
   "base_image": "docker.io/library/python:3.12-slim-bookworm@sha256:782412e85d0f0984994c290652577d4018aff08145c85b262bb63dc0c7522254",
   "document_type": "AIOA_B5_DETERMINISTIC_PYTHON_PACKAGE_MANIFEST",
-  "image_digest": "sha256:bdf35995e5588ccb93348f0784411d32d0aeb480483b1f34d530c4e3f34edbc3",
-  "manifest_sha256": "b1f5e23fb592a3b79cd7e3ef36cb991c31d0d1d9c5d19b35705c55ea45cb2b12",
+  "image_digest": "sha256:f5f5647cfc0deb5361a8d538e55cf7c3a3ede9b07c96f50e8b9ebfb19c581c4d",
+  "manifest_sha256": "c2b7b5fc2a11ee6e1d36be9c06da1a0e37a66c1f404269a9ce57887899eb4f7f",
   "package_count": 57,
   "packages": [
     {
-      "artifact_sha256": "fe5b5df0448bf41c9aa0d6460b998adf280cab567b9ba688e5111cb71c0ff395",
+      "artifact_sha256": "e9249c78d211d552c296dd7c415924ef4d8855b3fbcaa52864b89e7f848c7a15",
       "name": "aioa-nonzero-cloudops-agent",
       "provenance": "REPRODUCIBLE_PROJECT_WHEEL",
       "version": "0.2.0rc1"
@@ -354,6 +354,6 @@
   "sbom_generator": "LOCK_PLUS_EXACT_IMAGE_OBSERVATION",
   "sbom_tool_status": "DEDICATED_SBOM_TOOL_UNAVAILABLE_PACKAGE_MANIFEST_USED",
   "schema_version": 1,
-  "source_commit": "797c94e72151c46504b9ae81412738aa6b253e8a",
-  "wheel_sha256": "fe5b5df0448bf41c9aa0d6460b998adf280cab567b9ba688e5111cb71c0ff395"
+  "source_commit": "bd2103da727fdb3a7fd846d6f9084c36980c01b7",
+  "wheel_sha256": "e9249c78d211d552c296dd7c415924ef4d8855b3fbcaa52864b89e7f848c7a15"
 }

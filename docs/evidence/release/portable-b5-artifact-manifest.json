@@ -3,7 +3,7 @@
   "artifacts": {
     "BUILD_CONTEXT_POLICY": {
       "path": ".dockerignore",
-      "sha256": "0e6b8400e2813f0be52a5f3f5243d520cbbe740b286a44749e8e6db368265812"
+      "sha256": "1868ea411d2ed58571730942135fb9a3922ea4b8c258ed3a12bcb33a375d25ff"
     },
     "BUILD_DEPENDENCY_LOCK": {
       "path": "requirements/build.lock",
@@ -11,7 +11,7 @@
     },
     "CONTAINER_DEFINITION": {
       "path": "Dockerfile",
-      "sha256": "4640463904ced78776f5f482510e9f117d7ee2e0b6a8e04c5ba83e349378bc8f"
+      "sha256": "80224a356b91cc7751a0f01bd2a86bfc0b37cbc5bd96bed58cf4cd340e63e5f3"
     },
     "CONTAINER_JUDGE_RUNBOOK": {
       "path": "docs/operations/container-judge-certification.md",
@@ -37,13 +37,29 @@
       "path": "pyproject.toml",
       "sha256": "c11d0b6bc5a804599ecebed13753b16918d13d990735ab764cd9e000c08cfc5a"
     },
+    "RENDER_BLUEPRINT": {
+      "path": "render.yaml",
+      "sha256": "c9e351188844ec4236068ffe62fa9747376ec520eabea39c9e92dd30909a645c"
+    },
+    "RENDER_PROBE_PACKAGE": {
+      "path": "scripts/w4_probe_site/__init__.py",
+      "sha256": "429585a687e9383172b65b4ac9023885f591994b736421bbe3c4971d4f67ef3b"
+    },
+    "RENDER_PROBE_SITECUSTOMIZE": {
+      "path": "scripts/w4_probe_site/sitecustomize.py",
+      "sha256": "6026567eef866d2386fd40c9361c7e64d1ab87b80c7ca965a4f430fe344a8db9"
+    },
+    "RENDER_START_PROFILE": {
+      "path": "scripts/w4_render_start_profile.py",
+      "sha256": "8ccb731ab3f5e44658ac2b217b4219b1c70de42efd21347f6d6ee47c50c69fbc"
+    },
     "RENDER_START_SCRIPT": {
       "path": "scripts/render_start.sh",
       "sha256": "d350917c132a338605f630fde97a2ac017e1664fe9cf413a7153827326e6d250"
     },
     "REVIEWER_EVIDENCE_MANIFEST": {
       "path": "docs/evidence/reviewer-evidence-manifest.json",
-      "sha256": "380373cbe4313323712583d4a4dbafce10041a27304918059945cb0a6730d304"
+      "sha256": "1b999edb10d984aecfe4dddd0e60cf9f1695c28199046221a3908c44390368ef"
     },
     "RUNTIME_DEPENDENCY_LOCK": {
       "path": "requirements/portable.lock",
@@ -52,34 +68,55 @@
     "SUBMISSION_DEMO_RUNBOOK": {
       "path": "docs/submission/demo-runbook.md",
       "sha256": "3ee0e75aab70b9e63860e7deb3e5785cfd6a1df9ac60ea9462d9022fe61d3f47"
+    },
+    "W7_CONTAINER_HERO_CLIENT": {
+      "path": "scripts/w7_container_hero_client.py",
+      "sha256": "4beaff5f965c832882b0a22eefc9a4198ccd3676777544dad983c2b03dac7597"
+    },
+    "W7_CONTAINER_HERO_GATE": {
+      "path": "scripts/run_w7_container_hero_gate.py",
+      "sha256": "197db54e63f621c983feb113c394c210c3d5e32e038deaf1eb1211b27df5055a"
+    },
+    "W7_CONTAINER_HERO_SUPERVISOR": {
+      "path": "scripts/w7_container_hero_supervisor.py",
+      "sha256": "03cbe2a8026dcbcaa406e17ad3817b2ca2b5a1008869a0d52943305fdf9a847e"
     }
   },
   "build": {
     "clean_clone": true,
     "dependency_install": "PIP_REQUIRE_HASHES",
     "platform": "linux/amd64",
-    "reproducible_wheel_sha256": "fe5b5df0448bf41c9aa0d6460b998adf280cab567b9ba688e5111cb71c0ff395",
+    "reproducible_wheel_sha256": "e9249c78d211d552c296dd7c415924ef4d8855b3fbcaa52864b89e7f848c7a15",
     "source_date_epoch": 0
   },
   "document_type": "AIOA_B5_PORTABLE_ARTIFACT_MANIFEST",
   "evidence": {
     "container_gate": {
-      "file_sha256": "1b0bef9f4cd43331bf72bdd418ad1bc8e61f2220a097823fa78066da000e13c6",
+      "file_sha256": "2037de1d88da016657a0de40520dd87c3c47d9828ca183c2258cc05b14387f45",
       "path": "docs/evidence/release/portable-b5-container-gate.json",
-      "receipt_sha256": "1b75a75026625a1549d52d855097873e0b6fb969a66c3e75e8ad51351c291aee"
+      "receipt_sha256": "9f0795099821b346ebedda6e06d5df97aea4cdadc095024898142fc08d8cbb6d"
+    },
+    "container_hero": {
+      "file_sha256": "7c87d423dec6333be9ae149eb897db241106baf5f972bcee9d5f2369b1c723a7",
+      "path": "docs/evidence/release/w7-container-hero.json",
+      "receipt_sha256": "d61f254120fff7a14b3fa6a26aeaa8ed4d5e40841aa583ffebc732731a94882c"
     },
     "image_privacy_scan": {
-      "file_sha256": "8a8b9a56b351d5c637dc03d4630109048a2307f1a4122e4387ee157b5775385a",
+      "file_sha256": "54af26a94944cf915b26f5c07106001ce45e8dace1f5362d6be5dd97f4abe780",
       "path": "docs/evidence/release/portable-b5-image-privacy-scan.json",
-      "receipt_sha256": "4a1fd5356a1622916ba195c3084d810ec0d9b878a19ef9096fe93a4b23fe8b06"
+      "receipt_sha256": "d40c58de2d9476ee2f6db6c7c95248f270a305e3c4260c3fb73ba2cd5291486a"
     },
     "nonroot_runtime": {
-      "file_sha256": "30cc83d71de47e0a3e79ceaa2a268900ed5019a930104c7276556ab91afb8876",
+      "file_sha256": "389821e7fad38e915cbf44886384e06ed123af809464c71c435d701b6e38e382",
       "path": "docs/evidence/release/portable-b5-nonroot-runtime.json"
     },
     "python_packages": {
-      "file_sha256": "9805a68b2435625cd7bdc7263056d71fbc550cb6d943d808c94a55f3a3ef0479",
+      "file_sha256": "09cfb9b39a3ae71b0c511140e54b493223f59e1ba6a47f78fc50e0f3285b31b2",
       "path": "docs/evidence/release/portable-b5-python-packages.json"
+    },
+    "recertification_control": {
+      "file_sha256": "d76b42c197fd1d0763fa37c3d06262d29b4fabd10bb7b447b917534a878a2e89",
+      "path": "docs/evidence/release/w7-b5-recertification-state.json"
     }
   },
   "external_actions": {
@@ -99,15 +136,15 @@
     ],
     "configured_user": "aioa",
     "health_path": "/health",
-    "id": "2f4b9a0d2708ae82aeda558e45271b59b192894a3b09a1831723ad42e8fe78b4",
-    "local_manifest_digest": "sha256:bdf35995e5588ccb93348f0784411d32d0aeb480483b1f34d530c4e3f34edbc3",
-    "local_reference": "localhost/aioa-portable:b5-render-797c94e72151",
+    "id": "268cfce43a682ea364eb7bc01bdb2f1ae9dc8f8c0bf2da71c2fdd2a8c4be54c1",
+    "local_manifest_digest": "sha256:f5f5647cfc0deb5361a8d538e55cf7c3a3ede9b07c96f50e8b9ebfb19c581c4d",
+    "local_reference": "localhost/aioa-portable:w7-rc-bd2103da727f",
     "readiness_path": "/ready",
     "registry_digest": null,
-    "size_bytes": 219814532,
+    "size_bytes": 220765157,
     "status": "LOCAL_ONLY_NOT_PUSHED"
   },
-  "manifest_sha256": "5c810c3abe1ccd77317de7282b472694ed3e2304b4d5306bd18fdc022effe241",
+  "manifest_sha256": "3df7fbecfa8116b855113570ce576d5460680f9913e64311ec965b35fc9dc9f9",
   "runtime_contract": {
     "allowed_egress": "none",
     "authority_mode": "HUMAN_APPROVAL_REQUIRED",
@@ -116,7 +153,7 @@
     "storage_mode": "file"
   },
   "schema_version": 1,
-  "source_commit": "797c94e72151c46504b9ae81412738aa6b253e8a",
-  "source_tree_git_oid": "bd9997296560aa9e57d5fa38001a40a7c38f6a38",
+  "source_commit": "bd2103da727fdb3a7fd846d6f9084c36980c01b7",
+  "source_tree_git_oid": "b298f8c12c92c986a5c2cebc1c7216dd8be350c8",
   "status": "FROZEN_LOCAL_ARTIFACT"
 }

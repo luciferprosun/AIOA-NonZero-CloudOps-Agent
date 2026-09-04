@@ -1,6 +1,6 @@
 {
-  "artifact_manifest_file_sha256": "98846b9723e1921ca2b60b8f47a90f3bb7a04c5de9d529a2359e115ff177e8c3",
-  "attestation_sha256": "5e2c929f9ede0ac16193c4cbef847d1a96fc8207f5dcac009c5dcbf5fdcdaaa7",
+  "artifact_manifest_file_sha256": "c38dfe98d547a28ec9ed2d19ef1e1f93bfb2bd9d011a88e5d8c4d3674a8fee6d",
+  "attestation_sha256": "f9b0e032948cbc99048ff8596061c1f7ffcc3475ff24ec027afee4b811005150",
   "aws_calls": 0,
   "aws_mutations": 0,
   "checks": [
@@ -16,6 +16,11 @@
       "status": "PASS"
     },
     {
+      "check_id": "CONTAINER_HERO_GATE",
+      "invocations": 1,
+      "status": "PASS"
+    },
+    {
       "check_id": "CONTAINER_JUDGE_GATE",
       "invocations": 2,
       "status": "PASS"
@@ -26,7 +31,7 @@
     },
     {
       "check_id": "FULL_PYTEST",
-      "proof_tests": 1465,
+      "proof_tests": 1739,
       "skipped": 0,
       "status": "PASS"
     },
@@ -70,20 +75,25 @@
       "check_id": "SECRET_SCAN",
       "findings": 0,
       "status": "PASS"
+    },
+    {
+      "check_id": "W6_ADVERSARIAL_GATE",
+      "proof_tests": 50,
+      "status": "PASS"
     }
   ],
-  "container_digest": "sha256:bdf35995e5588ccb93348f0784411d32d0aeb480483b1f34d530c4e3f34edbc3",
-  "container_id": "2f4b9a0d2708ae82aeda558e45271b59b192894a3b09a1831723ad42e8fe78b4",
+  "container_digest": "sha256:f5f5647cfc0deb5361a8d538e55cf7c3a3ede9b07c96f50e8b9ebfb19c581c4d",
+  "container_id": "268cfce43a682ea364eb7bc01bdb2f1ae9dc8f8c0bf2da71c2fdd2a8c4be54c1",
   "deployments": 0,
   "document_type": "AIOA_B5_BUILD_COMPLETE_ATTESTATION",
   "freeze_rule": "ANY_RUNTIME_SOURCE_DEPENDENCY_CONTAINER_OR_BOUND_DOCUMENT_CHANGE_INVALIDATES_BUILD_COMPLETE_AND_REQUIRES_B5_REBUILD",
   "image_pushes": 0,
   "limitations": "Local OCI build and offline/mock execution only; no registry publication, public endpoint, live provider receipt, AWS identity, or live infrastructure mutation is claimed.",
-  "package_manifest_file_sha256": "9805a68b2435625cd7bdc7263056d71fbc550cb6d943d808c94a55f3a3ef0479",
+  "package_manifest_file_sha256": "09cfb9b39a3ae71b0c511140e54b493223f59e1ba6a47f78fc50e0f3285b31b2",
   "publications": 0,
   "remote_git_pushes": 0,
   "schema_version": 1,
-  "sha256sums_file_sha256": "042ac6cc58d8cc2cc0ac92b25cd9d2cafbce0660c960ab3a77d7c3de7e1fe4dd",
-  "source_commit": "797c94e72151c46504b9ae81412738aa6b253e8a",
+  "sha256sums_file_sha256": "8b0af23e6ec81b7cddd89dcde4fd39e7d73aee84b1a50accc5ce2d462fd0fd45",
+  "source_commit": "bd2103da727fdb3a7fd846d6f9084c36980c01b7",
   "status": "BUILD_COMPLETE"
 }

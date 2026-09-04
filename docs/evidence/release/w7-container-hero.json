@@ -1,0 +1,75 @@
+{
+  "aws_calls": 0,
+  "aws_mutations": 0,
+  "certification_supervisor": "scripts.w7_container_hero_supervisor",
+  "container_start_command": "/usr/local/bin/aioa-render-start",
+  "credential_environment_inherited": false,
+  "engine_user_override": "0:0",
+  "external_deployments": 0,
+  "external_network_connections": 0,
+  "hero": {
+    "approve": {
+      "final_state": "SUCCESS_WITH_EVIDENCE",
+      "patch_apply_count": 1,
+      "replay_additional_mutations": 0,
+      "replay_status": "REPLAY_REJECTED_RECONCILED"
+    },
+    "aws_calls": 0,
+    "aws_mutations": 0,
+    "bootstrap_secret_absent_from_server": true,
+    "deny": {
+      "final_state": "DENIED_BY_HUMAN",
+      "mutation_count": 0
+    },
+    "external_network_connections": 0,
+    "health": "PASS",
+    "ready": "PASS",
+    "server_argv_exact": true,
+    "source_commit": "bd2103da727fdb3a7fd846d6f9084c36980c01b7",
+    "status": "PASS",
+    "token_file_mode": "0o600",
+    "unexpected_file_mutations": 0
+  },
+  "image": {
+    "architecture": "amd64",
+    "cmd": [
+      "python",
+      "-m",
+      "aioa_cloudops_agent.portable_server"
+    ],
+    "configured_user": "aioa",
+    "content_identity": "sha256:f5f5647cfc0deb5361a8d538e55cf7c3a3ede9b07c96f50e8b9ebfb19c581c4d",
+    "digest": "sha256:f5f5647cfc0deb5361a8d538e55cf7c3a3ede9b07c96f50e8b9ebfb19c581c4d",
+    "id": "268cfce43a682ea364eb7bc01bdb2f1ae9dc8f8c0bf2da71c2fdd2a8c4be54c1",
+    "license": "MIT",
+    "os": "linux",
+    "reference": "localhost/aioa-portable:w7-rc-bd2103da727f",
+    "size_bytes": 220765157,
+    "source_commit": "bd2103da727fdb3a7fd846d6f9084c36980c01b7"
+  },
+  "nonroot_proof": {
+    "cap_eff": "0000000000000000",
+    "effective_gid": 65532,
+    "effective_uid": 65532,
+    "health": "ok",
+    "mode": "BOUND_EXTERNAL_OCI_RUNTIME",
+    "no_new_privs": "1",
+    "pid1": "python -m aioa_cloudops_agent.portable_server",
+    "readiness": "ready",
+    "token_mode": "0o600"
+  },
+  "receipt_sha256": "d61f254120fff7a14b3fa6a26aeaa8ed4d5e40841aa583ffebc732731a94882c",
+  "receipt_type": "AIOA_W7_CONTAINER_WORKSPACE_HERO_GATE",
+  "remote_pushes": 0,
+  "runtime_hardening": {
+    "capabilities_dropped": "ALL",
+    "host_ports_published": 0,
+    "network": "none",
+    "no_new_privileges": true,
+    "read_only_rootfs": true,
+    "shared_mounts": 0,
+    "tmpfs": "/tmp:rw,nosuid,nodev,noexec,size=64m"
+  },
+  "schema_version": 1,
+  "status": "PASS"
+}

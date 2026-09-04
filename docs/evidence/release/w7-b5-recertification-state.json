@@ -1,7 +1,7 @@
 {
   "authority": "AIOA_B5_RECERTIFICATION_CONTROL",
   "aws_calls": 0,
-  "build_complete_emitted": false,
+  "build_complete_emitted": true,
   "candidate": {
     "image_digest": "sha256:f5f5647cfc0deb5361a8d538e55cf7c3a3ede9b07c96f50e8b9ebfb19c581c4d",
     "image_id": "268cfce43a682ea364eb7bc01bdb2f1ae9dc8f8c0bf2da71c2fdd2a8c4be54c1",
@@ -26,13 +26,16 @@
     "nonroot_receipt_file_sha256": "389821e7fad38e915cbf44886384e06ed123af809464c71c435d701b6e38e382"
   },
   "first_full_pytest": {
+    "duration_seconds": 791.89,
     "expected_total": 1739,
-    "failed": null,
-    "passed": null,
-    "status": "PENDING",
-    "total": null
+    "failed": 0,
+    "junit_sha256": "8d9ca4b6a0663ce1178bbe660fa776b1aad58cb1d810f4390ff36c163a3581c8",
+    "passed": 1739,
+    "skipped": 0,
+    "status": "PASS",
+    "total": 1739
   },
   "publication_ready": false,
   "schema_version": 1,
-  "state": "RECERTIFICATION_IN_PROGRESS"
+  "state": "BUILD_COMPLETE"
 }
