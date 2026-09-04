@@ -25,25 +25,37 @@ ATTESTATION_PATH: Final = RELEASE_ROOT / "portable-b5-build-complete-attestation
 CONTAINER_GATE_PATH: Final = RELEASE_ROOT / "portable-b5-container-gate.json"
 NONROOT_RECEIPT_PATH: Final = RELEASE_ROOT / "portable-b5-nonroot-runtime.json"
 IMAGE_SCAN_PATH: Final = RELEASE_ROOT / "portable-b5-image-privacy-scan.json"
+CONTAINER_HERO_PATH: Final = RELEASE_ROOT / "w7-container-hero.json"
+RECERTIFICATION_STATE_PATH: Final = (
+    RELEASE_ROOT / "w7-b5-recertification-state.json"
+)
+RECERTIFICATION_ROOT: Final = RELEASE_ROOT / "w7-b5-recertification"
+RECERT_CONTAINER_GATE_PATH: Final = RECERTIFICATION_ROOT / "container-judge-gate.json"
+RECERT_CONTAINER_HERO_PATH: Final = RECERTIFICATION_ROOT / "container-hero.json"
+RECERT_NONROOT_RECEIPT_PATH: Final = RECERTIFICATION_ROOT / "nonroot-runtime.json"
+RECERT_IMAGE_SCAN_PATH: Final = RECERTIFICATION_ROOT / "image-privacy-scan.json"
 
-SOURCE_COMMIT: Final = "797c94e72151c46504b9ae81412738aa6b253e8a"
-IMAGE_ID: Final = "2f4b9a0d2708ae82aeda558e45271b59b192894a3b09a1831723ad42e8fe78b4"
-IMAGE_DIGEST: Final = "sha256:bdf35995e5588ccb93348f0784411d32d0aeb480483b1f34d530c4e3f34edbc3"
-IMAGE_SIZE_BYTES: Final = 219_814_532
-IMAGE_REFERENCE: Final = "localhost/aioa-portable:b5-render-797c94e72151"
+SOURCE_COMMIT: Final = "bd2103da727fdb3a7fd846d6f9084c36980c01b7"
+IMAGE_ID: Final = "268cfce43a682ea364eb7bc01bdb2f1ae9dc8f8c0bf2da71c2fdd2a8c4be54c1"
+IMAGE_DIGEST: Final = "sha256:f5f5647cfc0deb5361a8d538e55cf7c3a3ede9b07c96f50e8b9ebfb19c581c4d"
+IMAGE_SIZE_BYTES: Final = 220_765_157
+IMAGE_REFERENCE: Final = "localhost/aioa-portable:w7-rc-bd2103da727f"
 BASE_IMAGE: Final = (
     "docker.io/library/python:3.12-slim-bookworm@"
     "sha256:782412e85d0f0984994c290652577d4018aff08145c85b262bb63dc0c7522254"
 )
 PYTHON_VERSION: Final = "3.12.14"
 APPLICATION_VERSION: Final = "0.2.0rc1"
-WHEEL_SHA256: Final = "fe5b5df0448bf41c9aa0d6460b998adf280cab567b9ba688e5111cb71c0ff395"
+WHEEL_SHA256: Final = "e9249c78d211d552c296dd7c415924ef4d8855b3fbcaa52864b89e7f848c7a15"
 CONTAINER_GATE_RECEIPT_SHA256: Final = (
-    "1b75a75026625a1549d52d855097873e0b6fb969a66c3e75e8ad51351c291aee"
+    "9f0795099821b346ebedda6e06d5df97aea4cdadc095024898142fc08d8cbb6d"
+)
+CONTAINER_HERO_RECEIPT_SHA256: Final = (
+    "d61f254120fff7a14b3fa6a26aeaa8ed4d5e40841aa583ffebc732731a94882c"
 )
 NONROOT_RECEIPT_IMAGE_DIGEST: Final = IMAGE_DIGEST
 IMAGE_SCAN_RECEIPT_SHA256: Final = (
-    "4a1fd5356a1622916ba195c3084d810ec0d9b878a19ef9096fe93a4b23fe8b06"
+    "d40c58de2d9476ee2f6db6c7c95248f270a305e3c4260c3fb73ba2cd5291486a"
 )
 _LOCK_LINE: Final = re.compile(
     r"^(?P<name>[A-Za-z0-9_.-]+)==(?P<version>[^ ]+) "
@@ -56,7 +68,14 @@ _SOURCE_ARTIFACTS: Final[tuple[tuple[str, str], ...]] = (
     ("PACKAGE_DATA_MANIFEST", "MANIFEST.in"),
     ("PROJECT_README", "README.md"),
     ("PYTHON_PACKAGE_CONTRACT", "pyproject.toml"),
+    ("RENDER_BLUEPRINT", "render.yaml"),
     ("RENDER_START_SCRIPT", "scripts/render_start.sh"),
+    ("RENDER_START_PROFILE", "scripts/w4_render_start_profile.py"),
+    ("RENDER_PROBE_PACKAGE", "scripts/w4_probe_site/__init__.py"),
+    ("RENDER_PROBE_SITECUSTOMIZE", "scripts/w4_probe_site/sitecustomize.py"),
+    ("W7_CONTAINER_HERO_GATE", "scripts/run_w7_container_hero_gate.py"),
+    ("W7_CONTAINER_HERO_CLIENT", "scripts/w7_container_hero_client.py"),
+    ("W7_CONTAINER_HERO_SUPERVISOR", "scripts/w7_container_hero_supervisor.py"),
     ("BUILD_DEPENDENCY_LOCK", "requirements/build.lock"),
     ("RUNTIME_DEPENDENCY_LOCK", "requirements/portable.lock"),
     ("PORTABLE_RUNTIME_CONTRACT", "docs/PORTABLE_RUNTIME.md"),
@@ -287,12 +306,24 @@ def _source_tree_oid() -> str:
     return oid
 
 
-def _validate_bound_receipts() -> None:
-    gate = _load_json(CONTAINER_GATE_PATH)
-    nonroot = _load_json(NONROOT_RECEIPT_PATH)
-    scan = _load_json(IMAGE_SCAN_PATH)
+def _validate_bound_receipts(
+    *,
+    container_gate_path: Path,
+    container_hero_path: Path,
+    nonroot_receipt_path: Path,
+    image_scan_path: Path,
+) -> None:
+    gate = _load_json(container_gate_path)
+    hero = _load_json(container_hero_path)
+    nonroot = _load_json(nonroot_receipt_path)
+    scan = _load_json(image_scan_path)
     gate_image = gate.get("image")
+    hero_image = hero.get("image")
+    hero_result = hero.get("hero")
     gate_material = {name: value for name, value in gate.items() if name != "receipt_sha256"}
+    hero_material = {
+        name: value for name, value in hero.items() if name != "receipt_sha256"
+    }
     scan_material = {name: value for name, value in scan.items() if name != "receipt_sha256"}
     if (
         gate.get("status") != "PASS"
@@ -305,6 +336,28 @@ def _validate_bound_receipts() -> None:
         or gate_image.get("id") != IMAGE_ID
         or gate_image.get("digest") != IMAGE_DIGEST
         or gate_image.get("source_commit") != SOURCE_COMMIT
+        or hero.get("status") != "PASS"
+        or hero.get("receipt_type") != "AIOA_W7_CONTAINER_WORKSPACE_HERO_GATE"
+        or hero.get("receipt_sha256") != CONTAINER_HERO_RECEIPT_SHA256
+        or hero.get("receipt_sha256") != _sha256_bytes(_compact_bytes(hero_material))
+        or hero.get("aws_calls") != 0
+        or hero.get("aws_mutations") != 0
+        or hero.get("external_network_connections") != 0
+        or not isinstance(hero_image, dict)
+        or hero_image.get("id") != IMAGE_ID
+        or hero_image.get("digest") != IMAGE_DIGEST
+        or hero_image.get("source_commit") != SOURCE_COMMIT
+        or not isinstance(hero_result, dict)
+        or hero_result.get("status") != "PASS"
+        or hero_result.get("source_commit") != SOURCE_COMMIT
+        or hero_result.get("aws_calls") != 0
+        or hero_result.get("aws_mutations") != 0
+        or hero_result.get("external_network_connections") != 0
+        or hero_result.get("unexpected_file_mutations") != 0
+        or hero_result.get("bootstrap_secret_absent_from_server") is not True
+        or hero_result.get("token_file_mode") != "0o600"
+        or hero_result.get("health") != "PASS"
+        or hero_result.get("ready") != "PASS"
         or nonroot.get("receipt_type") != "AIOA_OCI_NONROOT_SERVER_PROOF"
         or nonroot.get("image_id") != IMAGE_ID
         or nonroot.get("image_digest") != NONROOT_RECEIPT_IMAGE_DIGEST
@@ -323,8 +376,114 @@ def _validate_bound_receipts() -> None:
         raise B5EvidenceError("B5_RELEASE_RECEIPT_INVALID")
 
 
+def build_source_artifact_identity() -> dict[str, object]:
+    """Build the deterministic identity of the source inputs under recertification."""
+
+    material: dict[str, object] = {
+        "artifacts": {
+            artifact_id: {
+                "path": relative_path,
+                "sha256": _source_bound_sha256(relative_path),
+            }
+            for artifact_id, relative_path in _SOURCE_ARTIFACTS
+        },
+        "source_commit": SOURCE_COMMIT,
+        "source_tree_git_oid": _source_tree_oid(),
+    }
+    return {
+        **material,
+        "source_artifact_sha256": _sha256_bytes(_compact_bytes(material)),
+    }
+
+
+def _recertification_state() -> dict[str, object]:
+    return _load_json(RECERTIFICATION_STATE_PATH)
+
+
+def validate_recertification_inputs() -> tuple[str, ...]:
+    """Validate Stage A without treating it as BUILD_COMPLETE evidence."""
+
+    try:
+        state = _recertification_state()
+        first_full = state.get("first_full_pytest")
+        candidate = state.get("candidate")
+        evidence = state.get("evidence")
+        source_identity = build_source_artifact_identity()
+        _validate_bound_receipts(
+            container_gate_path=RECERT_CONTAINER_GATE_PATH,
+            container_hero_path=RECERT_CONTAINER_HERO_PATH,
+            nonroot_receipt_path=RECERT_NONROOT_RECEIPT_PATH,
+            image_scan_path=RECERT_IMAGE_SCAN_PATH,
+        )
+    except B5EvidenceError as error:
+        return (error.reason,)
+    if (
+        state.get("authority") != "AIOA_B5_RECERTIFICATION_CONTROL"
+        or state.get("state") != "RECERTIFICATION_IN_PROGRESS"
+        or state.get("build_complete_emitted") is not False
+        or state.get("aws_calls") != 0
+        or state.get("deployments") != 0
+        or state.get("publication_ready") is not False
+        or candidate
+        != {
+            "image_digest": IMAGE_DIGEST,
+            "image_id": IMAGE_ID,
+            "image_reference": IMAGE_REFERENCE,
+            "image_size_bytes": IMAGE_SIZE_BYTES,
+            "source_artifact_sha256": source_identity["source_artifact_sha256"],
+            "source_commit": SOURCE_COMMIT,
+            "source_tree_git_oid": source_identity["source_tree_git_oid"],
+            "wheel_sha256": WHEEL_SHA256,
+        }
+        or first_full
+        != {
+            "expected_total": 1739,
+            "failed": None,
+            "passed": None,
+            "status": "PENDING",
+            "total": None,
+        }
+        or not isinstance(evidence, dict)
+        or evidence.get("container_gate_file_sha256")
+        != _sha256_path(RECERT_CONTAINER_GATE_PATH)
+        or evidence.get("container_hero_file_sha256")
+        != _sha256_path(RECERT_CONTAINER_HERO_PATH)
+        or evidence.get("image_scan_file_sha256")
+        != _sha256_path(RECERT_IMAGE_SCAN_PATH)
+        or evidence.get("nonroot_receipt_file_sha256")
+        != _sha256_path(RECERT_NONROOT_RECEIPT_PATH)
+    ):
+        return ("B5_RECERTIFICATION_STATE_INVALID",)
+    return ()
+
+
+def _require_build_complete_authority() -> None:
+    state = _recertification_state()
+    first_full = state.get("first_full_pytest")
+    if (
+        state.get("authority") != "AIOA_B5_RECERTIFICATION_CONTROL"
+        or state.get("state") != "BUILD_COMPLETE"
+        or state.get("build_complete_emitted") is not True
+        or state.get("aws_calls") != 0
+        or state.get("deployments") != 0
+        or state.get("publication_ready") is not False
+        or not isinstance(first_full, dict)
+        or first_full.get("status") != "PASS"
+        or first_full.get("failed") != 0
+        or first_full.get("passed") != first_full.get("total")
+        or not isinstance(first_full.get("total"), int)
+        or first_full.get("total", 0) <= 0
+    ):
+        raise B5EvidenceError("B5_BUILD_COMPLETE_NOT_AUTHORIZED")
+
+
 def build_artifact_manifest(package_bytes: bytes) -> dict[str, object]:
-    _validate_bound_receipts()
+    _validate_bound_receipts(
+        container_gate_path=CONTAINER_GATE_PATH,
+        container_hero_path=CONTAINER_HERO_PATH,
+        nonroot_receipt_path=NONROOT_RECEIPT_PATH,
+        image_scan_path=IMAGE_SCAN_PATH,
+    )
     artifacts = {
         artifact_id: {
             "path": relative_path,
@@ -337,6 +496,11 @@ def build_artifact_manifest(package_bytes: bytes) -> dict[str, object]:
             "file_sha256": _sha256_path(CONTAINER_GATE_PATH),
             "path": CONTAINER_GATE_PATH.relative_to(ROOT).as_posix(),
             "receipt_sha256": CONTAINER_GATE_RECEIPT_SHA256,
+        },
+        "container_hero": {
+            "file_sha256": _sha256_path(CONTAINER_HERO_PATH),
+            "path": CONTAINER_HERO_PATH.relative_to(ROOT).as_posix(),
+            "receipt_sha256": CONTAINER_HERO_RECEIPT_SHA256,
         },
         "image_privacy_scan": {
             "file_sha256": _sha256_path(IMAGE_SCAN_PATH),
@@ -416,6 +580,9 @@ def _sums_bytes(
             CONTAINER_GATE_PATH.relative_to(ROOT).as_posix(): _sha256_path(
                 CONTAINER_GATE_PATH
             ),
+            CONTAINER_HERO_PATH.relative_to(ROOT).as_posix(): _sha256_path(
+                CONTAINER_HERO_PATH
+            ),
             IMAGE_SCAN_PATH.relative_to(ROOT).as_posix(): _sha256_path(IMAGE_SCAN_PATH),
             NONROOT_RECEIPT_PATH.relative_to(ROOT).as_posix(): _sha256_path(
                 NONROOT_RECEIPT_PATH
@@ -467,6 +634,7 @@ def build_attestation(
 
 
 def build_outputs() -> dict[Path, bytes]:
+    _require_build_complete_authority()
     package_bytes = _canonical_bytes(build_package_manifest())
     artifact_bytes = _canonical_bytes(build_artifact_manifest(package_bytes))
     sums_bytes = _sums_bytes(package_bytes, artifact_bytes)
@@ -564,12 +732,34 @@ def validate_outputs(outputs: Mapping[Path, bytes] | None = None) -> tuple[str, 
 def _arguments(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--check", action="store_true")
+    parser.add_argument("--check-recertification", action="store_true")
     parser.add_argument("--json", action="store_true")
-    return parser.parse_args(argv)
+    args = parser.parse_args(argv)
+    if args.check and args.check_recertification:
+        parser.error("--check and --check-recertification are mutually exclusive")
+    return args
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = _arguments(argv)
+    if args.check_recertification:
+        reasons = validate_recertification_inputs()
+        payload = {
+            "authority": "RECERTIFICATION_INPUT_VALIDATION_ONLY",
+            "aws_mutations": 0,
+            "build_complete_emitted": False,
+            "reason": ",".join(reasons),
+            "remote_pushes": 0,
+            "state": "RECERTIFICATION_IN_PROGRESS",
+            "status": "PASS" if not reasons else "FAIL",
+        }
+        if args.json:
+            print(json.dumps(payload, separators=(",", ":"), sort_keys=True))
+        elif reasons:
+            print(f"B5_RECERTIFICATION FAIL reasons={','.join(reasons)}")
+        else:
+            print("B5_RECERTIFICATION PASS state=RECERTIFICATION_IN_PROGRESS")
+        return 0 if not reasons else 1
     try:
         outputs = build_outputs()
         if args.check:

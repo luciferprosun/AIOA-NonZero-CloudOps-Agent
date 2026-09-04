@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 
+import pytest
 import scripts.build_b5_release_evidence as release
 
 
@@ -17,6 +18,19 @@ def _compact(value: object) -> bytes:
 
 
 def test_b5_release_outputs_are_deterministic_and_source_commit_bound() -> None:
+    state = json.loads(release.RECERTIFICATION_STATE_PATH.read_text(encoding="utf-8"))
+    if state["state"] == "RECERTIFICATION_IN_PROGRESS":
+        assert release.validate_recertification_inputs() == ()
+        with pytest.raises(release.B5EvidenceError) as caught:
+            release.build_outputs()
+        assert caught.value.reason == "B5_BUILD_COMPLETE_NOT_AUTHORIZED"
+        assert release.validate_outputs() == ("B5_BUILD_COMPLETE_NOT_AUTHORIZED",)
+        historical = json.loads(release.ATTESTATION_PATH.read_text(encoding="utf-8"))
+        assert historical["status"] == "BUILD_COMPLETE"
+        assert historical["source_commit"] != release.SOURCE_COMMIT
+        assert state["build_complete_emitted"] is False
+        return
+
     first = release.build_outputs()
     second = release.build_outputs()
 
@@ -57,6 +71,16 @@ def test_b5_package_manifest_is_the_exact_runtime_closure() -> None:
 
 
 def test_b5_artifact_and_attestation_bind_source_image_docs_and_zero_cloud() -> None:
+    state = json.loads(release.RECERTIFICATION_STATE_PATH.read_text(encoding="utf-8"))
+    if state["state"] == "RECERTIFICATION_IN_PROGRESS":
+        identity = release.build_source_artifact_identity()
+        assert identity["source_commit"] == release.SOURCE_COMMIT
+        assert identity["source_artifact_sha256"] == (
+            state["candidate"]["source_artifact_sha256"]
+        )
+        assert release.validate_recertification_inputs() == ()
+        return
+
     outputs = release.build_outputs()
     artifact = json.loads(outputs[release.ARTIFACT_MANIFEST_PATH])
     attestation = json.loads(outputs[release.ATTESTATION_PATH])
@@ -77,9 +101,18 @@ def test_b5_artifact_and_attestation_bind_source_image_docs_and_zero_cloud() -> 
     ]
     assert "entrypoint" not in artifact["image"]
     assert artifact["artifacts"]["PORTABLE_RUNTIME_CONTRACT"]["sha256"]
+    assert artifact["artifacts"]["RENDER_BLUEPRINT"]["sha256"]
     assert artifact["artifacts"]["RENDER_START_SCRIPT"]["sha256"]
+    assert artifact["artifacts"]["RENDER_START_PROFILE"]["sha256"]
+    assert artifact["artifacts"]["RENDER_PROBE_SITECUSTOMIZE"]["sha256"]
+    assert artifact["artifacts"]["W7_CONTAINER_HERO_GATE"]["sha256"]
+    assert artifact["artifacts"]["W7_CONTAINER_HERO_CLIENT"]["sha256"]
+    assert artifact["artifacts"]["W7_CONTAINER_HERO_SUPERVISOR"]["sha256"]
     assert artifact["artifacts"]["CONTAINER_JUDGE_RUNBOOK"]["sha256"]
     assert artifact["artifacts"]["SUBMISSION_DEMO_RUNBOOK"]["sha256"]
+    assert artifact["evidence"]["container_hero"]["receipt_sha256"] == (
+        release.CONTAINER_HERO_RECEIPT_SHA256
+    )
     assert set(artifact["external_actions"].values()) == {0}
     assert attestation["status"] == "BUILD_COMPLETE"
     assert all(check["status"] == "PASS" for check in attestation["checks"])
@@ -89,6 +122,11 @@ def test_b5_artifact_and_attestation_bind_source_image_docs_and_zero_cloud() -> 
 
 
 def test_b5_release_validator_rejects_changed_generated_bytes() -> None:
+    state = json.loads(release.RECERTIFICATION_STATE_PATH.read_text(encoding="utf-8"))
+    if state["state"] == "RECERTIFICATION_IN_PROGRESS":
+        assert release.validate_outputs() == ("B5_BUILD_COMPLETE_NOT_AUTHORIZED",)
+        return
+
     outputs = release.build_outputs()
     outputs[release.PACKAGE_MANIFEST_PATH] = b"{}\n"
 

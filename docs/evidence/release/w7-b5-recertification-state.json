@@ -1,0 +1,38 @@
+{
+  "authority": "AIOA_B5_RECERTIFICATION_CONTROL",
+  "aws_calls": 0,
+  "build_complete_emitted": false,
+  "candidate": {
+    "image_digest": "sha256:f5f5647cfc0deb5361a8d538e55cf7c3a3ede9b07c96f50e8b9ebfb19c581c4d",
+    "image_id": "268cfce43a682ea364eb7bc01bdb2f1ae9dc8f8c0bf2da71c2fdd2a8c4be54c1",
+    "image_reference": "localhost/aioa-portable:w7-rc-bd2103da727f",
+    "image_size_bytes": 220765157,
+    "source_artifact_sha256": "6e671cf9943b70802a7f1330256050c453193b5c91ffbfc99063e2e3974afe37",
+    "source_commit": "bd2103da727fdb3a7fd846d6f9084c36980c01b7",
+    "source_tree_git_oid": "b298f8c12c92c986a5c2cebc1c7216dd8be350c8",
+    "wheel_sha256": "e9249c78d211d552c296dd7c415924ef4d8855b3fbcaa52864b89e7f848c7a15"
+  },
+  "deployments": 0,
+  "drift": {
+    "dockerignore_involved": true,
+    "intended": true,
+    "previous_source_commit": "797c94e72151c46504b9ae81412738aa6b253e8a",
+    "reason": "W7_IMAGE_RUNTIME_HELPERS_INTENTIONALLY_ADDED_TO_DEFAULT_DENY_BUILD_CONTEXT"
+  },
+  "evidence": {
+    "container_gate_file_sha256": "2037de1d88da016657a0de40520dd87c3c47d9828ca183c2258cc05b14387f45",
+    "container_hero_file_sha256": "7c87d423dec6333be9ae149eb897db241106baf5f972bcee9d5f2369b1c723a7",
+    "image_scan_file_sha256": "54af26a94944cf915b26f5c07106001ce45e8dace1f5362d6be5dd97f4abe780",
+    "nonroot_receipt_file_sha256": "389821e7fad38e915cbf44886384e06ed123af809464c71c435d701b6e38e382"
+  },
+  "first_full_pytest": {
+    "expected_total": 1739,
+    "failed": null,
+    "passed": null,
+    "status": "PENDING",
+    "total": null
+  },
+  "publication_ready": false,
+  "schema_version": 1,
+  "state": "RECERTIFICATION_IN_PROGRESS"
+}

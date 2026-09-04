@@ -1,0 +1,25 @@
+{
+  "application_files_scanned": 334,
+  "aws_calls": 0,
+  "aws_mutations": 0,
+  "checks": {
+    "baked_operator_token_absent": true,
+    "credential_files_absent": true,
+    "git_metadata_absent": true,
+    "private_key_material_absent": true,
+    "raw_aws_credentials_absent": true
+  },
+  "external_network_connections": 0,
+  "findings": [],
+  "findings_count": 0,
+  "image_digest": "sha256:f5f5647cfc0deb5361a8d538e55cf7c3a3ede9b07c96f50e8b9ebfb19c581c4d",
+  "image_id": "268cfce43a682ea364eb7bc01bdb2f1ae9dc8f8c0bf2da71c2fdd2a8c4be54c1",
+  "receipt_sha256": "d40c58de2d9476ee2f6db6c7c95248f270a305e3c4260c3fb73ba2cd5291486a",
+  "receipt_type": "AIOA_B5_IMAGE_EXPORT_PRIVACY_SCAN",
+  "regular_files_scanned": 11343,
+  "remote_pushes": 0,
+  "scanned_bytes": 210494203,
+  "schema_version": 1,
+  "source_commit": "bd2103da727fdb3a7fd846d6f9084c36980c01b7",
+  "status": "PASS"
+}
