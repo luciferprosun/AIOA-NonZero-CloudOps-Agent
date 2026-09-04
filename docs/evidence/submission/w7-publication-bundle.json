@@ -1,0 +1,65 @@
+{
+  "archive": {
+    "bytes": 5237857,
+    "local_path": "dist/submission/w7-b6-2026-09-04/aioa-agents-for-humans-publication-candidate.zip",
+    "sha256": "0030de3e37dcd073b35b2112c86e1ba0f7508b42c4653916a10c90b86b9cd713",
+    "uploaded": false
+  },
+  "aws_calls": 0,
+  "aws_mutations": 0,
+  "b5_reference": {
+    "container_digest": "sha256:f5f5647cfc0deb5361a8d538e55cf7c3a3ede9b07c96f50e8b9ebfb19c581c4d",
+    "container_id": "268cfce43a682ea364eb7bc01bdb2f1ae9dc8f8c0bf2da71c2fdd2a8c4be54c1",
+    "path_in_archive": "B5_BUILD_COMPLETE_REFERENCE.json",
+    "source_commit": "bd2103da727fdb3a7fd846d6f9084c36980c01b7",
+    "status": "BUILD_COMPLETE"
+  },
+  "b6_report": {
+    "file_sha256": "3913accf719e33e15e2bb690586ff5fbeebadf64ef7596cac4c4b6a5646f7933",
+    "path_in_archive": "B6_REPRODUCIBILITY_REPORT.json",
+    "source_path": "docs/evidence/submission/w7-b6-reproducibility.json",
+    "status": "PASS"
+  },
+  "candidate": {
+    "files": 393,
+    "git_metadata_present": false,
+    "source_commit": "57b7feab37e71b40e0eae740d697a0b7e250c161",
+    "workspace_evidence_present": false
+  },
+  "classifications": {
+    "GENERATED": 1,
+    "LEGAL_REVIEW": 2,
+    "PRIVATE_INTERNAL": 105,
+    "PUBLIC_ALLOWED": 175,
+    "PUBLIC_REQUIRED": 210
+  },
+  "deterministic_rebuild": {
+    "archive_byte_comparison": "IDENTICAL",
+    "independent_builds": 2,
+    "privacy_receipt_byte_comparison": "IDENTICAL",
+    "status": "PASS"
+  },
+  "document_type": "AIOA_W7_B6_LOCAL_PUBLICATION_BUNDLE",
+  "external_deployments": 0,
+  "inventory_count": 493,
+  "outer_files": {
+    "PUBLICATION_EXCLUSIONS.md": "f50d82d35cce11fc7894fc6191db3ae800a4f2f784fab88359e5c656db4b4672",
+    "PUBLICATION_MANIFEST.json": "b39a98847e8ce970edf636b3edeb03e4410f9fbe9b79fd0114349632d8ec49c1",
+    "PUBLIC_PRIVACY_SCAN.json": "17c4a878678a3fbfc771e3a405aa41ae6c57268f524e3f160aeb693b70031196",
+    "SHA256SUMS": "953be125eab7993572620b43246c29098146df48823485115c84eebbd0c9ab35"
+  },
+  "payload_count_before_manifest_and_sums": 391,
+  "payload_tree_sha256": "cfc0c1ca6471adf2d478543792967ba0fa49626817a228b04d6d7cfdac388b95",
+  "privacy_scan": {
+    "file_sha256": "17c4a878678a3fbfc771e3a405aa41ae6c57268f524e3f160aeb693b70031196",
+    "findings": 0,
+    "receipt_sha256": "365924543b60ffeeca360a1344a369a03d6656a3afd6fa002dd3100df59d7d75",
+    "status": "PASS"
+  },
+  "publication_actions": 0,
+  "publication_manifest_internal_sha256": "25cdf80101e0a09a7f96758771e3a19dc017619bac7816550d9ee565411c1ca2",
+  "publication_ready": "PASS_LOCAL_ONLY",
+  "remote_pushes": 0,
+  "schema_version": 1,
+  "status": "PASS"
+}

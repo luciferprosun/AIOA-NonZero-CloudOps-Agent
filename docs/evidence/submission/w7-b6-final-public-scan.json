@@ -1,0 +1,82 @@
+{
+  "aws_account_values_emitted": false,
+  "aws_mutations": 0,
+  "binary_files_reviewed": 3,
+  "bytes_scanned": 3813304,
+  "emails_emitted": false,
+  "external_deployments": 0,
+  "files_scanned": 390,
+  "findings": [],
+  "findings_count": 0,
+  "personal_values_emitted": false,
+  "publication_actions": 0,
+  "receipt_sha256": "365924543b60ffeeca360a1344a369a03d6656a3afd6fa002dd3100df59d7d75",
+  "regular_files": 393,
+  "remote_pushes": 0,
+  "reviewed_synthetic_fixtures": [
+    {
+      "category": "AWS_ACCOUNT_IDENTIFIER",
+      "path": "tests/integration/test_local_hitl_execution.py"
+    },
+    {
+      "category": "ABSOLUTE_USER_PATH",
+      "path": "tests/integration/test_w6_security_feature_freeze.py"
+    },
+    {
+      "category": "ABSOLUTE_USER_PATH",
+      "path": "tests/unit/test_evidence_security.py"
+    },
+    {
+      "category": "EMAIL_ADDRESS",
+      "path": "tests/unit/test_evidence_security.py"
+    },
+    {
+      "category": "URL_EMBEDDED_CREDENTIAL",
+      "path": "tests/unit/test_evidence_security.py"
+    },
+    {
+      "category": "EMAIL_ADDRESS",
+      "path": "tests/unit/test_live_acceptance.py"
+    },
+    {
+      "category": "AWS_ACCOUNT_IDENTIFIER",
+      "path": "tests/unit/test_phase3_deployment_contract.py"
+    },
+    {
+      "category": "AWS_ACCOUNT_IDENTIFIER",
+      "path": "tests/unit/test_phase3_post_deploy_verifier.py"
+    },
+    {
+      "category": "AWS_ACCOUNT_IDENTIFIER",
+      "path": "tests/unit/test_phase3_preflight.py"
+    },
+    {
+      "category": "AWS_ACCOUNT_IDENTIFIER",
+      "path": "tests/unit/test_phase3_secret_scan.py"
+    },
+    {
+      "category": "AWS_ACCOUNT_IDENTIFIER",
+      "path": "tests/unit/test_public_submission_privacy.py"
+    },
+    {
+      "category": "EMAIL_ADDRESS",
+      "path": "tests/unit/test_public_submission_privacy.py"
+    },
+    {
+      "category": "ABSOLUTE_USER_PATH",
+      "path": "tests/unit/test_reviewer_evidence_manifest.py"
+    },
+    {
+      "category": "AWS_ACCOUNT_IDENTIFIER",
+      "path": "tests/unit/test_reviewer_evidence_manifest.py"
+    },
+    {
+      "category": "EMAIL_ADDRESS",
+      "path": "tests/unit/test_reviewer_evidence_manifest.py"
+    }
+  ],
+  "reviewed_synthetic_fixtures_count": 15,
+  "schema_version": 1,
+  "secret_values_emitted": false,
+  "status": "PASS"
+}
