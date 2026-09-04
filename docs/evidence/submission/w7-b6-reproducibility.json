@@ -1,0 +1,123 @@
+{
+  "archive_uploaded": false,
+  "aws_calls": 0,
+  "aws_mutations": 0,
+  "b5_build_complete": {
+    "artifact_manifest_file_sha256": "c38dfe98d547a28ec9ed2d19ef1e1f93bfb2bd9d011a88e5d8c4d3674a8fee6d",
+    "attestation_file_sha256": "dd11773097ce0ff9e9a51b7e8ccb8aa65295734bddef3f5d6b438cbc131512e1",
+    "attestation_sha256": "f9b0e032948cbc99048ff8596061c1f7ffcc3475ff24ec027afee4b811005150",
+    "container_digest": "sha256:f5f5647cfc0deb5361a8d538e55cf7c3a3ede9b07c96f50e8b9ebfb19c581c4d",
+    "container_id": "268cfce43a682ea364eb7bc01bdb2f1ae9dc8f8c0bf2da71c2fdd2a8c4be54c1",
+    "local_image_reference": "localhost/aioa-portable:w7-rc-bd2103da727f",
+    "source_commit": "bd2103da727fdb3a7fd846d6f9084c36980c01b7",
+    "status": "BUILD_COMPLETE"
+  },
+  "checks": [
+    {
+      "check_id": "SANITIZED_GIT_BLOB_EXPORT",
+      "inventory_count": 492,
+      "status": "PASS"
+    },
+    {
+      "check_id": "INTERNAL_WORKSPACE_EVIDENCE_EXCLUDED",
+      "path": "docs/evidence/workspace/",
+      "status": "PASS"
+    },
+    {
+      "check_id": "PUBLIC_SECRET_AND_PRIVATE_DATA_SCAN",
+      "findings": 0,
+      "regular_files": 392,
+      "reviewed_synthetic_fixtures": 15,
+      "status": "PASS"
+    },
+    {
+      "check_id": "DETERMINISTIC_INITIAL_ARCHIVE",
+      "independent_builds": 2,
+      "status": "PASS"
+    },
+    {
+      "check_id": "CLEAN_ROOM_SHA256SUMS",
+      "entries": 391,
+      "status": "PASS"
+    },
+    {
+      "check_id": "CLEAN_ROOM_WHEEL_BUILD",
+      "dependency_network_access": false,
+      "independent_builds": 2,
+      "status": "PASS",
+      "wheel_sha256": "eaf1c058e6e526b1ac5d31f9ea47748aa11f321e1370ffb9877b2ece6901e161"
+    },
+    {
+      "bootstrap_secret_absent": true,
+      "check_id": "CLEAN_ROOM_RENDER_START_PROFILE",
+      "child_argv_exact": true,
+      "external_egress_count": 0,
+      "health": "PASS",
+      "missing_token_fails_closed": true,
+      "readiness": "PASS",
+      "status": "PASS",
+      "token_mode_0600": true
+    },
+    {
+      "check_id": "B5_CONTAINER_JUDGE",
+      "file_sha256": "2037de1d88da016657a0de40520dd87c3c47d9828ca183c2258cc05b14387f45",
+      "receipt_sha256": "9f0795099821b346ebedda6e06d5df97aea4cdadc095024898142fc08d8cbb6d",
+      "status": "PASS"
+    },
+    {
+      "check_id": "B5_NONROOT_RUNTIME",
+      "effective_uid": 65532,
+      "file_sha256": "389821e7fad38e915cbf44886384e06ed123af809464c71c435d701b6e38e382",
+      "status": "PASS",
+      "token_mode": "0o600"
+    },
+    {
+      "check_id": "B5_IMAGE_PRIVACY_SCAN",
+      "file_sha256": "54af26a94944cf915b26f5c07106001ce45e8dace1f5362d6be5dd97f4abe780",
+      "findings": 0,
+      "receipt_sha256": "d40c58de2d9476ee2f6db6c7c95248f270a305e3c4260c3fb73ba2cd5291486a",
+      "status": "PASS"
+    },
+    {
+      "check_id": "W7_CONTAINER_HERO",
+      "external_network_connections": 0,
+      "file_sha256": "7c87d423dec6333be9ae149eb897db241106baf5f972bcee9d5f2369b1c723a7",
+      "receipt_sha256": "d61f254120fff7a14b3fa6a26aeaa8ed4d5e40841aa583ffebc732731a94882c",
+      "status": "PASS"
+    },
+    {
+      "check_id": "FULL_REGRESSION_BEFORE_BUILD_COMPLETE",
+      "passed": 1739,
+      "status": "PASS",
+      "total": 1739
+    },
+    {
+      "check_id": "FULL_REGRESSION_AFTER_BUILD_COMPLETE",
+      "passed": 1739,
+      "status": "PASS",
+      "total": 1739
+    }
+  ],
+  "clean_room": {
+    "git_metadata_present": false,
+    "private_repository_required": false,
+    "source_import": "PASS",
+    "workspace_evidence_present": false
+  },
+  "document_type": "AIOA_W7_B6_PUBLIC_CLEAN_ROOM_REPRODUCIBILITY",
+  "external_deployments": 0,
+  "initial_candidate": {
+    "archive_sha256": "0788013eb4a6fe4ee3ed078622d7a21445e1965292bf6d86b935cff338545910",
+    "manifest_file_sha256": "034e9e418d7104b5465e2d2ddd84b70477ca78587a8cd814fe1501865193a4f2",
+    "payload_tree_sha256": "78c7dd2801381d2873a246f0edb7cdfdb8f80281f1aebc1c57ee3dc173306063",
+    "privacy_scan_file_sha256": "c415b39c35cc42e86e3b7ae9169b94ff2b1db1a6b17a8865735ba31beddd6c36",
+    "privacy_scan_receipt_sha256": "e01c2bbf613b00c82d8e3657f3b56e0018952ca5fe7996f57d38ef291b2458a6"
+  },
+  "limitations": "Local-only Linux/amd64 mock certification. The runtime container identity is the exact B5 clean-clone-certified W7 image; B6 rebuilt the source distribution and exercised the Render startup profile from a Git-free clean room but did not push or rebuild a second publication-only OCI image. No live AWS, public endpoint, registry push, external deployment, video publication, or submission claim is made.",
+  "publication_actions": 0,
+  "publication_ready": "PASS_LOCAL_ONLY",
+  "remote_pushes": 0,
+  "schema_version": 2,
+  "source_commit": "b974b5c14b16bc9491b4b0cdea56b090d61c3ccd",
+  "status": "PASS"
+}
