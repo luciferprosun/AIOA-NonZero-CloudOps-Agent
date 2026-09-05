@@ -1,0 +1,72 @@
+{
+  "authority": "W7A_PHASE_5_PATCHSET_CERTIFICATION",
+  "aws_calls": 0,
+  "aws_mutations": 0,
+  "b4": {
+    "proof_tests": 43,
+    "receipt_sha256": "ec1504981ed79d9b26b6b0d23e5b5dfd71d37e8585a4c906cf6fdc14b857f559",
+    "scenarios_passed": 11,
+    "status": "PASS"
+  },
+  "clean_clone": {
+    "commit": "f2b2f60003637c03df29d613da62c77877ef9c1e",
+    "mode": "local-no-local",
+    "status": "PASS"
+  },
+  "external_deployments": 0,
+  "focused_tests": {
+    "failed": 0,
+    "passed": 372,
+    "skipped": 0,
+    "status": "PASS"
+  },
+  "frozen_w7_b5_b6_head": "945c87052815b237004d259fe993cc92cbd579b7",
+  "full_pytest": {
+    "duration_seconds": 714.1,
+    "failed": 0,
+    "passed": 1887,
+    "skipped": 0,
+    "status": "PASS"
+  },
+  "generated_at": "2026-09-04T23:55:19Z",
+  "git_diff_check": "PASS",
+  "implementation_source_commit": "f2b2f60003637c03df29d613da62c77877ef9c1e",
+  "p0": {
+    "gates_passed": 15,
+    "proof_tests": 136,
+    "status": "PASS"
+  },
+  "p1": {
+    "gates_passed": 6,
+    "proof_tests": 93,
+    "status": "PASS"
+  },
+  "patchset_policy": {
+    "actual_workspace_state_authoritative": true,
+    "binary_changes": "DENY",
+    "canonical_diff": "PASS",
+    "canonical_patchset": "PASS",
+    "hardlink_special_file": "DENY",
+    "mass_deletion": "DENY",
+    "max_changed_lines": 300,
+    "max_files_changed": 3,
+    "mode_gitlink_submodule_surprise": "DENY",
+    "model_claim_authoritative": false,
+    "path_traversal_symlink_escape": "DENY",
+    "policy_version": "W7A_BOUNDED_PATCHSET_V1",
+    "protected_path_write": "DENY",
+    "provider_neutral": true,
+    "secret_file_or_content": "DENY",
+    "secret_scan_hook": "PASS",
+    "toctou_recheck": "PASS",
+    "unexpected_generated_artifact": "DENY"
+  },
+  "pip_check": "PASS",
+  "product_github_mutations": 0,
+  "receipt_sha256": "73bfe03a4b71cf5d8d4994c33f3972fdd3a73f06a5b9bf02cc514ee0c8248b30",
+  "receipt_type": "AIOA_W7A_PHASE_5_CERTIFICATION",
+  "ruff": "PASS",
+  "schema_version": 1,
+  "secret_findings": 0,
+  "status": "PASS"
+}
