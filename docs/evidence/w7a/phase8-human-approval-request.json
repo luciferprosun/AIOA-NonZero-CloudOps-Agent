@@ -1,0 +1,53 @@
+{
+  "allowed_operations": [
+    "READ_PRECONDITION",
+    "CREATE_NONDEFAULT_FEATURE_REF",
+    "MATERIALIZE_EXACT_PATCHSET",
+    "CREATE_EXACT_COMMIT",
+    "PERSIST_EFFECT_OWNERSHIP",
+    "PUSH_EXPECTED_FEATURE_REF_ONCE",
+    "READBACK_REMOTE_REF_AND_COMMIT",
+    "CREATE_DRAFT_PR"
+  ],
+  "authority": "AIOA_W7A_PHASE8_HUMAN_APPROVAL_REQUEST_V1",
+  "base_head": "6d6ed3b3b498131457f78505a0fa5e67cb18aa14",
+  "base_ref": "codex/w7a-agent-execution-slice",
+  "candidate_scope": "LOCAL_BARE_REMOTE_TEST_FIXTURE_ONLY",
+  "capsule_sha256": "d82bd7b513b65d6c037641b1cabff2cb8dafb883e1dcc32da4887dc6518ad98f",
+  "changed_files": [
+    "solver.py"
+  ],
+  "decision_required": "REGENERATE_EXACT_LIVE_CAPSULE_THEN_APPROVE_OR_DENY",
+  "expires_at": "2026-09-06T10:00:00Z",
+  "human_decision_present": false,
+  "live_github_execution_ready": false,
+  "live_remote_precondition_verified": false,
+  "mutation_authority": false,
+  "patchset_sha256": "a89ed0dff5a6ee4ae455a4525fddba22c13f21a83c999a324be5077648379dcc",
+  "repository": {
+    "canonical_url": "https://github.com/luciferprosun/aioa-nonzero-cloudops-agent",
+    "host": "github.com",
+    "name": "aioa-nonzero-cloudops-agent",
+    "owner": "luciferprosun"
+  },
+  "request_artifact_sha256": "626c55e78229da1a6bad2cd0892582a5ed57fc58d3fbd833bc7c211997566bb3",
+  "request_sha256": "8b9628fe6fb58bbc29ee320fd870995e2c3bde69b0f409ca0623ea8439cb89e4",
+  "risk_summary": [
+    "ONE_NONDEFAULT_FEATURE_REF_ONLY",
+    "NO_FORCE_PUSH",
+    "NO_TAG",
+    "NO_MERGE",
+    "NO_DEFAULT_BRANCH_WRITE",
+    "NO_AWS_CALL",
+    "WRITE_RESULT_REQUIRES_INDEPENDENT_COMMIT_TREE_READBACK",
+    "LOCAL_TEST_CAPSULE_IS_NOT_VALID_LIVE_GITHUB_AUTHORITY"
+  ],
+  "schema_version": 1,
+  "status": "WAITING_FOR_EXACT_LIVE_HUMAN_AUTHORITY",
+  "target_branch": "codex/w7a-verified-pr-01890f6c",
+  "test_receipt_digests": {
+    "local_bare_remote_receipt_sha256": "c80711e5dcad8bb9782620c4cb3f9bb2727f4c5231c707a281f1e9346ec6a25f",
+    "phase6_repair_loop_receipt_sha256": "07a60d49d7733d5f6e29e04f5a6d91ff37989b244f2de46e5dbe105e613e892a",
+    "phase7_capsule_certification_sha256": "e9050479075f2892b0c61fb2d731ccf6d7103bc10a2bb54b235de595384c42d3"
+  }
+}
