@@ -1,0 +1,48 @@
+{
+  "receipt": {
+    "authority": "W7A_PHASE_6_REAL_LOCAL_E2E",
+    "aws_calls": 0,
+    "aws_mutations": 0,
+    "base_head": "88d41b1721914f13588319883c85656953b1bf2a",
+    "coding_network": "NONE",
+    "external_deployments": 0,
+    "final_files": [
+      "solver.py"
+    ],
+    "final_patchset_sha256": "5787f7a0b81d1f23149a4ad48dd8b341775b7c7c652fbf084c002fcb9425bc4b",
+    "initial_targeted_test": {
+      "cleanup_orphans": 0,
+      "command_argv_sha256": "857ef1f7ec77e0bab3d2fd51eec9cbc35deb854ef358035698cc6c1d967eb3a0",
+      "command_state": "COMMAND_FAILED",
+      "exit_code": 1,
+      "network_mode": "NONE",
+      "sandbox_id": "01a06f1a-e154-7628-b381-b5f26f45ac8a",
+      "setup_plan_sha256": "e5077384c7572ef749044133240fd87cbf0cb3bf4e10a042d263bb7fe5ac3c8e"
+    },
+    "loop_receipt_sha256": "03a8499a86443dbc34bc5d3702c912862a7bd7f79ce5021cdc91bcfe0da7961b",
+    "max_repair_attempts": 2,
+    "product_github_mutations": 0,
+    "real_codex_worker": "PASS",
+    "real_docker_sandbox": "PASS",
+    "sandbox_cleanup_orphans": 0,
+    "sandbox_independent_orphans": 0,
+    "status": "PASS",
+    "toolbox_image_sha256": "7f4e8f00a1ea130d7b30b8371911239f6bf3df4131533faf04df667668739df7",
+    "validation_stages": [
+      "V0_PATCHSET_POLICY",
+      "V1_FAST_STATIC",
+      "V2_TARGETED_TESTS",
+      "V4_SEMANTIC_REVIEW",
+      "V5_SECRET_DETERMINISTIC_RECHECK",
+      "V6_FINAL_GATES"
+    ],
+    "worker_changed_file_claim_count": 2,
+    "worker_claim_authoritative": false,
+    "worker_claim_matched_actual": false,
+    "worker_event_count": 23,
+    "worker_host_code_test_commands": 0,
+    "worker_result_sha256": "e69161d73a8a329118a0190287003d5342d3d5081c8459625b4338d1b0b53cdd",
+    "worker_status": "SUCCESS"
+  },
+  "receipt_sha256": "b5668e8e923a0713e795007f0bce30bfe579711668f4b66a050d6672b8014898"
+}

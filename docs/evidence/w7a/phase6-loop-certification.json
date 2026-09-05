@@ -1,0 +1,106 @@
+{
+  "authority": "W7A_PHASE_6_LOOP_CERTIFICATION",
+  "aws_calls": 0,
+  "aws_mutations": 0,
+  "b4": {
+    "proof_tests": 43,
+    "receipt_sha256": "ff34a397114c3d70c0df111ddb37f4d5155fb2edec28d53a3aa0c9d6452a5204",
+    "scenarios_passed": 11,
+    "status": "PASS"
+  },
+  "clean_clone": {
+    "commit": "88d41b1721914f13588319883c85656953b1bf2a",
+    "mode": "local-no-local",
+    "status": "PASS"
+  },
+  "external_deployments": 0,
+  "focused_tests": {
+    "failed": 0,
+    "passed": 388,
+    "skipped": 0,
+    "status": "PASS"
+  },
+  "frozen_w7_b5_b6_head": "945c87052815b237004d259fe993cc92cbd579b7",
+  "full_pytest": {
+    "duration_seconds": 725.13,
+    "failed": 0,
+    "passed": 1901,
+    "skipped": 0,
+    "status": "PASS"
+  },
+  "generated_at": "2026-09-05T01:31:00Z",
+  "git_diff_check": "PASS",
+  "implementation_source_commit": "88d41b1721914f13588319883c85656953b1bf2a",
+  "p0": {
+    "gates_passed": 15,
+    "proof_tests": 136,
+    "status": "PASS"
+  },
+  "p1": {
+    "gates_passed": 6,
+    "proof_tests": 93,
+    "status": "PASS"
+  },
+  "phase4": {
+    "evidence": "docs/evidence/w7a/phase4-runtime-certification.json",
+    "status": "PASS"
+  },
+  "phase5": {
+    "evidence": "docs/evidence/w7a/phase5-patchset-certification.json",
+    "status": "PASS"
+  },
+  "pip_check": "PASS",
+  "product_github_mutations": 0,
+  "real_local_e2e": {
+    "evidence": "docs/evidence/w7a/phase6-real-local-e2e.json",
+    "final_patchset_sha256": "5787f7a0b81d1f23149a4ad48dd8b341775b7c7c652fbf084c002fcb9425bc4b",
+    "loop_receipt_sha256": "03a8499a86443dbc34bc5d3702c912862a7bd7f79ce5021cdc91bcfe0da7961b",
+    "receipt_sha256": "b5668e8e923a0713e795007f0bce30bfe579711668f4b66a050d6672b8014898",
+    "status": "PASS",
+    "worker_result_sha256": "e69161d73a8a329118a0190287003d5342d3d5081c8459625b4338d1b0b53cdd"
+  },
+  "receipt_sha256": "f62f8246945324e7d1ec3651d785f6a9d08b2712a0a09072ee6c4a48cd20de69",
+  "receipt_type": "AIOA_W7A_PHASE_6_CERTIFICATION",
+  "repair_loop": {
+    "actual_workspace_state_authoritative": true,
+    "anti_test_weakening": "PASS",
+    "coding_network": "NONE",
+    "each_repair_new_patchset_hash": "PASS",
+    "final_policy_recheck": "PASS",
+    "final_review": "PASS",
+    "final_secret_scan": "PASS",
+    "final_tests_gates": "PASS",
+    "max_repair_attempts": 2,
+    "max_repair_attempts_enforced": true,
+    "model_reviewer_authoritative": false,
+    "product_github_authority": false,
+    "real_codex_worker": "PASS",
+    "real_docker_sandbox": "PASS",
+    "repair_exhaustion_closed": "PASS",
+    "sandbox_cleanup_orphans": 0,
+    "unknown_ambiguous_timeout_crash_is_pass": false,
+    "validation_stages": [
+      "V0_PATCHSET_POLICY",
+      "V1_FAST_STATIC",
+      "V2_TARGETED_TESTS",
+      "V3_REPAIR",
+      "V4_SEMANTIC_REVIEW",
+      "V5_SECRET_DETERMINISTIC_RECHECK",
+      "V6_FINAL_GATES"
+    ],
+    "worker_claim_authoritative": false
+  },
+  "ruff": "PASS",
+  "schema_version": 1,
+  "secret_scan": {
+    "files_scanned": 545,
+    "findings": 0,
+    "receipt_sha256": "2546f33cccf31c9c8237c50281e8a64a41174c9ed4cae265f9711fbed8a1f14b",
+    "status": "PASS"
+  },
+  "status": "PASS",
+  "toolbox": {
+    "image_sha256": "7f4e8f00a1ea130d7b30b8371911239f6bf3df4131533faf04df667668739df7",
+    "source_commit": "1454eec76bd9eaf848a1e784b78ac365d990dc1b"
+  }
+}
