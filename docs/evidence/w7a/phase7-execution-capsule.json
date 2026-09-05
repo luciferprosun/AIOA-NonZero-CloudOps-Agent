@@ -1,0 +1,142 @@
+{
+  "authority": "W7A_PHASE_7_EXECUTION_CAPSULE_CERTIFICATION",
+  "aws_calls": 0,
+  "aws_mutations": 0,
+  "capsule": {
+    "allowed_operations": [
+      "READ_PRECONDITION",
+      "CREATE_NONDEFAULT_FEATURE_REF",
+      "MATERIALIZE_EXACT_PATCHSET",
+      "CREATE_EXACT_COMMIT",
+      "PERSIST_EFFECT_OWNERSHIP",
+      "PUSH_EXPECTED_FEATURE_REF_ONCE",
+      "READBACK_REMOTE_REF_AND_COMMIT",
+      "CREATE_DRAFT_PR"
+    ],
+    "approval_request": {
+      "actor_session_id": "operator-session-01",
+      "decision_nonce_sha256": "e88a65feb9c1684a501db2a2e0451eb8e597841bba6fa8f465bc6d56711c92cf",
+      "expires_at": "2026-09-05T08:30:00Z",
+      "human_decision_present": false,
+      "request_id": "01890f6c-3311-7abc-8f4a-6e4f7f0b000b",
+      "request_sha256": "9ad0e3f1f8a0b6c04f8a40aebf5f20e0bdc65af7304703cd6954dc1f8506cd36",
+      "requested_at": "2026-09-05T08:00:00Z"
+    },
+    "attempt_id": "01890f6c-3311-7abc-8f4a-6e4f7f0b000a",
+    "authority": "AIOA_W7A_EXECUTION_CAPSULE_V1",
+    "aws_authority": false,
+    "base_head": "dddddddddddddddddddddddddddddddddddddddd",
+    "base_ref": "codex/w7a-agent-execution-slice",
+    "capsule_sha256": "9d052d8c3a1c314b9da46f827d112ab8d1c6867dc951c35cf54e9508b65bea1b",
+    "changed_files": [
+      "solver.py"
+    ],
+    "created_at": "2026-09-05T08:00:00Z",
+    "credential_policy": {
+      "actuator": "GITHUB_WRITE_ACTUATOR_ONLY",
+      "sandbox": "NONE",
+      "test_process": "NONE",
+      "token_values_retained": false,
+      "worker": "NONE"
+    },
+    "default_branch": "main",
+    "execution_engine": false,
+    "github_authority": false,
+    "mutation_authority": false,
+    "operation_id": "01890f6c-3311-7abc-8f4a-6e4f7f0b0009",
+    "patchset_sha256": "4b8b5b8ad2e362188e553eb1c7d7537e4666b96810b2b4490ef00e87c15dbe45",
+    "proposal_id": "01890f6c-3311-7abc-8f4a-6e4f7f0b0008",
+    "provenance": "verified_patchset:finite_repair_loop:execution_capsule_v1",
+    "repository": {
+      "canonical_url": "https://github.com/luciferprosun/aioa-nonzero-cloudops-agent",
+      "host": "github.com",
+      "name": "aioa-nonzero-cloudops-agent",
+      "owner": "luciferprosun"
+    },
+    "run_id": "01890f6c-3311-7abc-8f4a-6e4f7f0b0004",
+    "sandbox": {
+      "aws_credentials_present": 0,
+      "coding_network": "NONE",
+      "github_credentials_present": 0,
+      "policy_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "provider": "docker",
+      "sandbox_id": "01890f6c-3311-7abc-8f4a-6e4f7f0b0014",
+      "sandbox_receipt_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "source_workspace_sha256": "ee1693a6c758045dcfc2be742eade3216e5ff4f383823ca70c7f33b783c6b004",
+      "ssh_credentials_present": 0,
+      "toolbox_image_sha256": "7777777777777777777777777777777777777777777777777777777777777777",
+      "run_as": "65532:65532"
+    },
+    "schema_version": 1,
+    "target_branch": "codex/w7a-verified-pr-01890f6c",
+    "task_id": "01890f6c-3311-7abc-8f4a-6e4f7f0b0002",
+    "trace_id": "01890f6c-3311-7abc-8f4a-6e4f7f0b0005",
+    "verification": {
+      "cleanup_orphans": 0,
+      "events": [
+        {
+          "evidence_sha256": "b199babd501298ab2a6398c89eef08d86c38066d3c933c4029320d672349946b",
+          "network_mode": "NONE",
+          "outcome": "PASS",
+          "sequence": 0,
+          "stage": "V0_PATCHSET_POLICY"
+        },
+        {
+          "evidence_sha256": "7eaf588008203008b100864776d6a0f54e211d4ac5f01e9644a7a7e832642471",
+          "network_mode": "NONE",
+          "outcome": "PASS",
+          "sequence": 1,
+          "stage": "V1_FAST_STATIC"
+        },
+        {
+          "evidence_sha256": "6b21d2deb115f6c781411d381398f640a199bb815ea566158f7f03a9ebbbea58",
+          "network_mode": "NONE",
+          "outcome": "PASS",
+          "sequence": 2,
+          "stage": "V2_TARGETED_TESTS"
+        },
+        {
+          "evidence_sha256": "c5861c1a4611c3b8534964899648d6ed47cf1a059b6102c8c63e6f39379a0d29",
+          "network_mode": "NONE",
+          "outcome": "PASS",
+          "sequence": 3,
+          "stage": "V4_SEMANTIC_REVIEW"
+        },
+        {
+          "evidence_sha256": "a7b78e11e6d6ca5e36aa7369a4c0b756e85d45b527ef9bc44c9831513a9c9b0b",
+          "network_mode": "NONE",
+          "outcome": "PASS",
+          "sequence": 4,
+          "stage": "V5_SECRET_DETERMINISTIC_RECHECK"
+        },
+        {
+          "evidence_sha256": "f2d4a51cbe28b82bf8347fc6b292d7af17395fdca9b30b7112d7aa7b2c3ed925",
+          "network_mode": "NONE",
+          "outcome": "PASS",
+          "sequence": 5,
+          "stage": "V6_FINAL_GATES"
+        }
+      ],
+      "policy_recheck": "PASS",
+      "repair_loop_receipt_sha256": "1ed6d9a09ab242bf06203f893d034c052b44c7bc069f9fc9066c48ecc6a30e25",
+      "review_result": "PASS",
+      "secret_scan": "PASS"
+    }
+  },
+  "development_pushes_before_checkpoint": 0,
+  "entry_head": "dc38cf2b1ae97b5986bc0a3c496a16994ba5d4e7",
+  "evidence_sha256": "e9050479075f2892b0c61fb2d731ccf6d7103bc10a2bb54b235de595384c42d3",
+  "external_deployments": 0,
+  "focused_tests": {
+    "failed": 0,
+    "passed": 29,
+    "status": "PASS"
+  },
+  "frozen_w7_head": "945c87052815b237004d259fe993cc92cbd579b7",
+  "human_approval_bound": false,
+  "product_runtime_github_writes": 0,
+  "schema_version": 1,
+  "secret_findings": 0,
+  "status": "PASS",
+  "synthetic_contract_fixture_only": true
+}
