@@ -331,6 +331,35 @@ class BoundedPatchSetPolicy:
             ),
         )
 
+    def bound_after_contents(
+        self,
+        *,
+        final_root: Path,
+        patchset: PatchSet,
+    ) -> tuple[tuple[str, bytes], ...]:
+        """Return exact verified after-bytes for an internal isolated-sandbox bridge."""
+
+        if not isinstance(patchset, PatchSet):
+            raise PatchSetPolicyDenied("PATCHSET_CONTENT_EXPORT_INPUT_INVALID")
+        snapshot = _snapshot_tree(final_root)
+        if snapshot.tree_sha256 != patchset.final_tree_sha256:
+            raise PatchSetPolicyDenied(
+                "PATCHSET_TOCTOU_DRIFT_DETECTED",
+                failure_kind=FailureKind.VALIDATION_FAILURE,
+            )
+        exported: list[tuple[str, bytes]] = []
+        for change in patchset.files:
+            if change.operation is PatchOperation.DELETE:
+                raise PatchSetPolicyDenied("PATCHSET_SANDBOX_DELETE_UNSUPPORTED")
+            record = snapshot.records.get(change.path)
+            if record is None or record.identity != change.after:
+                raise PatchSetPolicyDenied(
+                    "PATCHSET_TOCTOU_DRIFT_DETECTED",
+                    failure_kind=FailureKind.VALIDATION_FAILURE,
+                )
+            exported.append((change.path, record.content))
+        return tuple(exported)
+
 
 def _identity(record: _FileRecord | None) -> FileContentIdentity | None:
     return None if record is None else record.identity
