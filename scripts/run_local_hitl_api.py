@@ -1,9 +1,16 @@
 """Run the credential-free Local-2 API and operator console on loopback."""
 
 import argparse
+import sys
 import webbrowser
 from pathlib import Path
 from urllib.parse import urlencode
+
+
+_REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
+if str(_REPOSITORY_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPOSITORY_ROOT))
+
 
 from aioa_cloudops_agent.agent import create_local_hitl_runtime
 from aioa_cloudops_agent.config import LocalHitlSettings
