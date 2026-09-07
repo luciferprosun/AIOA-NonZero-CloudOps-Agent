@@ -40,7 +40,14 @@ def main() -> int:
             port=settings.port,
             allow_container_binding=True,
         )
-    except (ContractValidationError, OSError, RuntimeError, ValueError):
+    except ContractValidationError as error:
+        print(
+            f"AIOA portable server configuration invalid: "
+            f"ContractValidationError: {error}",
+            file=sys.stderr,
+        )
+        return 2
+    except (OSError, RuntimeError, ValueError):
         print("AIOA portable server configuration invalid", file=sys.stderr)
         return 2
 

@@ -187,3 +187,39 @@ def test_render_docker_command_fails_closed_without_operator_token(
     assert not Path(environment["AIOA_LOCAL_API_TOKEN_PATH"]).exists()
     assert result.stdout == ""
     assert result.stderr == "AIOA operator token missing\n"
+
+
+def test_render_docker_command_reports_safe_openrouter_contract_failure(
+    tmp_path: Path,
+) -> None:
+    service = _service()
+    environment = _environment(service, tmp_path, _free_loopback_port())
+    token = "render-" + "diagnostic-" + ("t" * 48)
+    provider_key = "provider-test-credential"
+    environment.update(
+        {
+            "AIOA_OPERATOR_TOKEN": token,
+            "OPENROUTER_API_KEY": provider_key,
+            "AIOA_PROVIDER_TIMEOUT_SECONDS": "0",
+        }
+    )
+
+    result = subprocess.run(
+        [str(START_SCRIPT_PATH)],
+        cwd=ROOT,
+        env=environment,
+        capture_output=True,
+        check=False,
+        text=True,
+        timeout=20,
+    )
+
+    assert result.returncode == 2
+    assert result.stdout == ""
+    assert result.stderr == (
+        "AIOA portable server configuration invalid: "
+        "ContractValidationError: "
+        "AIOA_PROVIDER_TIMEOUT_SECONDS must be between 1 and 120\n"
+    )
+    assert token not in result.stderr
+    assert provider_key not in result.stderr
