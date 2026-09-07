@@ -4,7 +4,7 @@
 
 W5 turns the certified W1–W4 workspace-remediation chain into the featured judge-facing product
 flow. It is additive to the existing B3 loopback Local-2 application: it does not add a second
-approval system, a direct executor endpoint, a browser-side authority path, or a live-cloud
+approval system, a direct executor endpoint, a browser-side authority path, or a live AWS
 dependency. The screen presents one coherent sequence:
 
 ```text
@@ -13,11 +13,13 @@ Observe -> Evidence -> Root Cause -> Exact Patch -> Policy -> Human Decision
 ```
 
 The headline is: **The model proposes. The human authorizes. Evidence decides.** The interface
-labels the fixed story `DEMO SANDBOX`, `PORTABLE / MOCK`, `STRANDS`,
-`HUMAN AUTHORITY REQUIRED`, `NO LIVE AWS WRITES`, and `NO EXTERNAL EGRESS`. It never describes a
-synthetic resource or local mutation as live AWS. The browser is intentionally limited to bounded
-Non-Zero application contracts rather than receiving direct tool, file, process, or mutation
-access. The two older CloudOps stories remain available as backward-compatible regression paths.
+truthfully labels the selected `PORTABLE / MOCK` or `PORTABLE / OPENROUTER` provider, its external
+egress mode, `STRANDS`, `HUMAN AUTHORITY REQUIRED`, and `NO LIVE AWS WRITES`. OpenRouter mode sends
+only model requests to its canonical API; the workspace tools remain sealed, read-only, and
+non-applying. It never describes a synthetic resource or local mutation as live AWS. The browser is
+intentionally limited to bounded Non-Zero application contracts rather than receiving direct tool,
+file, process, credential, or mutation access. The two older CloudOps stories remain available as
+backward-compatible regression paths.
 
 ## Start in one command
 
@@ -34,10 +36,16 @@ browser storage, printed in the page, returned by the API, or included in screen
 browser opening is unavailable, open the printed loopback URL and use the owner-only token file
 through **Manual local-session fallback**.
 
+For live local model reasoning, configure the ignored owner-only `.env.local` file with
+`AIOA_MODEL_PROVIDER=openrouter`, `OPENROUTER_API_KEY`, and
+`AIOA_ALLOWED_EGRESS=openrouter-only` before launch. The page offers a small provider selector;
+Mock/offline remains available after a live-provider failure, and no API key is exposed to the page.
+
 ## Three-minute primary flow
 
-1. Confirm the visible `DEMO SANDBOX`, `PORTABLE / MOCK`, and `STRANDS` labels plus zero real-cloud
-   writes and zero external network calls.
+1. Confirm the visible `DEMO SANDBOX`, selected provider, `STRANDS`, human-authority and zero
+   real-cloud-write labels. Mock shows zero external network calls; OpenRouter truthfully shows its
+   model-call count and `OPENROUTER API ONLY` egress.
 2. Select **Fix a Failed Deployment Safely**. The server materializes the sealed incident, invokes
    bounded W1 investigation, and creates one inert W2 patch for `render.yaml`.
 3. Inspect the observed exit `127`, `File name too long`, root-cause inference, exact unified diff,

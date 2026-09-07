@@ -13,6 +13,7 @@ from aioa_cloudops_agent.cloudops import InvestigationIdentity, SandboxTarget
 from aioa_cloudops_agent.config import (
     BedrockSettings,
     ModelProviderName,
+    OpenRouterSettings,
     RuntimeMode,
     RuntimeSettings,
 )
@@ -76,6 +77,14 @@ def _aws_settings() -> RuntimeSettings:
     )
 
 
+def _openrouter_settings() -> RuntimeSettings:
+    return RuntimeSettings(
+        mode=RuntimeMode.PORTABLE,
+        model_provider=ModelProviderName.OPENROUTER,
+        openrouter=OpenRouterSettings(api_key="provider-test-credential"),
+    )
+
+
 def test_factory_defaults_to_deterministic_non_network_strands_model() -> None:
     runtime = create_model_provider()
 
@@ -112,6 +121,27 @@ def test_explicit_aws_provider_failure_is_typed_and_redacted() -> None:
 
     assert str(captured.value) == "selected model provider could not be initialized"
     assert private_detail not in str(captured.value)
+
+
+def test_explicit_openrouter_provider_uses_only_injected_strands_model() -> None:
+    captured: list[OpenRouterSettings] = []
+
+    def injected(settings: OpenRouterSettings) -> Model:
+        captured.append(settings)
+        return InjectedModel()
+
+    runtime = create_model_provider(
+        _openrouter_settings(),
+        openrouter_factory=injected,
+    )
+
+    assert isinstance(runtime.model, InjectedModel)
+    assert runtime.provider_name is ModelProviderName.OPENROUTER
+    assert runtime.model_id == "openai/gpt-4o-mini"
+    assert runtime.external_network_allowed is True
+    assert runtime.aws_calls_allowed is False
+    assert len(captured) == 1
+    assert "provider-test-credential" not in repr(captured[0])
 
 
 def test_aws_provider_requires_valid_strands_model_result() -> None:
@@ -187,8 +217,23 @@ def test_invalid_provider_name_is_rejected_without_echoing_value(
     with pytest.raises(ContractValidationError) as captured:
         RuntimeSettings.from_environment()
 
-    assert str(captured.value) == "AIOA_MODEL_PROVIDER must be mock or bedrock"
+    assert str(captured.value) == "AIOA_MODEL_PROVIDER must be mock, openrouter, or bedrock"
     assert private_value not in str(captured.value)
+
+
+def test_openrouter_selection_requires_a_key_and_never_substitutes_mock(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("AIOA_RUNTIME_MODE", "portable")
+    monkeypatch.setenv("AIOA_MODEL_PROVIDER", "openrouter")
+    monkeypatch.setenv("AIOA_AWS_INTEGRATION_ENABLED", "false")
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+
+    with pytest.raises(ContractValidationError) as captured:
+        RuntimeSettings.from_environment()
+
+    assert str(captured.value) == "OPENROUTER_API_KEY is required when OpenRouter is selected"
+    assert RuntimeSettings().model_provider is ModelProviderName.MOCK
 
 
 def test_portable_agent_modules_have_no_top_level_aws_client_construction_import() -> None:

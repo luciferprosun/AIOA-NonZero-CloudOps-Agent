@@ -15,6 +15,9 @@ from aioa_cloudops_agent.workspace import WorkspaceAuthorityState
 
 WORKSPACE_HERO_SCENARIO_ID = "FAILED_RENDER_DEPLOYMENT_VERIFIED_FIX_V1"
 WORKSPACE_HERO_RESPONSE_MAX_BYTES = 65_536
+DEFAULT_WORKSPACE_HERO_INTENT = (
+    "Investigate why this deployment failed and propose the smallest safe fix."
+)
 
 
 class WorkspaceHeroStartRequest(NonZeroContract):
@@ -23,6 +26,26 @@ class WorkspaceHeroStartRequest(NonZeroContract):
     scenario_id: Literal["FAILED_RENDER_DEPLOYMENT_VERIFIED_FIX_V1"] = (
         WORKSPACE_HERO_SCENARIO_ID
     )
+    intent: str = Field(
+        default=DEFAULT_WORKSPACE_HERO_INTENT,
+        min_length=12,
+        max_length=500,
+    )
+    model_provider: Literal["mock", "openrouter"] | None = None
+
+    @field_validator("intent")
+    @classmethod
+    def validate_intent(cls, value: str) -> str:
+        if not isinstance(value, str):
+            raise ValueError("incident request must be text")
+        normalized = value.strip()
+        if (
+            len(normalized) < 12
+            or any(ord(character) < 32 and character not in "\n\t" for character in normalized)
+            or contains_sensitive_material(normalized)
+        ):
+            raise ValueError("incident request is invalid")
+        return normalized
 
 
 class WorkspaceHeroDecisionRequest(NonZeroContract):
@@ -135,7 +158,7 @@ class WorkspaceHeroAfterProof(NonZeroContract):
     bootstrap_secret_in_child_env: Literal["ABSENT", "PENDING"]
     health: Literal["PASS", "PENDING"]
     ready: Literal["PASS", "PENDING"]
-    external_egress: Literal[0]
+    external_egress: int = Field(ge=0, le=128)
     aws_calls: Literal[0]
     final: Literal["SUCCESS_WITH_EVIDENCE", "PENDING"]
 
@@ -167,11 +190,15 @@ class WorkspaceHeroReplayView(NonZeroContract):
 
 class WorkspaceHeroRuntimeView(NonZeroContract):
     experience_mode: Literal["DEMO SANDBOX"] = "DEMO SANDBOX"
-    provider_mode: Literal["PORTABLE / MOCK"] = "PORTABLE / MOCK"
+    provider_mode: Literal["PORTABLE / MOCK", "PORTABLE / OPENROUTER"] = (
+        "PORTABLE / MOCK"
+    )
     agent_framework: Literal["STRANDS"] = "STRANDS"
     authority: Literal["HUMAN AUTHORITY REQUIRED"] = "HUMAN AUTHORITY REQUIRED"
     aws_writes: Literal["NO LIVE AWS WRITES"] = "NO LIVE AWS WRITES"
-    external_egress: Literal["NO EXTERNAL EGRESS"] = "NO EXTERNAL EGRESS"
+    external_egress: Literal["NO EXTERNAL EGRESS", "OPENROUTER API ONLY"] = (
+        "NO EXTERNAL EGRESS"
+    )
 
 
 class WorkspaceHeroProjection(NonZeroContract):

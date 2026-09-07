@@ -52,7 +52,7 @@ def _exact(name: str, default: str, expected: str) -> str:
 
 @dataclass(frozen=True, slots=True)
 class PortableServerSettings:
-    """Application-owned deployment values for the credential-free runtime."""
+    """Application-owned deployment values for the bounded portable runtime."""
 
     runtime: RuntimeSettings
     local: LocalHitlSettings
@@ -76,12 +76,16 @@ class PortableServerSettings:
     def __post_init__(self) -> None:
         if (
             self.runtime.mode is not RuntimeMode.PORTABLE
-            or self.runtime.model_provider is not ModelProviderName.MOCK
+            or self.runtime.model_provider
+            not in {ModelProviderName.MOCK, ModelProviderName.OPENROUTER}
             or self.runtime.aws_calls_allowed
         ):
             raise ContractValidationError(
-                "portable server requires portable mode and the mock provider"
+                "portable server requires portable mode with mock or OpenRouter"
             )
+        openrouter_live = self.runtime.model_provider is ModelProviderName.OPENROUTER
+        if openrouter_live and self.runtime.openrouter is None:
+            raise ContractValidationError("OpenRouter runtime configuration is unavailable")
         if _VERSION.fullmatch(self.application_version) is None:
             raise ContractValidationError("APPLICATION_VERSION is invalid")
         if _SOURCE_COMMIT.fullmatch(self.source_commit) is None:
@@ -90,12 +94,14 @@ class PortableServerSettings:
             raise ContractValidationError("AIOA_HOST must be 127.0.0.1 or 0.0.0.0")
         if isinstance(self.port, bool) or not isinstance(self.port, int) or not 1 <= self.port <= 65_535:
             raise ContractValidationError("AIOA_PORT must be between 1 and 65535")
+        expected_egress = "openrouter-only" if openrouter_live else "none"
+        expected_sandbox_mode = "OPENROUTER_LIVE" if openrouter_live else "MOCK_OFFLINE"
         for name, value, expected in (
             ("AIOA_ALLOWED_ORIGINS", self.allowed_origins, "same-origin"),
-            ("AIOA_ALLOWED_EGRESS", self.allowed_egress, "none"),
+            ("AIOA_ALLOWED_EGRESS", self.allowed_egress, expected_egress),
             ("AIOA_STORAGE_MODE", self.storage_mode, "file"),
             ("AIOA_PUBLIC_MODE_LABEL", self.public_mode_label, "DEMO_SANDBOX"),
-            ("AIOA_SANDBOX_MODE", self.sandbox_mode, "MOCK_OFFLINE"),
+            ("AIOA_SANDBOX_MODE", self.sandbox_mode, expected_sandbox_mode),
             (
                 "AIOA_AUTHORITY_MODE",
                 self.authority_mode,
@@ -106,12 +112,19 @@ class PortableServerSettings:
                 raise ContractValidationError(f"{name} must be exactly {expected}")
         for name, value, expected in (
             ("AIOA_REQUEST_TIMEOUT_SECONDS", self.request_timeout_seconds, 10),
-            ("AIOA_PROVIDER_TIMEOUT_SECONDS", self.provider_timeout_seconds, 0),
             ("AIOA_RETRY_BUDGET", self.retry_budget, 0),
             ("AIOA_REQUEST_SIZE_LIMIT_BYTES", self.request_size_limit_bytes, 16_384),
         ):
             if isinstance(value, bool) or value != expected:
                 raise ContractValidationError(f"{name} must be exactly {expected}")
+        if openrouter_live:
+            assert self.runtime.openrouter is not None
+            if self.provider_timeout_seconds != self.runtime.openrouter.timeout_seconds:
+                raise ContractValidationError(
+                    "AIOA_PROVIDER_TIMEOUT_SECONDS must match OpenRouter configuration"
+                )
+        elif self.provider_timeout_seconds != 0:
+            raise ContractValidationError("AIOA_PROVIDER_TIMEOUT_SECONDS must be exactly 0")
         if self.log_level not in _LOG_LEVELS:
             raise ContractValidationError("AIOA_LOG_LEVEL must be INFO, WARNING, or ERROR")
         if (
@@ -147,10 +160,19 @@ class PortableServerSettings:
             request_ttl_seconds=session_ttl,
         )
         model_id = os.getenv("AIOA_MODEL_ID", PORTABLE_MODEL_ID)
-        if model_id != PORTABLE_MODEL_ID:
+        if (
+            runtime.model_provider is ModelProviderName.MOCK
+            and model_id != PORTABLE_MODEL_ID
+        ):
             raise ContractValidationError(
                 f"AIOA_MODEL_ID must be exactly {PORTABLE_MODEL_ID} in portable mode"
             )
+        openrouter_live = runtime.model_provider is ModelProviderName.OPENROUTER
+        provider_timeout = (
+            runtime.openrouter.timeout_seconds
+            if openrouter_live and runtime.openrouter is not None
+            else 0
+        )
         return cls(
             runtime=runtime,
             local=local,
@@ -159,7 +181,11 @@ class PortableServerSettings:
             host=os.getenv("AIOA_HOST", "127.0.0.1"),
             port=_integer("AIOA_PORT", 8_765, minimum=1, maximum=65_535),
             allowed_origins=_exact("AIOA_ALLOWED_ORIGINS", "same-origin", "same-origin"),
-            allowed_egress=_exact("AIOA_ALLOWED_EGRESS", "none", "none"),
+            allowed_egress=_exact(
+                "AIOA_ALLOWED_EGRESS",
+                "openrouter-only" if openrouter_live else "none",
+                "openrouter-only" if openrouter_live else "none",
+            ),
             storage_mode=_exact("AIOA_STORAGE_MODE", "file", "file"),
             token_path=Path(
                 os.getenv("AIOA_LOCAL_API_TOKEN_PATH", ".local/aioa-local-api.token")
@@ -171,7 +197,10 @@ class PortableServerSettings:
                 maximum=_REQUEST_TIMEOUT_SECONDS,
             ),
             provider_timeout_seconds=_integer(
-                "AIOA_PROVIDER_TIMEOUT_SECONDS", 0, minimum=0, maximum=0
+                "AIOA_PROVIDER_TIMEOUT_SECONDS",
+                provider_timeout,
+                minimum=1 if openrouter_live else 0,
+                maximum=120 if openrouter_live else 0,
             ),
             retry_budget=_integer("AIOA_RETRY_BUDGET", 0, minimum=0, maximum=0),
             request_size_limit_bytes=_integer(
@@ -185,7 +214,9 @@ class PortableServerSettings:
                 "AIOA_PUBLIC_MODE_LABEL", "DEMO_SANDBOX", "DEMO_SANDBOX"
             ),
             sandbox_mode=_exact(
-                "AIOA_SANDBOX_MODE", "MOCK_OFFLINE", "MOCK_OFFLINE"
+                "AIOA_SANDBOX_MODE",
+                "OPENROUTER_LIVE" if openrouter_live else "MOCK_OFFLINE",
+                "OPENROUTER_LIVE" if openrouter_live else "MOCK_OFFLINE",
             ),
             authority_mode=_exact(
                 "AIOA_AUTHORITY_MODE",

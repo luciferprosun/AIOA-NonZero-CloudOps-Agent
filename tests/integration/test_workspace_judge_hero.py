@@ -119,6 +119,29 @@ def _start(application: LocalApiApplication) -> dict[str, object]:
     return payload["result"]  # type: ignore[return-value]
 
 
+def test_workspace_hero_accepts_bounded_free_text_and_explicit_mock_selection(
+    tmp_path: Path,
+) -> None:
+    application, _runtime, _profile = _application(tmp_path)
+    status, payload, _, _ = _call(
+        application,
+        "POST",
+        "/api/workspace-demo/runs",
+        body={
+            "scenario_id": WORKSPACE_HERO_SCENARIO_ID,
+            "intent": "Investigate the sealed incident and propose only the exact safe fix.",
+            "model_provider": "mock",
+        },
+    )
+
+    assert status == 201, payload
+    result = payload["result"]
+    assert result["state"] == "PATCH_PROPOSED"
+    assert result["workspace_mutation_count"] == 0
+    assert result["runtime"]["provider_mode"] == "PORTABLE / MOCK"
+    assert result["runtime"]["external_egress"] == "NO EXTERNAL EGRESS"
+
+
 def _request_approval(
     application: LocalApiApplication,
     run_id: object,

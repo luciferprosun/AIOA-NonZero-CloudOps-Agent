@@ -21,6 +21,12 @@ from .investigation import (
 )
 from .local_first import LocalFirstMode, LocalFirstSettings
 from .local_hitl import LocalHitlSettings
+from .openrouter import (
+    DEFAULT_OPENROUTER_BASE_URL,
+    DEFAULT_OPENROUTER_MODEL,
+    DEFAULT_OPENROUTER_TIMEOUT_SECONDS,
+    OpenRouterSettings,
+)
 from .portable_server import PortableServerSettings
 from .remediation import SandboxRemediationSettings
 from .runtime import ModelProviderName, RuntimeMode, RuntimeSettings
@@ -31,6 +37,9 @@ __all__ = [
     "DEFAULT_BEDROCK_MODEL_ID",
     "DEFAULT_BEDROCK_REGION",
     "DEFAULT_MODEL_TEMPERATURE",
+    "DEFAULT_OPENROUTER_BASE_URL",
+    "DEFAULT_OPENROUTER_MODEL",
+    "DEFAULT_OPENROUTER_TIMEOUT_SECONDS",
     "DEMO_CPU_IDLE_THRESHOLD_PERCENT",
     "DEMO_METRIC_PERIOD_SECONDS",
     "DEMO_MINIMUM_DATAPOINTS",
@@ -49,6 +58,7 @@ __all__ = [
     "LocalFirstSettings",
     "LocalHitlSettings",
     "ModelProviderName",
+    "OpenRouterSettings",
     "PortableServerSettings",
     "RuntimeMode",
     "RuntimeSettings",

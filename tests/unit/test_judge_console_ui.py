@@ -13,6 +13,11 @@ def test_console_has_one_primary_flow_and_truthful_runtime_labels() -> None:
     assert "Strands" in JUDGE_UI_BODY
     assert "Nothing here is live AWS" in JUDGE_UI_BODY
     assert JUDGE_UI_BODY.count("data-scenario ") == 2
+    assert 'id="hero-intent"' in JUDGE_UI_BODY
+    assert 'id="hero-provider"' in JUDGE_UI_BODY
+    assert "OpenRouter (live)" in JUDGE_UI_BODY
+    assert "Mock / offline" in JUDGE_UI_BODY
+    assert "model_provider: byId('hero-provider').value" in JUDGE_UI_SCRIPT
     assert all(
         stage in JUDGE_UI_BODY
         for stage in (

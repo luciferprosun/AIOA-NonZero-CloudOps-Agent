@@ -105,7 +105,7 @@ def test_container_start_contract_remains_cmd_based_and_render_compatible() -> N
 
 def test_deployment_contract_and_dependency_inputs_are_release_pinned() -> None:
     assert _sha256("render.yaml") == (
-        "62310e3e772b4d3248a0cd47242725e9061ec45e95d73b57262298a8508ad3fb"
+        "97fccca13eeb96403441d64dd02cbb0b8ae3b962d5b27472d46e76ea475ee68d"
     )
     assert _sha256("scripts/render_start.sh") == (
         "d350917c132a338605f630fde97a2ac017e1664fe9cf413a7153827326e6d250"
@@ -114,7 +114,7 @@ def test_deployment_contract_and_dependency_inputs_are_release_pinned() -> None:
         "d46492123b794c100b45c485f2981c1a12f71388f61439a5a662d850b19039a5"
     )
     assert _sha256("requirements/portable.lock") == (
-        "a7be92862cb66b67f2bf5b664f62abee1dbd48d65e2ee12fbcbaa5be2dff5dcd"
+        "d4641402ca30b0c109ceb8c7edee43502e7d4ae003275b559bbed2736e7a15a3"
     )
     assert _sha256("src/aioa_cloudops_agent/agent/factory.py") == (
         "4f1b02661a1effab421b3ec6ed506bf50a97c17ca5eb66cf959d201e0a881822"

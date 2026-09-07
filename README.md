@@ -6,7 +6,7 @@ Newly authored work for the **AWS Agents for Humans Hackathon 2026**.
 - Status: portable-first local product with deterministic Strands, HITL, evidence, replay and recovery; AWS deployment remains optional and no live deployment or AWS mutation has run
 - Historical AWS release contract: Phase 3 `DEPLOYMENT_READY_LOCAL_RC`, retained as an optional integration path rather than the product completion gate
 - Orchestration: one Strands Agent
-- Model platform: provider-neutral Strands `Model`; deterministic portable default, Amazon Bedrock optional
+- Model platform: provider-neutral Strands `Model`; deterministic Mock default, bounded OpenRouter live option, Amazon Bedrock optional
 - Current capability: five bounded tools covering investigation, proposal-bound stop, and independent verification
 - Safety boundary: executable P0/P1 matrices, bounded dependency circuits, deterministic reviewer evidence, and an independent fail-closed emergency veto immediately around the private mutation boundary
 
@@ -117,6 +117,20 @@ Run the same workflow through the loopback-only API and embedded operator consol
 ```bash
 .venv/bin/python scripts/run_local_hitl_api.py --open-browser
 ```
+
+### Optional live OpenRouter workspace reasoning
+
+The checked-in default remains Mock/offline. For a live local judge run, place only the OpenRouter
+credential in owner-only, Git-ignored `.env.local`, select `AIOA_MODEL_PROVIDER=openrouter`, and
+set `AIOA_ALLOWED_EGRESS=openrouter-only`. The launcher reads that explicit local file; it never
+sends the credential to the browser. The UI exposes **OpenRouter (live)** and **Mock / offline**
+for the fixed workspace hero. A provider failure is surfaced as a safe API failure; selecting Mock
+is an intentional fallback, never a silent substitution. The default live model is configurable by
+`OPENROUTER_MODEL` and defaults to `openai/gpt-4o-mini`.
+
+OpenRouter can receive only the bounded Strands model request. The sealed workspace tool set remains
+read-only plus one inert proposal tool; model prose cannot select a path, author a diff, execute a
+command, or cross the existing human-approval boundary.
 
 The B3/B4 judge experience opens with a fragment-only credential bootstrap, exchanges it for an
 `HttpOnly` same-site loopback session, and removes the fragment immediately. Choose the approval or

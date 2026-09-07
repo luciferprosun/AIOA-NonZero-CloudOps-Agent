@@ -77,16 +77,23 @@ def create_workspace_investigation_agent(
         raise ContractValidationError("runtime_settings must be RuntimeSettings")
     if (
         settings.mode is not RuntimeMode.PORTABLE
-        or settings.model_provider is not ModelProviderName.MOCK
+        or settings.model_provider
+        not in {ModelProviderName.MOCK, ModelProviderName.OPENROUTER}
         or settings.aws_integration_enabled
     ):
-        raise ContractValidationError("workspace profile requires portable mock runtime")
+        raise ContractValidationError(
+            "workspace profile requires portable mock or OpenRouter runtime"
+        )
     if service.profile.network_allowed or service.profile.mutation_allowed:
         raise ContractValidationError("workspace profile must remain non-mutating and offline")
 
     provider_runtime = create_model_provider(settings, model_override=model)
-    if provider_runtime.external_network_allowed or provider_runtime.aws_calls_allowed:
-        raise ContractValidationError("workspace model provider must not allow external or AWS calls")
+    if provider_runtime.aws_calls_allowed:
+        raise ContractValidationError("workspace model provider must not allow AWS calls")
+    if provider_runtime.external_network_allowed != (
+        settings.model_provider is ModelProviderName.OPENROUTER
+    ):
+        raise ContractValidationError("workspace model network boundary is inconsistent")
     tool_set = create_workspace_tools(service, workspace_ref, tracer=tracer)
     intervention = HumanInTheLoop(
         allowed_tools=list(WORKSPACE_TOOL_NAMES),
@@ -113,6 +120,10 @@ def create_workspace_investigation_agent(
             "aioa.fixture_version": workspace_ref.fixture_version,
             "aioa.mutation_allowed": "false",
             "aioa.network_allowed": "false",
+            "aioa.model_external_network_allowed": str(
+                provider_runtime.external_network_allowed
+            ).casefold(),
+            "aioa.model_provider": provider_runtime.provider_name.value,
             "aioa.operation_class": "READ_ONLY_PLUS_INERT_PROPOSAL",
             "aioa.profile_id": WORKSPACE_REMEDIATION_PROFILE_ID,
             "aioa.profile_version": WORKSPACE_REMEDIATION_PROFILE_VERSION,

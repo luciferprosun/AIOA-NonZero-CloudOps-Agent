@@ -128,13 +128,13 @@ class LocalRuntimeView(BaseModel):
 
     runtime_mode: Literal["portable"] = "portable"
     experience_mode: Literal["DEMO_SANDBOX"] = "DEMO_SANDBOX"
-    model_mode: Literal["DETERMINISTIC_MODEL"] = "DETERMINISTIC_MODEL"
-    provider: Literal["mock"] = "mock"
+    model_mode: Literal["DETERMINISTIC_MODEL", "LIVE_OPENROUTER_MODEL"]
+    provider: Literal["mock", "openrouter"]
     model_id: str = Field(min_length=1, max_length=256)
     agent_framework: Literal["strands-agents"] = "strands-agents"
     aws_calls_allowed: Literal[False] = False
     real_cloud_mutations_enabled: Literal[False] = False
-    external_network_allowed: Literal[False] = False
+    external_network_allowed: bool
     process_provider_calls: int = Field(ge=0)
     process_external_network_calls: int = Field(ge=0)
     process_sandbox_mutations: int = Field(ge=0)

@@ -6,15 +6,16 @@ import webbrowser
 from pathlib import Path
 from urllib.parse import urlencode
 
-
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 if str(_REPOSITORY_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPOSITORY_ROOT))
 
 
-from aioa_cloudops_agent.agent import create_local_hitl_runtime
-from aioa_cloudops_agent.config import LocalHitlSettings
-from aioa_cloudops_agent.local_api import (
+from dotenv import load_dotenv  # noqa: E402
+
+from aioa_cloudops_agent.agent import create_local_hitl_runtime  # noqa: E402
+from aioa_cloudops_agent.config import LocalHitlSettings, RuntimeSettings  # noqa: E402
+from aioa_cloudops_agent.local_api import (  # noqa: E402
     LocalApiApplication,
     LocalApiTokenAuthorizer,
     create_local_http_server,
@@ -60,19 +61,28 @@ def _browser_bootstrap_url(address: str, port: int, token: str) -> str:
 
 def main() -> int:
     args = _arguments()
+    load_dotenv(_REPOSITORY_ROOT / ".env.local", override=False)
     settings = LocalHitlSettings(
         state_path=args.state_path,
         inventory_path=args.inventory_path,
         request_ttl_seconds=args.approval_ttl_seconds,
     )
+    workspace_runtime = RuntimeSettings.from_environment()
     token = load_or_create_local_token(args.token_file)
     runtime = create_local_hitl_runtime(settings)
-    application = LocalApiApplication(runtime, LocalApiTokenAuthorizer(token))
+    application = LocalApiApplication(
+        runtime,
+        LocalApiTokenAuthorizer(token),
+        workspace_runtime_settings=workspace_runtime,
+    )
     server = create_local_http_server(application, host=args.host, port=args.port)
     address, port = server.server_address
     print(f"AIOA Local-2 ready at http://{address}:{port}")
     print("Local API token ready (owner-only; path omitted from judge-facing output).")
-    print("DEMO_SANDBOX / portable / mock: no AWS credential discovery or cloud calls.")
+    print(
+        "DEMO_SANDBOX / portable / "
+        f"{workspace_runtime.model_provider.value}: no AWS credential discovery or cloud calls."
+    )
     if args.open_browser:
         opened = webbrowser.open(
             _browser_bootstrap_url(address, port, token),

@@ -51,6 +51,28 @@ def test_portable_settings_ignore_ambient_aws_credentials(
     assert settings.request_size_limit_bytes == LOCAL_API_BODY_MAX_BYTES
 
 
+def test_portable_openrouter_contract_is_explicit_and_bounded(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    _portable_environment(monkeypatch, tmp_path)
+    monkeypatch.setenv("AIOA_MODEL_PROVIDER", "openrouter")
+    monkeypatch.setenv("OPENROUTER_API_KEY", "provider-test-credential")
+    monkeypatch.setenv("OPENROUTER_MODEL", "openai/gpt-4o-mini")
+    monkeypatch.setenv("AIOA_ALLOWED_EGRESS", "openrouter-only")
+    monkeypatch.setenv("AIOA_SANDBOX_MODE", "OPENROUTER_LIVE")
+    monkeypatch.setenv("AIOA_PROVIDER_TIMEOUT_SECONDS", "30")
+
+    settings = PortableServerSettings.from_environment()
+
+    assert settings.runtime.model_provider is ModelProviderName.OPENROUTER
+    assert settings.runtime.aws_calls_allowed is False
+    assert settings.runtime.external_network_allowed is True
+    assert settings.allowed_egress == "openrouter-only"
+    assert settings.sandbox_mode == "OPENROUTER_LIVE"
+    assert settings.provider_timeout_seconds == 30
+
+
 @pytest.mark.parametrize(
     ("name", "value"),
     [

@@ -1,7 +1,11 @@
 """Sanitized read models for the portable judge experience."""
 
 from aioa_cloudops_agent.agent.local_composition import LocalHitlRuntime
-from aioa_cloudops_agent.config import ModelProviderName, RuntimeMode
+from aioa_cloudops_agent.config import (
+    ModelProviderName,
+    RuntimeMode,
+    RuntimeSettings,
+)
 from aioa_cloudops_agent.nz import AuditEvent, AuditEventType, Checkpoint, Run
 from aioa_cloudops_agent.persistence.local import LocalRunSnapshot
 
@@ -72,29 +76,64 @@ _PUBLIC_AUDIT_METADATA = frozenset(
 )
 
 
-def runtime_view(runtime: LocalHitlRuntime) -> LocalRuntimeView:
-    """Build public-safe counters from the explicit portable/mock composition."""
+def runtime_view(
+    runtime: LocalHitlRuntime,
+    *,
+    workspace_runtime_settings: RuntimeSettings | None = None,
+    workspace_provider_calls: int = 0,
+    workspace_network_calls: int = 0,
+) -> LocalRuntimeView:
+    """Build public-safe counters from the sandbox plus selected workspace provider."""
 
     if not isinstance(runtime, LocalHitlRuntime):
         raise TypeError("runtime must be LocalHitlRuntime")
-    settings = runtime.runtime_settings
+    legacy_settings = runtime.runtime_settings
     if (
-        settings.mode is not RuntimeMode.PORTABLE
-        or settings.model_provider is not ModelProviderName.MOCK
-        or settings.aws_calls_allowed
+        legacy_settings.mode is not RuntimeMode.PORTABLE
+        or legacy_settings.model_provider is not ModelProviderName.MOCK
+        or legacy_settings.aws_calls_allowed
         or runtime.provider_runtime.external_network_allowed
         or runtime.provider_runtime.aws_calls_allowed
     ):
         raise ValueError("judge runtime truth requires the portable deterministic boundary")
+    settings = workspace_runtime_settings or legacy_settings
+    if (
+        not isinstance(settings, RuntimeSettings)
+        or settings.mode is not RuntimeMode.PORTABLE
+        or settings.aws_calls_allowed
+        or settings.model_provider
+        not in {ModelProviderName.MOCK, ModelProviderName.OPENROUTER}
+    ):
+        raise ValueError("workspace runtime selection is invalid")
+    if (
+        isinstance(workspace_provider_calls, bool)
+        or not isinstance(workspace_provider_calls, int)
+        or workspace_provider_calls < 0
+        or isinstance(workspace_network_calls, bool)
+        or not isinstance(workspace_network_calls, int)
+        or workspace_network_calls < 0
+    ):
+        raise ValueError("workspace provider counters are invalid")
     provider_calls = runtime.model_provider.calls + runtime.model_provider.plan_calls
     external_calls = runtime.model_provider.network_calls + runtime.cloud_provider.network_calls
     _, sandbox_mutations, _ = runtime.executor.counters()
+    if settings.model_provider is ModelProviderName.OPENROUTER:
+        openrouter = settings.openrouter
+        if openrouter is None:
+            raise ValueError("OpenRouter runtime metadata is unavailable")
+        model_id = openrouter.model_id
+        model_mode = "LIVE_OPENROUTER_MODEL"
+    else:
+        model_id = runtime.provider_runtime.model_id
+        model_mode = "DETERMINISTIC_MODEL"
     return LocalRuntimeView(
         runtime_mode=settings.mode.value,
+        model_mode=model_mode,
         provider=settings.model_provider.value,
-        model_id=runtime.provider_runtime.model_id,
-        process_provider_calls=provider_calls,
-        process_external_network_calls=external_calls,
+        model_id=model_id,
+        external_network_allowed=settings.external_network_allowed,
+        process_provider_calls=provider_calls + workspace_provider_calls,
+        process_external_network_calls=external_calls + workspace_network_calls,
         process_sandbox_mutations=sandbox_mutations,
     )
 

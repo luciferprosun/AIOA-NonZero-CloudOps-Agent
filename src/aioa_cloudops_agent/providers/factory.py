@@ -7,10 +7,10 @@ from typing import Any
 from strands.models.model import Model
 
 from aioa_cloudops_agent.config.agent import BedrockSettings
+from aioa_cloudops_agent.config.openrouter import OpenRouterSettings
 from aioa_cloudops_agent.config.runtime import (
     PORTABLE_MODEL_ID,
     ModelProviderName,
-    RuntimeMode,
     RuntimeSettings,
 )
 from aioa_cloudops_agent.config.settings import (
@@ -22,10 +22,13 @@ from aioa_cloudops_agent.domain.errors import ContractValidationError
 from .model import (
     MockModelFailure,
     MockModelProvider,
+    ModelProviderError,
     ModelProviderUnavailableError,
 )
+from .openrouter import OpenRouterModelProvider
 
 BedrockProviderFactory = Callable[..., Model]
+OpenRouterProviderFactory = Callable[[OpenRouterSettings], Model]
 
 
 @dataclass(frozen=True, slots=True)
@@ -60,7 +63,7 @@ class ModelProviderRuntime:
 
     @property
     def external_network_allowed(self) -> bool:
-        return self.settings.mode is RuntimeMode.AWS
+        return self.settings.external_network_allowed
 
     @property
     def aws_calls_allowed(self) -> bool:
@@ -101,6 +104,12 @@ def create_bedrock_model(
     )
 
 
+def create_openrouter_model(settings: OpenRouterSettings) -> Model:
+    """Create only the canonical OpenRouter Strands adapter, with no fallback."""
+
+    return OpenRouterModelProvider(settings)
+
+
 def _metadata(settings: RuntimeSettings, model: Model) -> ModelProviderRuntime:
     if settings.model_provider is ModelProviderName.MOCK:
         return ModelProviderRuntime(
@@ -109,6 +118,17 @@ def _metadata(settings: RuntimeSettings, model: Model) -> ModelProviderRuntime:
             model_id=PORTABLE_MODEL_ID,
             region=DEFAULT_AWS_REGION,
             max_output_tokens=DEFAULT_MODEL_MAX_OUTPUT_TOKENS,
+        )
+    if settings.model_provider is ModelProviderName.OPENROUTER:
+        openrouter = settings.openrouter
+        if not isinstance(openrouter, OpenRouterSettings):
+            raise ContractValidationError("OpenRouter provider settings are unavailable")
+        return ModelProviderRuntime(
+            settings=settings,
+            model=model,
+            model_id=openrouter.model_id,
+            region="global",
+            max_output_tokens=openrouter.max_output_tokens,
         )
     bedrock = settings.bedrock
     if not isinstance(bedrock, BedrockSettings):
@@ -129,6 +149,7 @@ def create_model_provider(
     mock_failure: MockModelFailure = MockModelFailure.NONE,
     boto_session: Any | None = None,
     bedrock_factory: BedrockProviderFactory | None = None,
+    openrouter_factory: OpenRouterProviderFactory | None = None,
 ) -> ModelProviderRuntime:
     """Resolve exactly one provider with no fallback and no ambient AWS discovery."""
 
@@ -143,6 +164,30 @@ def create_model_provider(
         if boto_session is not None:
             raise ContractValidationError("portable provider does not accept an AWS session")
         return _metadata(selected, MockModelProvider(failure=mock_failure))
+    if selected.model_provider is ModelProviderName.OPENROUTER:
+        if boto_session is not None:
+            raise ContractValidationError("OpenRouter provider does not accept an AWS session")
+        openrouter = selected.openrouter
+        if not isinstance(openrouter, OpenRouterSettings):
+            raise ContractValidationError("OpenRouter provider settings are unavailable")
+        factory = openrouter_factory or create_openrouter_model
+        try:
+            model = factory(openrouter)
+        except (ContractValidationError, ModelProviderError):
+            raise
+        except (ImportError, ModuleNotFoundError) as error:
+            raise ModelProviderUnavailableError(
+                "selected model provider is unavailable"
+            ) from error
+        except Exception as error:
+            raise ModelProviderUnavailableError(
+                "selected model provider could not be initialized"
+            ) from error
+        if not isinstance(model, Model):
+            raise ModelProviderUnavailableError(
+                "selected model provider returned an invalid runtime"
+            )
+        return _metadata(selected, model)
     bedrock = selected.bedrock
     if not isinstance(bedrock, BedrockSettings):
         raise ContractValidationError("Bedrock provider settings are unavailable")

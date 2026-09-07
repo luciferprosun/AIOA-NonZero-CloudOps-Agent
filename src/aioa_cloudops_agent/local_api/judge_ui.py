@@ -38,9 +38,9 @@ body {
     radial-gradient(circle at 96% 6%, #291f45 0, transparent 30rem),
     var(--canvas);
 }
-button, input { font: inherit; }
+button, input, select, textarea { font: inherit; }
 button { min-height: 44px; }
-button:focus-visible, input:focus-visible, summary:focus-visible {
+button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, summary:focus-visible {
   outline: 3px solid var(--violet);
   outline-offset: 3px;
 }
@@ -174,6 +174,26 @@ h2 { margin: 5px 0 0; font-size: clamp(1.45rem, 3vw, 2.2rem); letter-spacing: -.
 .hero-scenario h3 { max-width: 760px; font-size: clamp(1.8rem, 4vw, 3.2rem); }
 .hero-scenario p { max-width: 760px; font-size: 1.02rem; }
 .hero-scenario .scenario-tag { color: var(--mint); }
+.hero-inputs {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(190px, .32fr);
+  gap: 12px;
+  margin: 0 0 12px;
+  padding: 15px;
+  border: 1px solid var(--line);
+  border-radius: 15px;
+  background: #101613;
+}
+.hero-inputs label { display: grid; gap: 7px; color: var(--muted); font-size: .8rem; font-weight: 760; }
+.hero-inputs textarea, .hero-inputs select {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #0c110e;
+  color: var(--ink);
+  padding: 10px;
+}
+.hero-inputs textarea { min-height: 78px; resize: vertical; }
 .secondary-story-label {
   margin: 22px 0 10px;
   color: var(--dim);
@@ -418,7 +438,7 @@ details.technical pre {
   .brand-sub { display: none; }
   .mode-cluster .pill:nth-child(2) { display: none; }
   .hero { padding-top: 48px; }
-  .truth-grid, .scenario-grid, .facts, .resource-diff, .stage-truth { grid-template-columns: 1fr; }
+  .truth-grid, .scenario-grid, .facts, .resource-diff, .stage-truth, .hero-inputs { grid-template-columns: 1fr; }
   .fact.wide { grid-column: auto; }
   .section-heading { display: block; }
   .section-note { margin: 10px 0 0; text-align: left; }
@@ -535,6 +555,9 @@ JUDGE_UI_SCRIPT: Final = r"""
     document.querySelectorAll('[data-workspace-hero]').forEach((button) => {
       button.disabled = !ui.connected || ui.busy;
     });
+    document.querySelectorAll('[data-workspace-input]').forEach((input) => {
+      input.disabled = !ui.connected || ui.busy;
+    });
   }
 
   function renderRuntime(runtime) {
@@ -545,6 +568,8 @@ JUDGE_UI_SCRIPT: Final = r"""
     setText('process-mutations', runtime.process_sandbox_mutations);
     setText('provider-calls', runtime.process_provider_calls);
     setText('model-id', runtime.model_id, runtime.model_id);
+    setText('network-note', runtime.external_network_allowed ? 'OpenRouter API only' : 'No external egress');
+    if (!ui.heroRunId && !ui.busy) byId('hero-provider').value = runtime.provider;
   }
 
   function resourceSummary(resource) {
@@ -646,6 +671,7 @@ JUDGE_UI_SCRIPT: Final = r"""
     const after = view.after || {};
     const verification = view.verification || null;
     const replay = view.replay || null;
+    const liveProvider = view.runtime?.provider_mode === 'PORTABLE / OPENROUTER';
     const state = view.state;
     const denied = state === 'DENIED_BY_HUMAN';
     const succeeded = state === 'SUCCESS_WITH_EVIDENCE'
@@ -684,6 +710,11 @@ JUDGE_UI_SCRIPT: Final = r"""
     setHeroProof('hero-after-health', after.health);
     setHeroProof('hero-after-ready', after.ready);
     setHeroProof('hero-after-network', String(after.external_egress) + ' / ' + String(after.aws_calls));
+    setText('mode-provider', liveProvider ? 'openrouter' : 'mock');
+    setText('hero-provider-chip', liveProvider ? 'Portable / OpenRouter' : 'Portable / mock');
+    setText('hero-egress-chip', liveProvider ? 'OpenRouter API only' : 'No external egress');
+    setText('network-note', liveProvider ? 'OpenRouter API only' : 'No external egress');
+    setText('network-count', after.external_egress || 0);
     setText('hero-proof-status', succeeded ? 'VERIFIED' : denied ? 'SAFE STOP' : 'PENDING');
     byId('hero-proof-status').className = 'state-badge' + (succeeded ? ' success' : denied ? ' denied' : '');
     setText('hero-mutation-count', view.workspace_mutation_count);
@@ -913,7 +944,11 @@ JUDGE_UI_SCRIPT: Final = r"""
     await guarded(async () => {
       const result = await request('/api/workspace-demo/runs', {
         method: 'POST',
-        body: { scenario_id: 'FAILED_RENDER_DEPLOYMENT_VERIFIED_FIX_V1' },
+        body: {
+          scenario_id: 'FAILED_RENDER_DEPLOYMENT_VERIFIED_FIX_V1',
+          intent: byId('hero-intent').value,
+          model_provider: byId('hero-provider').value,
+        },
       });
       ui.heroRunId = result.run_id;
       ui.heroView = result;
@@ -1163,7 +1198,7 @@ JUDGE_UI_BODY: Final = f"""<!doctype html>
       <p class="hero-copy">AIOA turns a failed deployment into one exact human-approved fix, executes it once, and independently proves the service can start. Evidence first: model output never becomes authority.</p>
       <div class="truth-grid" aria-label="Safety facts">
         <div class="truth"><strong>0 real cloud writes</strong><span>Bounded local state only</span></div>
-        <div class="truth"><strong><span id="network-count">0</span> network calls</strong><span>No hidden service dependency</span></div>
+        <div class="truth"><strong><span id="network-count">0</span> network calls</strong><span id="network-note">No external egress</span></div>
         <div class="truth"><strong>Exact hash binding</strong><span>Approval cannot drift to another action</span></div>
       </div>
     </section>
@@ -1171,11 +1206,22 @@ JUDGE_UI_BODY: Final = f"""<!doctype html>
     <section id="scenarios" class="section" aria-labelledby="scenario-title">
       <div class="section-heading">
         <div><div class="section-number">01 / CHOOSE A STORY</div><h2 id="scenario-title">Start with one safe click</h2></div>
-        <p class="section-note">Both scenarios use deterministic AWS-shaped fixtures. Nothing here is live AWS.</p>
+        <p class="section-note">The workspace uses sealed fixtures; OpenRouter mode calls only its model API. Nothing here is live AWS.</p>
       </div>
       <div class="session-strip">
         <div class="session-copy"><span id="session-dot" class="session-dot" aria-hidden="true"></span><span id="session-state">Local session required</span></div>
         <button id="refresh" class="quiet-button" type="button">Refresh durable state</button>
+      </div>
+      <div class="hero-inputs" aria-label="Bounded workspace investigation input">
+        <label for="hero-intent">Incident request
+          <textarea id="hero-intent" maxlength="500" data-workspace-input>Investigate why this deployment failed and propose the smallest safe fix.</textarea>
+        </label>
+        <label for="hero-provider">Model provider
+          <select id="hero-provider" data-workspace-input>
+            <option value="openrouter">OpenRouter (live)</option>
+            <option value="mock">Mock / offline</option>
+          </select>
+        </label>
       </div>
       <button id="workspace-hero-start" class="scenario hero-scenario" type="button" data-workspace-hero disabled>
         <span class="scenario-tag">Featured judge journey · fixed scenario</span>
@@ -1183,11 +1229,11 @@ JUDGE_UI_BODY: Final = f"""<!doctype html>
         <p>Trace one failed Render start from observed evidence to an exact patch, human authority, one atomic effect, independent verification and replay-safe receipts.</p>
         <span class="mode-cluster" aria-label="Scenario guarantees">
           <span class="pill safe">Demo sandbox</span>
-          <span class="pill safe">Portable / mock</span>
+          <span id="hero-provider-chip" class="pill safe">Portable / mock</span>
           <span class="pill">Strands</span>
           <span class="pill">Human authority required</span>
           <span class="pill">No live AWS writes</span>
-          <span class="pill">No external egress</span>
+          <span id="hero-egress-chip" class="pill">No external egress</span>
         </span>
       </button>
       <div class="secondary-story-label">Secondary CloudOps regression stories</div>
@@ -1415,7 +1461,7 @@ JUDGE_UI_BODY: Final = f"""<!doctype html>
       </details>
     </section>
   </main>
-  <footer class="shell footer">AIOA portable judge experience · deterministic model · protected local sandbox · no AWS credentials required</footer>
+  <footer class="shell footer">AIOA portable judge experience · selected model provider · protected local sandbox · no AWS credentials required</footer>
   <div id="notice" class="notice" role="status" aria-live="polite" hidden></div>
   <script>{JUDGE_UI_SCRIPT}</script>
 </body>

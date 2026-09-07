@@ -5,26 +5,32 @@ Status: `READY_FOR_HUMAN_RENDER_DEPLOY`; live service not yet created.
 ## Frozen application boundary
 
 The Render deployment builds the existing root `Dockerfile` from
-`codex/w7a-agent-execution-slice`. The current container-smoke-certified application/runtime source
-is `48cc31d6bcd2d23ff43de760eb1bfaa826100b20`. `render.yaml` deliberately records that value as
-application runtime provenance, not as the deployed branch-tip marker. The following
-`b24f069aa2f73cb42a0b66949b34934fc31fe70b` commit changes only the Blueprint metadata, which is
-excluded from the deny-by-default Docker build context; release-prep documentation is excluded too.
+`codex/w7a-agent-execution-slice`. The previous mock-only container smoke source was
+`48cc31d6bcd2d23ff43de760eb1bfaa826100b20`; the OpenRouter provider change requires its own
+container smoke and deployment revision. `render.yaml` therefore uses `SOURCE_COMMIT=unknown`
+until the immutable release commit exists, rather than claiming the obsolete mock-only revision as
+the live-provider provenance.
 
 Any later change to the Dockerfile, `.dockerignore`, installed Render startup script, packaged
 source, dependency locks, or runtime contract invalidates the container smoke and requires
 recertification. A Blueprint-only change requires configuration review; an excluded documentation-
 only change requires claims review but does not alter the image payload.
 
-The service remains the portable deterministic sandbox:
+The service remains a portable sealed-workspace sandbox while using the selected live model provider:
 
 ```text
 AIOA_RUNTIME_MODE=portable
-AIOA_MODEL_PROVIDER=mock
+AIOA_MODEL_PROVIDER=openrouter
 AIOA_AWS_INTEGRATION_ENABLED=false
-AIOA_ALLOWED_EGRESS=none
+AIOA_ALLOWED_EGRESS=openrouter-only
+AIOA_SANDBOX_MODE=OPENROUTER_LIVE
 AIOA_AUTHORITY_MODE=HUMAN_APPROVAL_REQUIRED
 ```
+
+`OPENROUTER_API_KEY` is a dashboard-only Render secret (`sync: false`). `OPENROUTER_MODEL` defaults
+to `openai/gpt-4o-mini`; switching `AIOA_MODEL_PROVIDER=mock` with `AIOA_ALLOWED_EGRESS=none` and
+`AIOA_SANDBOX_MODE=MOCK_OFFLINE` is the intentional offline fallback. Neither mode enables AWS calls
+or changes the existing human-approval, exact-patch, verifier, or replay controls.
 
 ## Selected target
 
@@ -43,10 +49,10 @@ Official provider references checked on 2026-09-02:
 
 ## Secret bootstrap
 
-`AIOA_OPERATOR_TOKEN` is declared with `sync: false`; its value must be entered only in the Render
-dashboard during the first Blueprint creation. It must be a freshly generated, URL-safe value of at
-least 48 characters. It must never be committed, pasted into a terminal transcript, written to a
-URL query, or printed in deployment logs.
+`AIOA_OPERATOR_TOKEN` and `OPENROUTER_API_KEY` are declared with `sync: false`; their values must be
+entered only in the Render dashboard during the first Blueprint creation. The operator token must be
+a freshly generated, URL-safe value of at least 48 characters. Neither secret may be committed,
+pasted into a terminal transcript, written to a URL query, or printed in deployment logs.
 
 Render invokes the fixed image-owned executable `/usr/local/bin/aioa-render-start` as the image's
 non-root `aioa` user. The script applies `umask 077`, fails closed if the token or target path is

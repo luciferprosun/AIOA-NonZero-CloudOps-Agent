@@ -16,6 +16,7 @@ from aioa_cloudops_agent.agent.local_hitl import (
     LocalOperatorPrincipal,
 )
 from aioa_cloudops_agent.cloudops import CloudAdapterUnavailableError
+from aioa_cloudops_agent.config import RuntimeSettings
 from aioa_cloudops_agent.nz import (
     BudgetCounters,
     FailureDetail,
@@ -235,6 +236,7 @@ class LocalApiApplication:
         run_id_factory: Callable[[], UUID] = generate_run_id,
         trace_id_factory: Callable[[], UUID] = generate_trace_id,
         workspace_hero: WorkspaceHeroOrchestrator | None = None,
+        workspace_runtime_settings: RuntimeSettings | None = None,
     ) -> None:
         if not isinstance(runtime, LocalHitlRuntime):
             raise TypeError("runtime must be LocalHitlRuntime")
@@ -251,7 +253,18 @@ class LocalApiApplication:
             workspace_hero, WorkspaceHeroOrchestrator
         ):
             raise TypeError("workspace_hero must be WorkspaceHeroOrchestrator")
+        selected_workspace_runtime = (
+            workspace_runtime_settings
+            or (
+                workspace_hero.runtime_settings
+                if workspace_hero is not None
+                else runtime.runtime_settings
+            )
+        )
+        if not isinstance(selected_workspace_runtime, RuntimeSettings):
+            raise TypeError("workspace_runtime_settings must be RuntimeSettings")
         self._workspace_hero = workspace_hero
+        self._workspace_runtime_settings = selected_workspace_runtime
 
     def handle(self, event: object) -> dict[str, object]:
         try:
@@ -262,7 +275,14 @@ class LocalApiApplication:
         if request.path == "/health":
             return self._public_get(
                 request,
-                _response(200, {"mode": "mock", "service": "aioa-local-hitl", "status": "ok"}),
+                _response(
+                    200,
+                    {
+                        "mode": self._workspace_runtime_settings.model_provider.value,
+                        "service": "aioa-local-hitl",
+                        "status": "ok",
+                    },
+                ),
             )
         if request.path == "/ready":
             return self._ready(request)
@@ -303,7 +323,7 @@ class LocalApiApplication:
             state_path = self._runtime.repository.path
             self._workspace_hero = WorkspaceHeroOrchestrator(
                 state_path.parent / f"{state_path.stem}-workspace-hero",
-                self._runtime.runtime_settings,
+                self._workspace_runtime_settings,
                 nonce_deriver=self._authorizer.derive_workspace_decision_nonce,
             )
         return self._workspace_hero
@@ -463,7 +483,17 @@ class LocalApiApplication:
         if request.query or request.body not in (None, ""):
             return self._error(LocalApiErrorCode.BAD_REQUEST, 400)
         try:
-            view = runtime_view(self._runtime)
+            hero = self._workspace_hero
+            view = runtime_view(
+                self._runtime,
+                workspace_runtime_settings=self._workspace_runtime_settings,
+                workspace_provider_calls=(
+                    0 if hero is None else hero.process_provider_calls
+                ),
+                workspace_network_calls=(
+                    0 if hero is None else hero.process_external_network_calls
+                ),
+            )
             self._runtime.repository.assert_ready()
             self._runtime.cloud_state.assert_ready()
         except (

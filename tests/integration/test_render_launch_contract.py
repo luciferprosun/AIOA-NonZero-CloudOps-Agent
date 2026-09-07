@@ -116,6 +116,7 @@ def test_render_docker_command_securely_bootstraps_canonical_server(
     environment = _environment(service, tmp_path, port)
     token = "render-" + "bootstrap-" + ("t" * 48)
     environment["AIOA_OPERATOR_TOKEN"] = token
+    environment["OPENROUTER_API_KEY"] = "provider-test-credential"
     process = subprocess.Popen(
         [str(START_SCRIPT_PATH)],
         cwd=ROOT,
@@ -145,12 +146,16 @@ def test_render_docker_command_securely_bootstraps_canonical_server(
             if item
         ]
         assert argv[1:] == ["-m", "aioa_cloudops_agent.portable_server"]
-        assert health == {"mode": "mock", "service": "aioa-local-hitl", "status": "ok"}
+        assert health == {
+            "mode": "openrouter",
+            "service": "aioa-local-hitl",
+            "status": "ok",
+        }
         assert ready["status"] == "ready"
         assert ready["runtime"]["runtime_mode"] == "portable"
-        assert ready["runtime"]["provider"] == "mock"
+        assert ready["runtime"]["provider"] == "openrouter"
         assert ready["runtime"]["aws_calls_allowed"] is False
-        assert ready["runtime"]["external_network_allowed"] is False
+        assert ready["runtime"]["external_network_allowed"] is True
         assert ready["runtime"]["real_cloud_mutations_enabled"] is False
     finally:
         stdout, stderr = _stop(process)

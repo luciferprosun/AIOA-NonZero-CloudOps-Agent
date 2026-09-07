@@ -28,11 +28,12 @@ def main() -> int:
     try:
         settings = PortableServerSettings.from_environment()
         token = load_or_create_local_token(settings.token_path)
-        runtime = create_local_hitl_runtime(
-            settings.local,
-            runtime_settings=settings.runtime,
+        runtime = create_local_hitl_runtime(settings.local)
+        application = LocalApiApplication(
+            runtime,
+            LocalApiTokenAuthorizer(token),
+            workspace_runtime_settings=settings.runtime,
         )
-        application = LocalApiApplication(runtime, LocalApiTokenAuthorizer(token))
         server = create_local_http_server(
             application,
             host=settings.host,
@@ -51,6 +52,7 @@ def main() -> int:
                 "application_version": settings.application_version,
                 "authority_mode": settings.authority_mode,
                 "aws_calls_allowed": False,
+                "external_network_allowed": settings.runtime.external_network_allowed,
                 "host": settings.host,
                 "model_provider": settings.runtime.model_provider.value,
                 "port": settings.port,
