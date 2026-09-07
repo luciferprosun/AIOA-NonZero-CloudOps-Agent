@@ -3,8 +3,8 @@ FROM --platform=linux/amd64 docker.io/library/python:3.12-slim-bookworm@sha256:7
 
 WORKDIR /build
 COPY requirements/build.lock requirements/portable.lock ./requirements/
-RUN python -m pip install --no-cache-dir --require-hashes -r requirements/build.lock \
-    && python -m pip install --no-cache-dir --require-hashes --prefix=/runtime -r requirements/portable.lock
+RUN python -m pip install --no-cache-dir --require-hashes --timeout 120 -r requirements/build.lock \
+    && python -m pip install --no-cache-dir --require-hashes --timeout 120 --prefix=/runtime -r requirements/portable.lock
 
 ENV SOURCE_DATE_EPOCH=0
 COPY pyproject.toml README.md LICENSE MANIFEST.in ./
