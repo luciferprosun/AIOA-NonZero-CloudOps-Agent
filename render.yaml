@@ -3,7 +3,7 @@ services:
     name: aioa-agents-for-humans-demo
     runtime: docker
     repo: https://github.com/luciferprosun/AIOA-NonZero-CloudOps-Agent
-    branch: codex/portable-d1-d2-m1-overnight
+    branch: codex/w7a-agent-execution-slice
     region: frankfurt
     plan: free
     dockerfilePath: ./Dockerfile
@@ -15,7 +15,7 @@ services:
       - key: APPLICATION_VERSION
         value: 0.2.0rc1
       - key: SOURCE_COMMIT
-        value: 797c94e72151c46504b9ae81412738aa6b253e8a
+        value: 48cc31d6bcd2d23ff43de760eb1bfaa826100b20
       - key: AIOA_RUNTIME_MODE
         value: portable
       - key: AIOA_MODEL_PROVIDER
