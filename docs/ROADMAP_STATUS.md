@@ -148,7 +148,7 @@
 - W5_EXTERNAL_EGRESS = 0
 - W5_AWS_CALLS_AND_MUTATIONS = 0
 - W5_DEPLOYMENT_FILES_CHANGED = FALSE
-- W5_FINAL_RC_B5_B6_RECERTIFICATION_REQUIRED = TRUE
+- W5_FINAL_RC_B5_B6_RECERTIFICATION_REQUIRED = FALSE_COMPLETED_IN_W7
 - WORKSPACE_REMEDIATION_W6 = COMPLETE_SECURITY_RED_TEAM_FEATURE_FREEZE_PASS
 - W6_OPERATOR_SESSION_BINDING = COMPLETE_ORIGINATING_SESSION_FAIL_CLOSED
 - W6_NEW_ADVERSARIAL_TESTS = PASS_50_OF_50
@@ -164,7 +164,7 @@
 - W7_P0_P1_B4 = PASS_15_OF_15_6_OF_6_11_OF_11
 - W7_B6_PUBLICATION_BUNDLE = PASS_LOCAL_NOT_UPLOADED
 - W8_AUTHORIZED = NO
-- NEXT_MACRO_STEP = W7_FINAL_RELEASE_CANDIDATE_FULL_B5_B6_RECERTIFICATION
+- NEXT_MACRO_STEP = HUMAN_RENDER_DEPLOY_AFTER_FINAL_RELEASE_SYNC
 
 ## W1 sealed workspace foundation
 
@@ -259,9 +259,9 @@ adds zero mutations and zero profile executions. The fixed W4 process proof repo
 `/health`, ready `/ready`, zero external egress, and zero AWS calls. No raw-command, raw-path write,
 generic patch, package, Git, browser/MCP, remote URL, deployment, or new AWS capability was added.
 
-Repository-root deployment files remain unchanged, and no Render/AWS/provider action occurred.
-Historical B5/B6 evidence is preserved but predates W5 runtime/UI source; final RC B5/B6
-recertification is therefore required later.
+Repository-root deployment files remained unchanged during W5, and no Render/AWS/provider action
+occurred. Historical pre-W5 B5/B6 evidence is preserved; W7 later packaged the required helper
+closure and completed the final local B5/B6 recertification for the W5 hero.
 
 ## W6 security red-team and feature freeze
 

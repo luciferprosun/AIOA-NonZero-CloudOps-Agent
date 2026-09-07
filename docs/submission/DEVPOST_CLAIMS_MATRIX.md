@@ -1,8 +1,8 @@
 # Devpost claims matrix
 
-Status: local B6 candidate claim audit. Every major claim below must remain reproducible without
-private repository material. “Local” means offline/mock execution unless a row explicitly says
-otherwise.
+Status: W7 local release-candidate claim audit. Every major claim below must remain reproducible
+without private repository material. “Local” means offline/mock execution unless a row explicitly
+says otherwise.
 
 | ID | Public claim | Reproducible proof in the public candidate | Allowed wording |
 | --- | --- | --- | --- |
@@ -21,12 +21,15 @@ otherwise.
 | C13 | AWS and Bedrock are optional adapters, not portable dependencies | `tests/unit/test_portable_runtime_boundary.py`; `src/aioa_cloudops_agent/providers/factory.py`; `docs/architecture/provider-neutral-strands-runtime.md` | “Portable-first, with optional AWS/Bedrock integration” |
 | C14 | The project is MIT-licensed and discloses prior art | `LICENSE`; `PRIOR-ART.md`; `docs/submission/PRIOR_ART_DISCLOSURE.md`; initial commit `d813290727b89017bd348c04f68a7f07156652f7` | “MIT; prior concepts disclosed, implementation newly authored in this repository” |
 | C15 | The public package is sanitized and locally reproducible | `PUBLICATION_MANIFEST.json`; `PUBLICATION_EXCLUSIONS.md`; `SHA256SUMS`; B6 report when present | “Local publication candidate passed deterministic export and privacy gates” |
+| C16 | The fixed workspace hero produces one exact inert patch proposal | `tests/integration/test_workspace_judge_hero.py`; `src/aioa_cloudops_agent/workspace/proposal.py` | “A fixed failed-deployment story produces an exact, reviewable WorkspacePatchProposal” |
+| C17 | Workspace approval executes once, verification closes success, denial and replay add zero effects | `tests/integration/test_workspace_judge_hero.py`; `docs/evidence/release/w7-b5-recertification/container-hero.json` | “Bound approval permits one exact private-workspace mutation; independent evidence decides success” |
 
 ## Forbidden promotions
 
 Do not replace the allowed wording with claims of live AWS use, live Bedrock use, production
 readiness, public availability, deployed IAM effectiveness, a real cloud mutation, registry
-publication, video publication, or Devpost submission. None of those receipts exists in B6.
+publication, live GitHub.com mutation, pull-request creation, video publication, or Devpost
+submission. None of those receipts exists in the current local release evidence.
 
 ## Audit rule
 

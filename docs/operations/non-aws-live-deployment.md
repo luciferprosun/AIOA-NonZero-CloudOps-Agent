@@ -1,15 +1,20 @@
 # Non-AWS live demo deployment
 
-Status: `D1.1_TARGET_SELECTED`; live service not yet created.
+Status: `READY_FOR_HUMAN_RENDER_DEPLOY`; live service not yet created.
 
 ## Frozen application boundary
 
-The Render deployment builds the existing root `Dockerfile`. The recertified runtime/image source
-is `797c94e72151c46504b9ae81412738aa6b253e8a`; the sanitized B6 source and exact Blueprint are bound
-at `a7bb1d6eb7ff5a86126f02af6758f0298289816b`. Later evidence-only commits may add reports, but any
-change to the Dockerfile, `.dockerignore`, installed Render startup script, packaged source,
-dependency locks, runtime contract, Blueprint behavior, or jury runbook invalidates the applicable
-B5/B6 evidence and requires recertification.
+The Render deployment builds the existing root `Dockerfile` from
+`codex/w7a-agent-execution-slice`. The current container-smoke-certified application/runtime source
+is `48cc31d6bcd2d23ff43de760eb1bfaa826100b20`. `render.yaml` deliberately records that value as
+application runtime provenance, not as the deployed branch-tip marker. The following
+`b24f069aa2f73cb42a0b66949b34934fc31fe70b` commit changes only the Blueprint metadata, which is
+excluded from the deny-by-default Docker build context; release-prep documentation is excluded too.
+
+Any later change to the Dockerfile, `.dockerignore`, installed Render startup script, packaged
+source, dependency locks, or runtime contract invalidates the container smoke and requires
+recertification. A Blueprint-only change requires configuration review; an excluded documentation-
+only change requires claims review but does not alter the image payload.
 
 The service remains the portable deterministic sandbox:
 
@@ -85,7 +90,7 @@ origin for deterministic pre-deployment proof.
 
 1. Authenticate to Render; stop for CAPTCHA, 2FA, payment, or legal declarations.
 2. Create one Blueprint from `render.yaml` on
-   `codex/portable-d1-d2-m1-overnight`.
+   `codex/w7a-agent-execution-slice`.
 3. Confirm the only planned resource is a Free Web Service in Frankfurt.
 4. Enter the operator token only into the `sync: false` secret prompt.
 5. Deploy only after the plan still shows `free` and no card or paid resource.

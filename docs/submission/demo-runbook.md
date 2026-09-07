@@ -1,9 +1,35 @@
-# AIOA Non-Zero CloudOps — Portable Local Jury Demo Runbook
+# AIOA Non-Zero CloudOps — Workspace Remediation Jury Demo Runbook
 
-Status: `PORTABLE_B4_HARDENED`; historical Phase 3 status `DEPLOYMENT_READY_LOCAL_RC`;
-`MOCK/OFFLINE`; not deployed or live verified.
+Status: W7 locally/container-certified plus focused W7A release smokes; `PORTABLE/MOCK`; not
+deployed or live verified.
 
-## Fast executable proof
+## Primary workspace remediation hero
+
+Start the existing judge UI from the repository root:
+
+```bash
+.venv/bin/python scripts/run_local_hitl_api.py --open-browser
+```
+
+Select **Fix a Failed Deployment Safely**, then show the complete current flow:
+
+```text
+Failed deployment -> Strands investigation -> exact WorkspacePatchProposal
+-> bound human approval -> explicit execution -> one exact workspace mutation
+-> independent verification -> evidence/audit timeline -> replay rejection
+```
+
+Review the exit `127` / `File name too long` evidence and exact `render.yaml` diff. Select
+**Review exact request**, **Approve exact change**, **Execute approved patch once**,
+**Independently verify**, and **Prove replay rejection**. Success is valid only at
+`SUCCESS_WITH_EVIDENCE`; replay adds zero mutations and zero verification-profile executions.
+
+For denial, start a fresh workspace run, review the same exact proposal, and select **Deny**. The
+terminal state must be `DENIED_BY_HUMAN`, with zero workspace mutations and no execution receipt.
+The fixed scenario operates only on a disposable private workspace and performs no Render, AWS, or
+external-network action.
+
+## Legacy CloudOps machine-readable proof
 
 From the repository root after the documented install, run the single jury path:
 
@@ -60,7 +86,7 @@ zero mock mutations, no receipt or verification hash, and the same zero network/
 7. Show the five fail-closed probes and close on the explicit counts: network `0`, AWS mutations `0`,
    live receipts `0`.
 
-## Primary B3 judge experience
+## Secondary CloudOps regression stories
 
 1. Start `.venv/bin/python scripts/run_local_hitl_api.py --open-browser`.
 2. Confirm `DEMO SANDBOX`, `PORTABLE / MOCK`, `STRANDS`, zero real-cloud writes, and zero external

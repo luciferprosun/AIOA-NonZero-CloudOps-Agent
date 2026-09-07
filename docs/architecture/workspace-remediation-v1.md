@@ -380,10 +380,10 @@ same-origin CSP.
 
 W5 reuses the exact repository-owned `scripts/w4_render_start_profile.py` implementation through a
 lazy server-side factory. This preserves the canonical `src/aioa_cloudops_agent` source guard and
-avoids a second trusted verifier. If that checkout-owned dependency is absent, verification returns
-a normalized retryable dependency failure; it cannot claim success. The W5 local checkpoint does
-not change the Dockerfile or package the helper into a release image. Final RC B5/B6 recertification
-must resolve and certify that release boundary before W5 is published or deployed.
+avoids a second trusted verifier. If that dependency is absent, verification returns a normalized
+retryable dependency failure; it cannot claim success. The original W5 checkpoint did not package
+the helper. W7 subsequently added the exact helper closure to the image and completed B5 container
+plus B6 local clean-room recertification before this release candidate was prepared.
 
 The timeline truth hierarchy is explicit:
 
@@ -416,7 +416,8 @@ reuses the valid W4 receipt, records no second apply, and runs no second fixed p
   workspace evidence is a future design decision.
 - The workspace agent is deliberately portable/mock-only and has no external provider or network path.
 - The W5 route family is authenticated and fixed-scenario only. It is not a generic workspace,
-  process, patch, URL, or deployment API and is not part of the current Render startup path.
+  process, patch, URL, or deployment API. The current portable server and Render startup path expose
+  this same bounded route family; they do not grant live deployment authority.
 - W2 can propose only the one frozen structured patch. W3 can apply it only to the private
   materialized copy after durable approval. Neither can run a process/test, operate Git, install
   packages, browse, call MCP, access a provider, or deploy.
@@ -432,6 +433,6 @@ reuses the valid W4 receipt, records no second apply, and runs no second fixed p
 W1 through W5 do not modify repository-root `render.yaml`, `Dockerfile`,
 `scripts/render_start.sh`, dependency/lock files, portable startup, deployment secrets, provider
 resources, AWS state, DNS, or custom domains. W3/W5 effects target only disposable private
-materialized workspace copies. W5 does change runtime/UI source, so existing B5/B6 evidence remains
-preserved as historical proof but does not certify W5. Final RC B5/B6 recertification is required
-later and is intentionally not performed in this phase.
+materialized workspace copies. W7 later changed only the packaging boundary needed for the exact
+W4/W5 helper closure and recertified it through B5/B6. No release evidence grants authority to
+deploy or mutate Render, AWS, DNS, GitHub.com, or any paid resource.

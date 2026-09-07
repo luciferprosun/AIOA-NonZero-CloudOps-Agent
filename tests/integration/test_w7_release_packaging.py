@@ -103,9 +103,9 @@ def test_container_start_contract_remains_cmd_based_and_render_compatible() -> N
     ).read_text(encoding="utf-8")
 
 
-def test_external_deployment_and_dependency_inputs_are_unchanged_from_w6() -> None:
+def test_deployment_contract_and_dependency_inputs_are_release_pinned() -> None:
     assert _sha256("render.yaml") == (
-        "c9e351188844ec4236068ffe62fa9747376ec520eabea39c9e92dd30909a645c"
+        "62310e3e772b4d3248a0cd47242725e9061ec45e95d73b57262298a8508ad3fb"
     )
     assert _sha256("scripts/render_start.sh") == (
         "d350917c132a338605f630fde97a2ac017e1664fe9cf413a7153827326e6d250"

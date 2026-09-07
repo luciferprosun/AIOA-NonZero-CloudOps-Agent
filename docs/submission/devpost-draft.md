@@ -1,7 +1,7 @@
 # Devpost Draft — AIOA Non-Zero CloudOps Agent
 
-Status: audited `DEPLOYMENT_READY_LOCAL_RC` plus W5 local judge-hero checkpoint; historical B6
-candidate predates W5 and must be recertified before publication; not externally submitted.
+Status: W7 local B5/B6 recertification covers the W5 judge hero; focused W7A local and container
+release smokes cover the current candidate; not externally deployed or submitted.
 
 ## One-line pitch
 
@@ -133,18 +133,17 @@ clean-room report.
 
 ## Current limitations and next steps
 
-No AWS infrastructure or live mutation has been performed by this project. W5 is a locally
-certified source-checkout hero, not a production deployment or current publication candidate. No
-public endpoint, registry push, live AWS identity, live Bedrock inference, effective deployed IAM,
-real cloud mutation, video publication, or Devpost submission is claimed. Historical B5/B6 receipts
-do not cover W5 runtime/UI changes; a final RC recertification is required before release. The
-optional AWS path requires a separate authorized live-demo phase and new receipts.
+No AWS infrastructure or live mutation has been performed by this project. The fixed W5 hero is
+locally and container certified, not a production deployment. No public endpoint, registry push,
+live AWS identity, live Bedrock inference, effective deployed IAM, real cloud mutation, live
+GitHub.com mutation, pull-request creation, video publication, or Devpost submission is claimed.
+The optional AWS path requires a separate authorized live-demo phase and new receipts.
 
-The next engineering step is a separately audited W6 security/feature freeze, followed later by
-final RC B5/B6 recertification. Any future live phase must begin with read-only preflight, explicit
-scope and account approval, reviewed change set, bounded deployment, independent post-deploy
-verification, and owner-controlled submission. Missing external evidence remains blocked or not
-run; it never becomes a local PASS.
+The feature set is frozen. The next operational step is owner-controlled Render deployment of the
+reviewed portable/mock Blueprint, followed by public smoke validation and demo capture. Any future
+live AWS phase must begin with read-only preflight, explicit scope and account approval, a reviewed
+change set, bounded deployment, and independent post-deploy verification. Missing external evidence
+remains blocked or not run; it never becomes a local PASS.
 
 ## Placeholders that require future live evidence
 

@@ -191,9 +191,9 @@ not captured because this phase did not attach automation to the operator's exis
   access, production availability, or real infrastructure mutation.
 - B4 local reliability/security/evidence hardening is complete; externally anchored signatures and
   public-host controls are not claimed.
-- Historical B5/B6 evidence remains preserved but predates W5 runtime/UI code. A final RC B5/B6
-  recertification is required before this W5 branch can become a release/publication claim.
-- The exact trusted W4 process helper is repository-owned under `scripts/`; W5 is certified from a
-  clean source checkout. Packaging that helper into a future release image is a release-boundary
-  task and is not solved by weakening the source-security guard or changing the frozen Dockerfile
-  during W5.
+- Historical pre-W5 B5/B6 evidence remains preserved. W7 later packaged the exact W4 helper closure
+  and completed B5 container plus B6 local clean-room recertification for the W5 hero; no live
+  deployment or publication is implied.
+- The exact trusted W4 process helper is repository-owned under `scripts/`; W7 packages only its
+  reviewed closure and certifies it from a clean source checkout. The source-security guard remains
+  unchanged.
