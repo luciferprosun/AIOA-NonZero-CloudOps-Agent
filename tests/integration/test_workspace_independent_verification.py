@@ -12,6 +12,7 @@ from pathlib import Path
 from uuid import UUID
 
 import pytest
+import scripts.w4_render_start_profile as render_start_profile
 from pydantic import ValidationError
 from scripts.w4_render_start_profile import RenderStartContractV1Profile
 
@@ -449,6 +450,58 @@ def test_real_fixed_profile_proves_token_argv_health_ready_and_zero_egress() -> 
     assert result.process_executions == 1
     assert result.workspace_code_executions == 0
     assert result.arbitrary_command_executions == 0
+
+
+def test_fixed_profile_allows_render_free_cpu_startup_budget(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class SlowHostedClock:
+        elapsed = 0.0
+
+        def monotonic(self) -> float:
+            return self.elapsed
+
+        def sleep(self, _seconds: float) -> None:
+            self.elapsed += 1.0
+
+    class RunningProcess:
+        @staticmethod
+        def poll() -> None:
+            return None
+
+    clock = SlowHostedClock()
+
+    def request_json(_port: int, path: str) -> dict[str, object]:
+        if clock.elapsed < 87.0:
+            raise OSError("hosted child is still starting")
+        if path == "/health":
+            return {"mode": "mock", "service": "aioa-local-hitl", "status": "ok"}
+        return {
+            "status": "ready",
+            "runtime": {
+                "runtime_mode": "portable",
+                "provider": "mock",
+                "aws_calls_allowed": False,
+                "external_network_allowed": False,
+                "real_cloud_mutations_enabled": False,
+            },
+        }
+
+    monkeypatch.setattr(render_start_profile, "time", clock)
+    monkeypatch.setattr(
+        RenderStartContractV1Profile,
+        "_request_json",
+        staticmethod(request_json),
+    )
+
+    health, ready = RenderStartContractV1Profile._wait_for_runtime(
+        RunningProcess(),  # type: ignore[arg-type]
+        10_000,
+    )
+
+    assert clock.elapsed == 87.0
+    assert RenderStartContractV1Profile._health_passes(health)
+    assert RenderStartContractV1Profile._ready_passes(ready)
 
 
 def test_profile_timeout_never_becomes_success(tmp_path: Path) -> None:

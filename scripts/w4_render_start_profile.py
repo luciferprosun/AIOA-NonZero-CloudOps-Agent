@@ -24,7 +24,7 @@ from aioa_cloudops_agent.workspace.render_verification import (
 _PORTABLE_MODULE: Final = "aioa_cloudops_agent.portable_server"
 _PORTABLE_ARGV: Final = ("-m", _PORTABLE_MODULE)
 _LOOPBACK_HOST: Final = "127.0.0.1"
-_PROBE_TIMEOUT_SECONDS: Final = 30.0
+_PROBE_TIMEOUT_SECONDS: Final = 120.0
 _HTTP_TIMEOUT_SECONDS: Final = 1.0
 _LOG_LIMIT_BYTES: Final = 16_384
 _EGRESS_AUDIT_ENV: Final = "AIOA_W4_EGRESS_AUDIT_PATH"
