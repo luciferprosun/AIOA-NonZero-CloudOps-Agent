@@ -3,12 +3,24 @@
 Newly authored work for the **AWS Agents for Humans Hackathon 2026**.
 
 - Track: Professional Agents
-- Status: portable-first local product with deterministic Strands, HITL, evidence, replay and recovery; AWS deployment remains optional and no live deployment or AWS mutation has run
+- Status: public hackathon demo certified on Render with Strands, bounded OpenRouter reasoning, HITL, evidence, replay and recovery; the deterministic Mock path remains available
 - Historical AWS release contract: Phase 3 `DEPLOYMENT_READY_LOCAL_RC`, retained as an optional integration path rather than the product completion gate
 - Orchestration: one Strands Agent
 - Model platform: provider-neutral Strands `Model`; deterministic Mock default, bounded OpenRouter live option, Amazon Bedrock optional
 - Current capability: five bounded tools covering investigation, proposal-bound stop, and independent verification
 - Safety boundary: executable P0/P1 matrices, bounded dependency circuits, deterministic reviewer evidence, and an independent fail-closed emergency veto immediately around the private mutation boundary
+
+## Public hackathon demo
+
+The certified public demo is available at
+[aioa-agents-for-humans-demo.onrender.com](https://aioa-agents-for-humans-demo.onrender.com).
+Its verified runtime is **Render + Strands + OpenRouter** in the sealed AIOA demo sandbox; it does
+not perform live AWS writes.
+
+AWS was proven separately through a successful STS identity check, a direct Amazon Bedrock
+inference, and a Strands-to-Bedrock inference using Amazon Nova 2 Lite in `eu-central-1`. These
+technical proofs do not mean that the public Render runtime uses Bedrock. ECS and AgentCore have
+not been deployed for this demo.
 
 ## Non-Zero Principle
 
@@ -17,9 +29,10 @@ No silent, ambiguous, untraceable, unverifiable, or falsely-successful state may
 This repository contains newly authored hackathon work. Existing AIOA, AOIA, and Non-Zero projects are prior art; no implementation code from them has been imported.
 
 No AWS infrastructure has been deployed by this project. A private, tightly scoped stop executor is
-implemented but defaults disabled and has not been invoked against live EC2. A truthful local Devpost
-draft and demo runbook are prepared, but no external submission has been made. “Release candidate”
-means deployment-ready from local evidence; it does not mean production deployed or live verified.
+implemented but defaults disabled and has not been invoked against live EC2. A truthful Devpost
+draft and demo runbook are prepared, but no external submission has been made. “AWS release
+candidate” means deployment-ready from local evidence; the certified public deployment described
+above remains the isolated Render/OpenRouter demo.
 
 ## Local quickstart
 
