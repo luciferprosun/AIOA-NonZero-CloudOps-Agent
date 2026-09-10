@@ -1044,7 +1044,7 @@ class LocalExecutionIntent(NonZeroContract):
             "operation_type": proposal.operation_type,
             "target_resource_type": proposal.target_resource_type,
             "target_resource_id": proposal.target_resource_id,
-            "idempotency_key": f"local-exec:{proposal.proposal_hash}",
+            "idempotency_key": f"local-exec:{proposal.run_id}:{proposal.proposal_hash}",
             "registered_at": registered_at,
         }
         provisional = cls.model_construct(**values, intent_hash="0" * 64)
@@ -1273,7 +1273,11 @@ class Checkpoint(NonZeroContract):
             or intent.operation_type is not proposal.operation_type
             or intent.target_resource_type is not proposal.target_resource_type
             or intent.target_resource_id != proposal.target_resource_id
-            or intent.idempotency_key != f"local-exec:{proposal.proposal_hash}"
+            or intent.idempotency_key not in {
+                f"local-exec:{proposal.run_id}:{proposal.proposal_hash}",
+                # Preserve reconciliation of intents persisted before run scoping.
+                f"local-exec:{proposal.proposal_hash}",
+            }
             or intent.registered_at < approval.decided_at
             or intent.registered_at > proposal.expires_at
         ):

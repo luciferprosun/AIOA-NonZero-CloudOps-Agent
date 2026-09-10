@@ -1,5 +1,5 @@
 import json
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from uuid import UUID
 
@@ -9,6 +9,7 @@ from aioa_cloudops_agent.agent import create_local_hitl_runtime
 from aioa_cloudops_agent.cloudops import (
     MOCK_UNATTACHED_EIP_ID,
     MOCK_UNSAFE_SECURITY_GROUP_ID,
+    LocalMockConflictError,
 )
 from aioa_cloudops_agent.config import LocalHitlSettings
 from aioa_cloudops_agent.local_api import (
@@ -20,10 +21,13 @@ from aioa_cloudops_agent.local_api import (
     LocalApiTokenAuthorizer,
 )
 from aioa_cloudops_agent.nz import (
+    Checkpoint,
     CloudResourceType,
+    LocalExecutionIntent,
     WorkflowState,
     generate_event_id,
 )
+from aioa_cloudops_agent.persistence import compute_evidence_digest
 
 TOKEN = "t" * 48
 WRONG_TOKEN = "w" * 48
@@ -33,6 +37,12 @@ TRACE_ID = UUID("01890f6c-3311-7abc-8f4a-6e4f7f0b9b3b")
 CORRELATION_ID = UUID("01890f6c-3311-7abc-8f4a-6e4f7f0b9b3c")
 PROPOSAL_ID = UUID("01890f6c-3311-7abc-8f4a-6e4f7f0b9b80")
 REQUEST_ID = UUID("01890f6c-3311-7abc-8f4a-6e4f7f0b9b81")
+SECOND_RUN_ID = UUID("01890f6c-3311-7abc-8f4a-6e4f7f0b9b90")
+SECOND_TRACE_ID = UUID("01890f6c-3311-7abc-8f4a-6e4f7f0b9b91")
+SECOND_CORRELATION_ID = UUID("01890f6c-3311-7abc-8f4a-6e4f7f0b9b92")
+SECOND_PROPOSAL_ID = UUID("01890f6c-3311-7abc-8f4a-6e4f7f0b9b93")
+SECOND_REQUEST_ID = UUID("01890f6c-3311-7abc-8f4a-6e4f7f0b9b94")
+UNKNOWN_RUN_ID = UUID("01890f6c-3311-7abc-8f4a-6e4f7f0b9b95")
 NOW = datetime(2026, 8, 26, 15, 0, tzinfo=UTC)
 
 
@@ -547,3 +557,263 @@ def test_tampered_durable_evidence_returns_redacted_dependency_failure(
         "retryable": True,
     }
     assert "digest" not in json.dumps(payload).casefold()
+
+
+def test_verified_demo_release_rearms_fresh_run_across_restart_and_reload(
+    tmp_path: Path,
+) -> None:
+    application, first_runtime = _application(tmp_path)
+    _start(application)
+    first_challenge = _challenge(application)
+    _call(
+        application,
+        "POST",
+        f"/api/runs/{RUN_ID}/decision",
+        body=_decision_body(first_challenge, "APPROVED"),
+    )
+    completed_status, completed, _ = _call(
+        application,
+        "POST",
+        f"/api/runs/{RUN_ID}/resume",
+        body={"confirm_execution": True},
+    )
+
+    assert completed_status == 200
+    assert completed["result"]["final_state"] == "SUCCESS_WITH_EVIDENCE"
+    assert first_runtime.executor.mutation_calls == 1
+
+    restarted_runtime = create_local_hitl_runtime(
+        LocalHitlSettings(
+            state_path=tmp_path / "truth.json",
+            inventory_path=tmp_path / "inventory.json",
+        ),
+        clock=lambda: NOW,
+        proposal_id_factory=lambda: SECOND_PROPOSAL_ID,
+        request_id_factory=lambda: SECOND_REQUEST_ID,
+        event_id_factory=generate_event_id,
+        nonce_factory=lambda: NONCE,
+    )
+    trace_ids = iter((SECOND_TRACE_ID, SECOND_CORRELATION_ID))
+    restarted = LocalApiApplication(
+        restarted_runtime,
+        LocalApiTokenAuthorizer(TOKEN),
+        clock=lambda: NOW,
+        run_id_factory=lambda: SECOND_RUN_ID,
+        trace_id_factory=lambda: next(trace_ids),
+    )
+
+    fresh = _start(restarted)
+    first_get, first_view, _ = _call(
+        restarted,
+        "GET",
+        f"/api/runs/{SECOND_RUN_ID}",
+        body=None,
+        content_type=None,
+    )
+    reload_get, reload_view, _ = _call(
+        restarted,
+        "GET",
+        f"/api/runs/{SECOND_RUN_ID}",
+        body=None,
+        content_type=None,
+    )
+    reloaded_process = LocalApiApplication(
+        create_local_hitl_runtime(
+            LocalHitlSettings(
+                state_path=tmp_path / "truth.json",
+                inventory_path=tmp_path / "inventory.json",
+            ),
+            clock=lambda: NOW,
+            event_id_factory=generate_event_id,
+            nonce_factory=lambda: NONCE,
+        ),
+        LocalApiTokenAuthorizer(TOKEN),
+        clock=lambda: NOW,
+    )
+    restart_get, restart_view, _ = _call(
+        reloaded_process,
+        "GET",
+        f"/api/runs/{SECOND_RUN_ID}",
+        body=None,
+        content_type=None,
+    )
+    approval_status, approval, _ = _call(
+        restarted,
+        "POST",
+        f"/api/runs/{SECOND_RUN_ID}/approval-request",
+        body={},
+    )
+    deny_status, denied, _ = _call(
+        restarted,
+        "POST",
+        f"/api/runs/{SECOND_RUN_ID}/decision",
+        body=_decision_body(approval["result"], "DENIED"),
+    )
+    unknown_status, unknown, _ = _call(
+        restarted,
+        "GET",
+        f"/api/runs/{UNKNOWN_RUN_ID}",
+        body=None,
+        content_type=None,
+    )
+
+    assert fresh["run_id"] == str(SECOND_RUN_ID)
+    assert fresh["run_id"] != str(RUN_ID)
+    assert (
+        first_get
+        == reload_get
+        == restart_get
+        == approval_status
+        == deny_status
+        == 200
+    )
+    assert first_view == reload_view
+    assert first_view["result"]["run"] == restart_view["result"]["run"]
+    assert first_view["result"]["checkpoint"] == restart_view["result"]["checkpoint"]
+    assert first_view["result"]["run"]["run_id"] == str(SECOND_RUN_ID)
+    assert denied["result"]["run_id"] == str(SECOND_RUN_ID)
+    assert denied["result"]["final_state"] == "DENIED_BY_HUMAN"
+    assert restarted_runtime.executor.mutation_calls == 0
+    assert unknown_status == 404
+    assert unknown["error"] == "NOT_FOUND"
+
+
+def test_unverified_release_does_not_rearm_demo_resource(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    application, runtime = _application(tmp_path)
+    _start(application)
+    challenge = _challenge(application)
+    _call(
+        application,
+        "POST",
+        f"/api/runs/{RUN_ID}/decision",
+        body=_decision_body(challenge, "APPROVED"),
+    )
+
+    def reject_verification(_receipt: object) -> object:
+        raise LocalMockConflictError("synthetic independent verification mismatch")
+
+    monkeypatch.setattr(runtime.executor, "verify", reject_verification)
+    _call(
+        application,
+        "POST",
+        f"/api/runs/{RUN_ID}/resume",
+        body={"confirm_execution": True},
+    )
+    restarted_runtime = create_local_hitl_runtime(
+        LocalHitlSettings(
+            state_path=tmp_path / "truth.json",
+            inventory_path=tmp_path / "inventory.json",
+        ),
+        clock=lambda: NOW,
+        proposal_id_factory=lambda: SECOND_PROPOSAL_ID,
+        event_id_factory=generate_event_id,
+    )
+    trace_ids = iter((SECOND_TRACE_ID, SECOND_CORRELATION_ID))
+    restarted = LocalApiApplication(
+        restarted_runtime,
+        LocalApiTokenAuthorizer(TOKEN),
+        clock=lambda: NOW,
+        run_id_factory=lambda: SECOND_RUN_ID,
+        trace_id_factory=lambda: next(trace_ids),
+    )
+    status, payload, _ = _call(
+        restarted,
+        "POST",
+        "/api/runs",
+        body={
+            "resource_type": CloudResourceType.ELASTIC_IP.value,
+            "resource_id": MOCK_UNATTACHED_EIP_ID,
+        },
+    )
+
+    assert runtime.executor.mutation_calls == 1
+    assert status == 404
+    assert payload["failure_code"] == "RESOURCE_NOT_FOUND"
+
+
+@pytest.mark.parametrize("legacy_first_intent", [False, True])
+def test_repeated_verified_releases_have_distinct_execution_ownership(
+    tmp_path: Path,
+    legacy_first_intent: bool,
+) -> None:
+    run_ids = []
+    receipt_keys = []
+    proposal_hashes = []
+    for cycle in range(3):
+        now = NOW + timedelta(seconds=cycle)
+        runtime = create_local_hitl_runtime(
+            LocalHitlSettings(
+                state_path=tmp_path / "truth.json",
+                inventory_path=tmp_path / "inventory.json",
+            ),
+            clock=lambda now=now: now,
+        )
+        application = LocalApiApplication(
+            runtime, LocalApiTokenAuthorizer(TOKEN), clock=lambda now=now: now
+        )
+        run_id = _start(application)["run_id"]
+        assert run_id not in run_ids
+        status, challenge, _ = _call(
+            application, "POST", f"/api/runs/{run_id}/approval-request", body={}
+        )
+        assert status == 200
+        status, approved, _ = _call(
+            application, "POST", f"/api/runs/{run_id}/decision",
+            body=_decision_body(challenge["result"], "APPROVED"),
+        )
+        assert status == 200
+        assert approved["result"]["final_state"] == "APPROVED"
+        assert runtime.executor.mutation_calls == 0
+
+        if cycle == 0 and legacy_first_intent:
+            checkpoint = runtime.repository.get_checkpoint(UUID(run_id))
+            proposal = checkpoint.remediation_proposal
+            intent = LocalExecutionIntent.create(
+                proposal, checkpoint.local_approval, registered_at=now
+            )
+            legacy = intent.model_copy(
+                update={"idempotency_key": f"local-exec:{proposal.proposal_hash}"}
+            )
+            legacy = LocalExecutionIntent.model_validate({
+                **legacy.model_dump(mode="json"),
+                "intent_hash": compute_evidence_digest(legacy.binding_payload()),
+            })
+            runtime.repository.save_checkpoint(
+                Checkpoint.model_validate({
+                    **checkpoint.model_dump(mode="json"),
+                    "local_execution_intent": legacy,
+                    "version": checkpoint.version + 1,
+                }),
+                expected_version=checkpoint.version,
+            )
+
+        status, completed, _ = _call(
+            application, "POST", f"/api/runs/{run_id}/resume",
+            body={"confirm_execution": True},
+        )
+        assert status == 200
+        assert completed["result"]["final_state"] == "SUCCESS_WITH_EVIDENCE"
+        assert runtime.executor.mutation_calls == 1
+        checkpoint = runtime.repository.get_checkpoint(UUID(run_id))
+        receipt = checkpoint.local_execution_receipt
+        assert receipt.run_id == UUID(run_id)
+        assert checkpoint.local_verification.receipt_hash == receipt.receipt_hash
+        receipt_keys.append(receipt.idempotency_key)
+        proposal_hashes.append(receipt.proposal_hash)
+        run_ids.append(run_id)
+
+        for completed_id in run_ids:
+            status, replayed, _ = _call(
+                application, "POST", f"/api/runs/{completed_id}/resume",
+                body={"confirm_execution": True},
+            )
+            assert status == 200
+            assert replayed["result"]["reconciled"] is True
+            assert replayed["result"]["run_id"] == completed_id
+        assert runtime.executor.mutation_calls == 1
+
+    assert len(set(proposal_hashes)) == 1
+    assert len(set(receipt_keys)) == 3

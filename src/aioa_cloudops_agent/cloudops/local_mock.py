@@ -205,6 +205,82 @@ class LocalMockStateStore:
             _, receipts = self._load()
             return receipts.get(idempotency_key)
 
+    def released_default_resource_receipt(
+        self,
+        query: ResourceQuery,
+    ) -> LocalExecutionReceipt | None:
+        """Return the receipt that consumed a built-in demo fixture, if any."""
+
+        if not isinstance(query, ResourceQuery):
+            raise TypeError("query must be ResourceQuery")
+        key = (query.resource_type, query.resource_id, query.region)
+        initial = {
+            (item.resource_type, item.resource_id, item.region): item
+            for item in self._initial_resources
+        }.get(key)
+        if initial is None:
+            return None
+        with self._lock(exclusive=False):
+            resources, receipts = self._load()
+        if key in resources:
+            return None
+        candidates = (
+            receipt
+            for receipt in receipts.values()
+            if receipt.target_resource_type is query.resource_type
+            and receipt.target_resource_id == query.resource_id
+            and receipt.before_resource == initial
+            and receipt.after_resource is None
+        )
+        return max(
+            candidates,
+            key=lambda receipt: (receipt.executed_at, receipt.receipt_hash),
+            default=None,
+        )
+
+    def rearm_verified_demo_resource(
+        self,
+        query: ResourceQuery,
+        *,
+        receipt_hash: str,
+    ) -> bool:
+        """Re-arm one consumed built-in fixture after its prior run was verified."""
+
+        if not isinstance(query, ResourceQuery):
+            raise TypeError("query must be ResourceQuery")
+        key = (query.resource_type, query.resource_id, query.region)
+        initial = {
+            (item.resource_type, item.resource_id, item.region): item
+            for item in self._initial_resources
+        }.get(key)
+        if initial is None:
+            return False
+        with self._lock(exclusive=True):
+            resources, receipts = self._load()
+            if key in resources:
+                return False
+            receipt = next(
+                (
+                    item
+                    for item in receipts.values()
+                    if item.receipt_hash == receipt_hash
+                ),
+                None,
+            )
+            if (
+                receipt is None
+                or receipt.target_resource_type is not query.resource_type
+                or receipt.target_resource_id != query.resource_id
+                or receipt.before_resource != initial
+                or receipt.after_resource is not None
+            ):
+                raise LocalMockPolicyError(
+                    "demo fixture re-arm is not bound to the consuming receipt"
+                )
+            resources[key] = initial
+            self._write(resources, receipts)
+            return True
+
     def execute(
         self,
         *,
@@ -342,7 +418,11 @@ class LocalMockStateStore:
             or intent.operation_type is not proposal.operation_type
             or intent.target_resource_type is not proposal.target_resource_type
             or intent.target_resource_id != proposal.target_resource_id
-            or intent.idempotency_key != f"local-exec:{proposal.proposal_hash}"
+            or intent.idempotency_key not in {
+                f"local-exec:{proposal.run_id}:{proposal.proposal_hash}",
+                # Legacy receipts remain bound by every identity checked above.
+                f"local-exec:{proposal.proposal_hash}",
+            }
         ):
             raise LocalMockPolicyError(
                 "local executor prerequisites are not exactly approval-bound"

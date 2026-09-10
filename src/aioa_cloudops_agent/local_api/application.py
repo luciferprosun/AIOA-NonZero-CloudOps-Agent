@@ -24,6 +24,7 @@ from aioa_cloudops_agent.nz import (
     ResultStatus,
     Run,
     Uuid7Identifier,
+    WorkflowState,
     generate_run_id,
     generate_trace_id,
 )
@@ -593,6 +594,28 @@ class LocalApiApplication:
             return protected
         try:
             start = _json_model(request, LocalStartRunRequest)
+            query = start.to_query()
+            consumed = self._runtime.cloud_state.released_default_resource_receipt(
+                query
+            )
+            if consumed is not None:
+                prior = self._runtime.repository.read_run_snapshot(consumed.run_id)
+                checkpoint = prior.checkpoint
+                verification = (
+                    None if checkpoint is None else checkpoint.local_verification
+                )
+                if (
+                    prior.run is not None
+                    and prior.run.state is WorkflowState.SUCCESS_WITH_EVIDENCE
+                    and checkpoint is not None
+                    and checkpoint.local_execution_receipt == consumed
+                    and verification is not None
+                    and verification.receipt_hash == consumed.receipt_hash
+                ):
+                    self._runtime.cloud_state.rearm_verified_demo_resource(
+                        query,
+                        receipt_hash=consumed.receipt_hash,
+                    )
             now = self._clock()
             run_id = self._run_id_factory()
             run = Run.new(
@@ -607,9 +630,15 @@ class LocalApiApplication:
                     max_elapsed_seconds=60,
                 ),
             )
-            result = self._runtime.phase_one.execute(run, start.to_query())
+            result = self._runtime.phase_one.execute(run, query)
         except _Rejected as rejection:
             return self._error(rejection.code, rejection.status)
+        except (CloudAdapterUnavailableError, StorageDependencyError):
+            return self._error(
+                LocalApiErrorCode.DEPENDENCY_UNAVAILABLE,
+                503,
+                retryable=True,
+            )
         except Exception:
             return self._error(LocalApiErrorCode.INTERNAL_ERROR, 500)
         if result.status is ResultStatus.FAILURE or result.value is None:
